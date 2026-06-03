@@ -1,0 +1,562 @@
+---
+title: "Bayesian Analysis of Binomial Ordering Preferences"
+author: "Zachary Houghton"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    theme: flatly
+params:
+  slug: "znhoughton_opt-babylm-125m-20eps-seed964"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache   = TRUE,
+  cache.path = "bayesian_cache/"
+)
+set.seed(964)
+```
+
+```{r libraries}
+library(tidyverse)
+library(brms)
+library(BayesFactor)
+library(bayestestR)   # rope(), describe_posterior()
+library(posterior)    # summarise_draws()
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+```
+
+```{r paths}
+BASE        <- "D:/PhD Stuff/Linguistics Stuff/binom-corpus-pls"
+SLUG        <- params$slug
+RESULTS_DIR <- file.path(BASE, "Results", SLUG)
+
+DELTA_F   <- file.path(RESULTS_DIR, "delta_features.csv")
+NOVEL_F   <- file.path(RESULTS_DIR, "novel_pls_scores.csv")
+CORPUS_F  <- file.path(RESULTS_DIR, "corpus_pls_scores.csv")
+
+cat("Model slug:", SLUG, "\n")
+```
+
+```{r load-data}
+delta_df  <- read_csv(DELTA_F,  show_col_types = FALSE)
+novel_df  <- read_csv(NOVEL_F,  show_col_types = FALSE)
+corpus_df <- read_csv(CORPUS_F, show_col_types = FALSE)
+
+cat("Delta features:  ", nrow(delta_df),  "pairs\n")
+cat("Novel PLS scores:", nrow(novel_df),  "pairs\n")
+cat("Corpus PLS scores:", nrow(corpus_df), "pairs\n")
+```
+
+---
+
+# 1. Bayesian Feature–Component Correlations
+
+The frequentist analysis reports Pearson *r* with a t-test p-value. Here we replace
+p-values with **Bayes Factors** (BF₁₀) from `BayesFactor::correlationBF()`, which
+uses a JZS prior (Cauchy with scale = 0.333 on ρ). BF₁₀ > 10 is conventionally
+"strong" evidence for H₁; BF₁₀ < 1/10 favours H₀.
+
+For each BF we also extract the posterior median and 95% credible interval on ρ
+from 10,000 posterior samples.
+
+```{r bayes-correlations, cache=TRUE}
+components  <- paste0("C", 1:15)
+targets     <- c(components, "preference")
+delta_cols  <- names(delta_df)[startsWith(names(delta_df), "delta_")]
+
+run_bf_cor <- function(x_vec, y_vec, min_n = 100) {
+  keep <- complete.cases(x_vec, y_vec)
+  x <- x_vec[keep]; y <- y_vec[keep]
+  if (length(x) < min_n) return(NULL)
+
+  bf_obj  <- correlationBF(y = y, x = x, nullInterval = NULL)
+  bf10    <- extractBF(bf_obj)$bf
+
+  samps   <- posterior(bf_obj, iterations = 10000)
+  rho_samp <- samps[, "rho"]
+  ci      <- quantile(rho_samp, probs = c(0.025, 0.5, 0.975))
+
+  tibble(
+    n          = length(x),
+    r_pearson  = cor(x, y, method = "pearson"),
+    BF10       = bf10,
+    rho_median = ci[2],
+    rho_lo95   = ci[1],
+    rho_hi95   = ci[3]
+  )
+}
+
+bf_results <- list()
+
+for (d in delta_cols) {
+  feat  <- sub("^delta_", "", d)
+  x_vec <- delta_df[[d]]
+  for (tgt in targets) {
+    y_vec  <- delta_df[[tgt]]
+    result <- run_bf_cor(x_vec, y_vec)
+    if (!is.null(result)) {
+      bf_results[[length(bf_results) + 1]] <-
+        bind_cols(tibble(feature = feat, target = tgt), result)
+    }
+  }
+}
+
+bf_df <- bind_rows(bf_results)
+```
+
+## 1.1 BF₁₀ heatmap (feature × component)
+
+```{r bf-heatmap, fig.width=12, fig.height=4}
+bf_comp <- bf_df %>%
+  filter(target %in% components) %>%
+  mutate(
+    log_bf = log10(pmax(BF10, 1e-3)),   # clip for display
+    target = factor(target, levels = components)
+  )
+
+ggplot(bf_comp, aes(x = target, y = feature, fill = log_bf)) +
+  geom_tile(colour = "white") +
+  geom_text(aes(label = ifelse(abs(log_bf) > 1,
+                               sprintf("%.1f", log_bf), "")),
+            size = 3) +
+  scale_fill_gradient2(
+    low = "steelblue", mid = "white", high = "firebrick",
+    midpoint = 0,
+    name = "log₁₀(BF₁₀)"
+  ) +
+  labs(
+    title = "Bayes Factors: feature × PLS component",
+    x = "Component", y = "Feature",
+    caption = "Cell values shown where |log₁₀(BF₁₀)| > 1 (BF > 10 or < 0.1)"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+## 1.2 Full results table
+
+```{r bf-table}
+bf_df %>%
+  mutate(
+    BF10       = formatC(BF10,       format = "e", digits = 2),
+    r_pearson  = round(r_pearson, 3),
+    rho_median = round(rho_median, 3),
+    CI_95      = sprintf("[%.3f, %.3f]", rho_lo95, rho_hi95)
+  ) %>%
+  select(feature, target, n, r_pearson, BF10, rho_median, CI_95) %>%
+  arrange(feature, target) %>%
+  kable(
+    col.names = c("Feature", "Target", "n", "Pearson r",
+                  "BF₁₀", "Post. median ρ", "95% CI"),
+    align = "llrrrrl"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE)
+```
+
+## 1.3 Feature–preference Bayes Factors
+
+```{r bf-preference}
+bf_df %>%
+  filter(target == "preference") %>%
+  arrange(desc(BF10)) %>%
+  mutate(
+    BF10 = formatC(BF10, format = "e", digits = 2),
+    r_pearson = round(r_pearson, 3),
+    CI_95 = sprintf("[%.3f, %.3f]", rho_lo95, rho_hi95)
+  ) %>%
+  select(feature, n, r_pearson, BF10, CI_95) %>%
+  kable(
+    col.names = c("Feature", "n", "Pearson r", "BF₁₀", "95% CI"),
+    caption = "Bayesian correlations between Δfeature and model ordering preference"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+```
+
+---
+
+# 2. Mixed-Effects Regression: Novel Set
+
+The cross-validation analyses treat each pair as an independent observation, but
+pairs sharing a word are not independent — if *cat* tends to go first, all pairs
+containing *cat* will show a similar bias. This inflates precision.
+
+We fit a Bayesian mixed-effects model with **crossed random intercepts** for word1
+and word2, which absorbs word-level ordering biases and gives unbiased estimates
+of the fixed effects (PLS components).
+
+$$\text{preference}_{ij} = \beta_0 + \sum_{k=1}^{15} \beta_k C_{kij} + u_i + v_j + \varepsilon_{ij}$$
+
+where $u_i \sim \mathcal{N}(0, \sigma^2_{\text{w1}})$ and
+$v_j \sim \mathcal{N}(0, \sigma^2_{\text{w2}})$ are word-level random intercepts.
+
+## 2.1 Priors
+
+```{r novel-priors}
+# Weakly informative priors.
+# PLS scores are z-scored, so beta ~ N(0,1) is reasonable.
+# Random effect SDs: exponential(1) concentrates near 0 but has a long tail.
+novel_priors <- c(
+  prior(normal(0, 1),    class = b),
+  prior(normal(0, 2),    class = Intercept),
+  prior(exponential(1),  class = sd),
+  prior(exponential(1),  class = sigma)
+)
+```
+
+## 2.2 Fit (novel set)
+
+> **Note:** This model has ~8,955 unique words, giving ~17,910 random effects.
+> Expect ~30–60 min on a modern CPU with 4 chains. Results are cached.
+
+```{r fit-novel, cache=TRUE}
+comp_formula <- paste(paste0("C", 1:15), collapse = " + ")
+novel_formula <- as.formula(
+  paste("preference ~", comp_formula, "+ (1 | word1) + (1 | word2)")
+)
+
+fit_novel <- brm(
+  formula  = novel_formula,
+  data     = novel_df,
+  prior    = novel_priors,
+  family   = gaussian(),
+  chains   = 4,
+  iter     = 4000,
+  warmup   = 2000,
+  cores    = 4,
+  seed     = 964,
+  backend  = "cmdstanr",    # faster than rstan; fall back to "rstan" if needed
+  file     = file.path(RESULTS_DIR, "brms_novel_fit")   # saves/reloads automatically
+)
+```
+
+## 2.3 Model diagnostics
+
+```{r novel-diagnostics, fig.width=8, fig.height=5}
+# Rhat and ESS summary
+diag <- summarise_draws(fit_novel, "rhat", "ess_bulk", "ess_tail") %>%
+  filter(str_starts(variable, "b_") | str_starts(variable, "sd_") |
+           variable == "sigma")
+
+cat("Max Rhat (should be < 1.01):", round(max(diag$rhat, na.rm = TRUE), 4), "\n")
+cat("Min ESS bulk (should be > 400):", round(min(diag$ess_bulk, na.rm = TRUE), 0), "\n")
+
+# Posterior predictive check
+pp_check(fit_novel, ndraws = 100) +
+  labs(title = "Posterior predictive check — novel set",
+       x = "Ordering preference", y = "Density") +
+  theme_minimal()
+```
+
+## 2.4 Fixed effects
+
+```{r novel-fixed-effects}
+fe <- fixef(fit_novel) %>%
+  as.data.frame() %>%
+  rownames_to_column("term") %>%
+  filter(term != "Intercept") %>%
+  mutate(across(where(is.numeric), ~round(.x, 4)))
+
+fe %>%
+  kable(
+    col.names = c("Component", "Estimate", "Est. Error", "Q2.5", "Q97.5"),
+    caption = "Fixed effects: PLS components predicting novel ordering preference"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+```
+
+```{r novel-fe-plot, fig.width=8, fig.height=5}
+fe %>%
+  mutate(term = factor(term, levels = rev(term))) %>%
+  ggplot(aes(x = Estimate, xmin = Q2.5, xmax = Q97.5, y = term)) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_linerange() +
+  geom_point(size = 2) +
+  labs(
+    title = "Fixed effects with 95% credible intervals",
+    x = "Coefficient estimate", y = NULL
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+## 2.5 Random effects and ICC
+
+The **intraclass correlation coefficient (ICC)** is the proportion of variance
+attributable to word-level effects. A high ICC means ordering preferences are
+largely lexically specific — knowing a word's tendency from one pair predicts
+its tendency in others.
+
+```{r novel-icc}
+vc <- VarCorr(fit_novel, summary = TRUE)
+
+sigma2_w1  <- vc$word1$sd[1, "Estimate"]^2
+sigma2_w2  <- vc$word2$sd[1, "Estimate"]^2
+sigma2_res <- vc$residual__$sd[1, "Estimate"]^2
+sigma2_tot <- sigma2_w1 + sigma2_w2 + sigma2_res
+
+icc_w1  <- sigma2_w1  / sigma2_tot
+icc_w2  <- sigma2_w2  / sigma2_tot
+icc_tot <- (sigma2_w1 + sigma2_w2) / sigma2_tot
+
+cat(sprintf("σ²(word1)   = %.4f  ICC = %.3f\n", sigma2_w1, icc_w1))
+cat(sprintf("σ²(word2)   = %.4f  ICC = %.3f\n", sigma2_w2, icc_w2))
+cat(sprintf("σ²(residual)= %.4f\n", sigma2_res))
+cat(sprintf("Total ICC (word-level) = %.3f\n", icc_tot))
+cat("\nInterpretation: %.1f%% of variance in ordering preference is attributable\n",
+    icc_tot * 100)
+cat("to word-level idiosyncratic effects rather than pair-level structure.\n")
+```
+
+## 2.6 Bayesian R²
+
+```{r novel-r2}
+r2_novel <- bayes_R2(fit_novel, summary = FALSE)
+cat(sprintf("Bayesian R² (novel, with word random effects):\n"))
+cat(sprintf("  Median = %.3f  [%.3f, %.3f]\n",
+            median(r2_novel[, "R2"]),
+            quantile(r2_novel[, "R2"], 0.025),
+            quantile(r2_novel[, "R2"], 0.975)))
+```
+
+---
+
+# 3. Mixed-Effects Regression: Corpus (In-Sample)
+
+The same model fit on the 212,946 attested corpus pairs. This gives the Bayesian
+in-sample R² comparable to the novel transfer result.
+
+> **Note:** With 212,946 pairs this will be substantially slower than the novel
+> model. Consider running overnight or on a computing cluster.
+
+```{r fit-corpus, cache=TRUE}
+corpus_formula <- as.formula(
+  paste("preference ~", comp_formula, "+ (1 | word1) + (1 | word2)")
+)
+
+# Corpus has many more unique words — increase adapt_delta to reduce divergences
+corpus_ctrl <- list(adapt_delta = 0.95)
+
+fit_corpus <- brm(
+  formula   = corpus_formula,
+  data      = corpus_df,
+  prior     = novel_priors,
+  family    = gaussian(),
+  chains    = 4,
+  iter      = 4000,
+  warmup    = 2000,
+  cores     = 4,
+  seed      = 964,
+  backend   = "cmdstanr",
+  control   = corpus_ctrl,
+  file      = file.path(RESULTS_DIR, "brms_corpus_fit")
+)
+```
+
+```{r corpus-r2}
+r2_corpus <- bayes_R2(fit_corpus, summary = FALSE)
+cat(sprintf("Bayesian R² (corpus, in-sample, with word random effects):\n"))
+cat(sprintf("  Median = %.3f  [%.3f, %.3f]\n",
+            median(r2_corpus[, "R2"]),
+            quantile(r2_corpus[, "R2"], 0.025),
+            quantile(r2_corpus[, "R2"], 0.975)))
+```
+
+```{r corpus-icc}
+vc_c <- VarCorr(fit_corpus, summary = TRUE)
+
+s2_w1  <- vc_c$word1$sd[1, "Estimate"]^2
+s2_w2  <- vc_c$word2$sd[1, "Estimate"]^2
+s2_res <- vc_c$residual__$sd[1, "Estimate"]^2
+s2_tot <- s2_w1 + s2_w2 + s2_res
+
+cat(sprintf("Corpus ICC (word-level) = %.3f\n", (s2_w1 + s2_w2) / s2_tot))
+```
+
+---
+
+# 4. Corpus Word-Level Cross-Validation
+
+The corpus word-level CV mirrors the novel word-level CV: unique words are split
+into 10 folds; a corpus pair is testable only when both words fall in the same
+held-out fold (~10% of pairs). PLS is refit from scratch on each training fold.
+
+This allows direct comparison of word-level generalization within the attested
+corpus vs. within the novel set — testing whether the lexical specificity pattern
+(larger models → worse word-level CV) holds in both datasets.
+
+```{r load-corpus-wordcv}
+corpus_wcv_summary <- read_csv(
+  file.path(RESULTS_DIR, "corpus_wordcv_summary.csv"),
+  show_col_types = FALSE
+)
+corpus_wcv_folds <- read_csv(
+  file.path(RESULTS_DIR, "corpus_wordcv_fold_stats.csv"),
+  show_col_types = FALSE
+)
+corpus_wcv_preds <- read_csv(
+  file.path(RESULTS_DIR, "corpus_wordcv_predictions.csv"),
+  show_col_types = FALSE
+)
+
+cat("Corpus word-level CV summary:\n")
+print(corpus_wcv_summary)
+```
+
+## 4.1 Bayesian correlation: corpus word CV predictions vs. observed
+
+```{r corpus-wcv-bayes-cor, cache=TRUE}
+bf_corpus_wcv <- correlationBF(
+  y = corpus_wcv_preds$preference,
+  x = corpus_wcv_preds$cv_pred,
+  nullInterval = NULL
+)
+
+bf10_cwcv <- extractBF(bf_corpus_wcv)$bf
+samps_cwcv <- posterior(bf_corpus_wcv, iterations = 10000)
+ci_cwcv    <- quantile(samps_cwcv[, "rho"], probs = c(0.025, 0.5, 0.975))
+
+cat(sprintf("Corpus word-level CV\n"))
+cat(sprintf("  BF10 = %.2e\n", bf10_cwcv))
+cat(sprintf("  Posterior median r = %.3f  [%.3f, %.3f]\n",
+            ci_cwcv[2], ci_cwcv[1], ci_cwcv[3]))
+cat(sprintf("  r² = %.3f\n", corpus_wcv_summary$cv_r2))
+```
+
+## 4.2 Compare corpus vs. novel word-level CV
+
+```{r wcv-comparison}
+novel_wcv_summary <- read_csv(
+  file.path(RESULTS_DIR, "novel_wordcv_summary.csv"),
+  show_col_types = FALSE
+)
+
+tibble(
+  Set          = c("Corpus word-level CV", "Novel word-level CV"),
+  n_tested     = c(corpus_wcv_summary$n_tested, novel_wcv_summary$n_tested),
+  n_total      = c(corpus_wcv_summary$n_total,  novel_wcv_summary$n_total),
+  pct_testable = round(100 * n_tested / n_total, 1),
+  cv_r         = c(corpus_wcv_summary$cv_r,  novel_wcv_summary$cv_r),
+  cv_r2        = c(corpus_wcv_summary$cv_r2, novel_wcv_summary$cv_r2)
+) %>%
+  kable(
+    col.names = c("Set", "n tested", "n total", "% testable", "CV r", "CV r²"),
+    caption   = "Word-level CV: corpus vs. novel"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+```
+
+## 4.3 Per-fold r² comparison
+
+```{r wcv-fold-plot, fig.width=8, fig.height=4}
+bind_rows(
+  corpus_wcv_folds %>% mutate(set = "Corpus"),
+  read_csv(file.path(RESULTS_DIR, "novel_wordcv_fold_stats.csv"),
+           show_col_types = FALSE) %>% mutate(set = "Novel")
+) %>%
+  ggplot(aes(x = fold, y = r2, colour = set, group = set)) +
+  geom_line() +
+  geom_point(size = 2) +
+  scale_x_continuous(breaks = 1:10) +
+  labs(
+    title = "Word-level CV r² per fold: corpus vs. novel",
+    x = "Fold", y = "r²", colour = NULL
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+---
+
+# 5. Fixed-Effects-Only Models (Comparison)
+
+To quantify how much the word random effects change the fixed-effect estimates,
+we fit the same regression without random effects.
+
+```{r fit-novel-fe-only, cache=TRUE}
+fe_formula <- as.formula(paste("preference ~", comp_formula))
+
+fit_novel_fe <- brm(
+  formula = fe_formula,
+  data    = novel_df,
+  prior   = c(prior(normal(0, 1), class = b),
+              prior(normal(0, 2), class = Intercept),
+              prior(exponential(1), class = sigma)),
+  family  = gaussian(),
+  chains  = 4,
+  iter    = 4000,
+  warmup  = 2000,
+  cores   = 4,
+  seed    = 964,
+  backend = "cmdstanr",
+  file    = file.path(RESULTS_DIR, "brms_novel_fe_fit")
+)
+```
+
+```{r compare-fe-re}
+r2_fe   <- bayes_R2(fit_novel_fe, summary = FALSE)
+r2_re   <- r2_novel   # computed above
+
+cat("Novel set — fixed effects only:\n")
+cat(sprintf("  R² = %.3f [%.3f, %.3f]\n",
+            median(r2_fe[,"R2"]),
+            quantile(r2_fe[,"R2"], 0.025),
+            quantile(r2_fe[,"R2"], 0.975)))
+
+cat("\nNovel set — with word random effects:\n")
+cat(sprintf("  R² = %.3f [%.3f, %.3f]\n",
+            median(r2_re[,"R2"]),
+            quantile(r2_re[,"R2"], 0.025),
+            quantile(r2_re[,"R2"], 0.975)))
+
+cat("\nDifference in R² attributable to word random effects:",
+    round(median(r2_re[,"R2"]) - median(r2_fe[,"R2"]), 3), "\n")
+```
+
+---
+
+# 5. Summary Table
+
+```{r summary-table}
+tibble(
+  Model      = SLUG,
+  Set        = c("Corpus (in-sample)", "Novel (frozen)", "Novel (frozen)"),
+  RE         = c("word1 + word2", "word1 + word2", "none"),
+  R2_median  = c(
+    round(median(r2_corpus[,"R2"]), 3),
+    round(median(r2_novel[,"R2"]),  3),
+    round(median(r2_fe[,"R2"]),     3)
+  ),
+  R2_lo = c(
+    round(quantile(r2_corpus[,"R2"], 0.025), 3),
+    round(quantile(r2_novel[,"R2"],  0.025), 3),
+    round(quantile(r2_fe[,"R2"],     0.025), 3)
+  ),
+  R2_hi = c(
+    round(quantile(r2_corpus[,"R2"], 0.975), 3),
+    round(quantile(r2_novel[,"R2"],  0.975), 3),
+    round(quantile(r2_fe[,"R2"],     0.975), 3)
+  )
+) %>%
+  mutate(CI_95 = sprintf("[%.3f, %.3f]", R2_lo, R2_hi)) %>%
+  select(Model, Set, RE, R2_median, CI_95) %>%
+  kable(
+    col.names = c("Model", "Set", "Random effects", "R² (median)", "95% CI"),
+    caption = "Bayesian R² summary — all values with 95% credible intervals"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Session Info
+
+```{r session-info}
+sessionInfo()
+```
