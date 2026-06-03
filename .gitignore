@@ -1,0 +1,33 @@
+# ── Embeddings (large; regenerate with Scripts/preprocessing/run_preprocessing_pipeline.py) ──
+Data/embeddings/
+Data/novel_embeddings/
+
+# ── Large intermediate result files (regenerate with Scripts/run_full_pipeline.py) ──
+# Per-stratum PLS component score dumps — not read by any downstream script
+Results/**/stratum_*_corpus.csv
+Results/**/stratum_*_novel.csv
+# Pair-level CV predictions — summary CSVs are retained
+Results/**/novel_cv_predictions.csv
+# brms model objects — too large for git; re-fit via bayesian_analysis.Rmd
+Results/**/*.rds
+
+# ── Presentation (rendered output; regenerate with `quarto render`) ───────────
+Presentation/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ── R ─────────────────────────────────────────────────────────────────────────
+.Rhistory
+.RData
+.Rproj.user/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,2 @@
+k_folds,k_pls,n_tested,n_total,cv_r,cv_r2,cv_rho
+10,15,5444,53685,0.286811,0.082261,0.281504
