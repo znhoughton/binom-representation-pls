@@ -37,10 +37,11 @@ from scipy.stats import pearsonr as scipy_pearsonr
 BASE = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--slug", default="znhoughton_opt-babylm-125m-20eps-seed964")
+parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
+parser.add_argument("--layer", default="last", choices=["last", "second_to_last"])
 args   = parser.parse_args()
 
-out_dir   = BASE / "Results" / args.slug
+out_dir   = BASE / "Results" / args.slug / f"layer_{args.layer}"
 out_dir.mkdir(parents=True, exist_ok=True)
 SEED      = 964
 TOP_Q     = 0.25
@@ -72,7 +73,7 @@ for w in words:
 print(f"  {len(vecs):,}/{len(words):,} words have vectors")
 
 # ── Analysis 1: direction ────────────────────────────────────────────────────
-print("\n=== Analysis 1: Pair cosine similarity + W1→W2 direction ===")
+print("\n=== Analysis 1: Pair cosine similarity + W1->W2 direction ===")
 
 w1_vecs  = np.stack([vecs.get(w, np.zeros(300, np.float32)) for w in df["word1"]])
 w2_vecs  = np.stack([vecs.get(w, np.zeros(300, np.float32)) for w in df["word2"]])

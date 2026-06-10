@@ -1,0 +1,2 @@
+fold,n_train,n_test,train_r,train_r2,test_r,test_r2,test_rho
+0,48950,24461,0.937128,0.878209,0.065585,0.004301,0.06479

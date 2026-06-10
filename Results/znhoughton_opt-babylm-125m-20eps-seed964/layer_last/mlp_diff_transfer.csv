@@ -1,0 +1,2 @@
+input,split,folds,epochs,n_train,n_test,test_r,test_r2,test_rho,train_r
+diff,transfer,1,200,48950,340042,0.172783,0.029854,0.165446,0.757445

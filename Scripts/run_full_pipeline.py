@@ -14,6 +14,7 @@ Steps:
   freq_stratum lib/frequency_analysis.py     per-stratum PLS → novel transfer
   freq_holdout lib/frequency_analysis.py     low-freq train → high-freq test
   freq_boot    lib/frequency_analysis.py     bootstrap equalized-N stratum
+  permutation  lib/permutation_test.py       permutation test for corpus→novel transfer
   correlations feature_correlations.R        Pearson/Spearman r table
 
 Usage:
@@ -41,17 +42,27 @@ ALL_SLUGS = [
 ]
 
 # (step_name, script_path, extra_args)
+# extra_args = None signals an R script (no --slug, takes slug as positional arg)
 STEPS = [
-    ("pls",          LIB / "pls_analysis.py",          []),
-    ("cv_pair",      LIB / "cross_validation.py",       ["--mode", "pair_novel"]),
-    ("cv_word_nov",  LIB / "cross_validation.py",       ["--mode", "word_novel"]),
-    ("cv_word_cor",  LIB / "cross_validation.py",       ["--mode", "word_corpus"]),
-    ("features",     LIB / "compute_delta_features.py", []),
-    ("semantic",     LIB / "semantic_analysis.py",      []),
-    ("freq_stratum", LIB / "frequency_analysis.py",     ["--mode", "stratum"]),
-    ("freq_holdout", LIB / "frequency_analysis.py",     ["--mode", "holdout"]),
-    ("freq_boot",    LIB / "frequency_analysis.py",     ["--mode", "bootstrap"]),
-    ("correlations", SCRIPTS / "feature_correlations.R", None),  # None = R script
+    ("pls",                   LIB / "pls_analysis.py",          []),
+    ("cv_pair",               LIB / "cross_validation.py",       ["--mode", "pair_novel"]),
+    ("cv_word_nov",           LIB / "cross_validation.py",       ["--mode", "word_novel"]),
+    ("cv_word_cor",           LIB / "cross_validation.py",       ["--mode", "word_corpus"]),
+    ("features",              LIB / "compute_delta_features.py", []),
+    ("semantic",              LIB / "semantic_analysis.py",      []),
+    ("freq_stratum",          LIB / "frequency_analysis.py",     ["--mode", "stratum"]),
+    ("freq_holdout",          LIB / "frequency_analysis.py",     ["--mode", "holdout"]),
+    ("freq_boot",             LIB / "frequency_analysis.py",     ["--mode", "bootstrap"]),
+    ("permutation",           LIB / "permutation_test.py",       []),
+    ("mlp_diff_transfer",      LIB / "mlp_comparison.py",         ["--input", "diff",   "--split", "transfer"]),
+    ("mlp_diff_pair_novel",    LIB / "mlp_comparison.py",         ["--input", "diff",   "--split", "pair_novel"]),
+    ("mlp_diff_word_novel",    LIB / "mlp_comparison.py",         ["--input", "diff",   "--split", "word_novel"]),
+    ("mlp_diff_word_strict",   LIB / "mlp_comparison.py",         ["--input", "diff",   "--split", "word_strict"]),
+    ("mlp_concat_transfer",    LIB / "mlp_comparison.py",         ["--input", "concat", "--split", "transfer"]),
+    ("mlp_concat_pair_novel",  LIB / "mlp_comparison.py",         ["--input", "concat", "--split", "pair_novel"]),
+    ("mlp_concat_word_novel",  LIB / "mlp_comparison.py",         ["--input", "concat", "--split", "word_novel"]),
+    ("mlp_concat_word_strict", LIB / "mlp_comparison.py",         ["--input", "concat", "--split", "word_strict"]),
+    ("correlations",          SCRIPTS / "feature_correlations.R", None),
 ]
 
 BLAS_ENV = os.environ.copy()
@@ -60,6 +71,7 @@ BLAS_ENV.update({
     "OPENBLAS_NUM_THREADS": "1",
     "MKL_NUM_THREADS":      "1",
     "NUMEXPR_NUM_THREADS":  "1",
+    "PYTHONUNBUFFERED":     "1",
 })
 
 
@@ -73,8 +85,10 @@ def run(cmd, label):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--slugs", nargs="+", default=ALL_SLUGS)
-    parser.add_argument("--steps", nargs="+", default=None,
+    parser.add_argument("--slugs",  nargs="+", default=ALL_SLUGS)
+    parser.add_argument("--layers", nargs="+", default=["last", "second_to_last"],
+                        choices=["last", "second_to_last"])
+    parser.add_argument("--steps",  nargs="+", default=None,
                         help="Subset of steps by name (e.g. pls cv_pair features)")
     args = parser.parse_args()
 
@@ -89,18 +103,20 @@ def main():
         active = step_names
 
     for slug in args.slugs:
-        print(f"\n{'#'*60}\nSlug: {slug}\n{'#'*60}")
+        for layer in args.layers:
+            print(f"\n{'#'*60}\nSlug: {slug}  Layer: {layer}\n{'#'*60}")
 
-        for name, script, extra in STEPS:
-            if name not in active:
-                continue
+            for name, script, extra in STEPS:
+                if name not in active:
+                    continue
 
-            if extra is None:
-                # R script — no --slug, takes slug as positional arg
-                run([RSCRIPT, str(script), slug], f"{script.name} {slug}")
-            else:
-                run([PYTHON, str(script), "--slug", slug] + extra,
-                    f"{script.name} {' '.join(extra)} --slug {slug}")
+                if extra is None:
+                    # R script — takes slug and layer as positional args
+                    run([RSCRIPT, str(script), slug, layer],
+                        f"{script.name} {slug} layer_{layer}")
+                else:
+                    run([PYTHON, str(script), "--slug", slug, "--layer", layer] + extra,
+                        f"{script.name} {' '.join(extra)} --slug {slug} --layer {layer}")
 
     print("\nAll slugs complete.")
 

@@ -6,8 +6,7 @@ Data/novel_embeddings/
 # Per-stratum PLS component score dumps — not read by any downstream script
 Results/**/stratum_*_corpus.csv
 Results/**/stratum_*_novel.csv
-# Pair-level CV predictions — summary CSVs are retained
-Results/**/novel_cv_predictions.csv
+# Pair-level CV per-fold predictions (retained — needed by bayesian_analysis.Rmd)
 # brms model objects — too large for git; re-fit via bayesian_analysis.Rmd
 Results/**/*.rds
 
@@ -16,6 +15,7 @@ Presentation/
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 logs/
+Scripts/preprocessing/*.log
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
@@ -26,6 +26,10 @@ __pycache__/
 .Rhistory
 .RData
 .Rproj.user/
+
+# ── Bayesian report outputs (copy manually from server) ───────────────────────
+Results/bayesian_analysis_*.html
+Results/bayesian_analysis_*_files/
 
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store

@@ -38,19 +38,20 @@ BASE = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
 K    = 15
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--slug", default="znhoughton_opt-babylm-125m-20eps-seed964")
-parser.add_argument("--gpu",  type=int, default=0)
-parser.add_argument("--mode", choices=["stratum", "holdout", "bootstrap"], required=True)
-parser.add_argument("--B",    type=int, default=500, help="Bootstrap iterations (bootstrap mode only)")
+parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
+parser.add_argument("--gpu",   type=int, default=0)
+parser.add_argument("--mode",  choices=["stratum", "holdout", "bootstrap"], required=True)
+parser.add_argument("--B",     type=int, default=500, help="Bootstrap iterations (bootstrap mode only)")
+parser.add_argument("--layer", default="last", choices=["last", "second_to_last"])
 args = parser.parse_args()
 
 device  = load_device(args.gpu)
-out_dir = BASE / "Results" / args.slug
+out_dir = BASE / "Results" / args.slug / f"layer_{args.layer}"
 out_dir.mkdir(parents=True, exist_ok=True)
 print(f"Slug: {args.slug}  mode: {args.mode}  device: {device}")
 
 # -- Load corpus embeddings and frequencies ----------------------------------
-corpus_npz = np.load(BASE / "Data/embeddings" / args.slug / "layer_last.npz", allow_pickle=True)
+corpus_npz = np.load(BASE / "Data/embeddings" / args.slug / f"layer_{args.layer}.npz", allow_pickle=True)
 X_corpus   = torch.from_numpy(corpus_npz["diff_vecs"].astype(np.float32))
 y_corpus   = torch.from_numpy(corpus_npz["preference"].astype(np.float32))
 w1_corpus  = corpus_npz["word1"].astype(str)
@@ -73,7 +74,7 @@ LABELS = ["freq=1", "freq=2-5", "freq=6-20", "freq>20"]
 
 # -- stratum mode ------------------------------------------------------------
 def run_stratum():
-    novel_npz = np.load(BASE / "Data/novel_embeddings" / args.slug / "layer_last.npz",
+    novel_npz = np.load(BASE / "Data/novel_embeddings" / args.slug / f"layer_{args.layer}.npz",
                         allow_pickle=True)
     X_novel   = torch.from_numpy(novel_npz["diff_vecs"].astype(np.float32))
     y_novel   = torch.from_numpy(novel_npz["preference"].astype(np.float32))
@@ -154,7 +155,7 @@ def run_holdout():
 
 # -- bootstrap mode ----------------------------------------------------------
 def run_bootstrap():
-    novel_npz = np.load(BASE / "Data/novel_embeddings" / args.slug / "layer_last.npz",
+    novel_npz = np.load(BASE / "Data/novel_embeddings" / args.slug / f"layer_{args.layer}.npz",
                         allow_pickle=True)
     X_novel   = torch.from_numpy(novel_npz["diff_vecs"].astype(np.float32))
     y_novel   = torch.from_numpy(novel_npz["preference"].astype(np.float32))
