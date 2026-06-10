@@ -27,8 +27,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-BASE    = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
-PYTHON  = r"C:\Users\zacha\anaconda3\envs\PRenv\python.exe"
+BASE    = Path(__file__).resolve().parents[2]
+PYTHON  = sys.executable
 HERE    = Path(__file__).parent
 
 ALL_MODELS = [

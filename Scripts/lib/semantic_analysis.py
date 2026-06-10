@@ -34,7 +34,7 @@ import pandas as pd
 import spacy
 from scipy.stats import pearsonr as scipy_pearsonr
 
-BASE = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
+BASE = Path(__file__).resolve().parents[2]
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
