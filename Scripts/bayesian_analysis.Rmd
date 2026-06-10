@@ -9,7 +9,8 @@ output:
     code_folding: show
     theme: flatly
 params:
-  slug: "znhoughton_opt-babylm-125m-20eps-seed964"
+  slug:  "znhoughton_opt-babylm-125m-20eps-seed964"
+  layer: "last"
 ---
 
 ```{r setup, include=FALSE}
@@ -17,10 +18,45 @@ knitr::opts_chunk$set(
   echo    = TRUE,
   message = FALSE,
   warning = FALSE,
-  cache   = TRUE,
-  cache.path = "bayesian_cache/"
+  cache   = FALSE
 )
 set.seed(964)
+
+# Helper: check Rhat, ESS, and divergences; write to warnings file and stop if bad
+check_diagnostics <- function(fit, label, warn_file) {
+  issues <- c()
+
+  diag <- summarise_draws(fit, "rhat", "ess_bulk", "ess_tail") %>%
+    filter(str_starts(variable, "b_") | str_starts(variable, "sd_") |
+             variable == "sigma")
+
+  max_rhat <- max(diag$rhat, na.rm = TRUE)
+  min_ess  <- min(diag$ess_bulk, na.rm = TRUE)
+
+  if (max_rhat > 1.01)
+    issues <- c(issues, sprintf("HIGH Rhat = %.4f (threshold 1.01)", max_rhat))
+  if (min_ess < 400)
+    issues <- c(issues, sprintf("LOW ESS bulk = %.0f (threshold 400)", min_ess))
+
+  np <- nuts_params(fit)
+  n_div <- sum(np$Value[np$Parameter == "divergent__"])
+  if (n_div > 0)
+    issues <- c(issues, sprintf("%d divergent transitions", n_div))
+
+  if (length(issues) > 0) {
+    msg <- paste0(
+      "\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",
+      "WARNING [", label, "]:\n",
+      paste(" -", issues, collapse = "\n"), "\n",
+      "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+    )
+    cat(msg)
+    cat(paste0(Sys.time(), "  ", msg), file = warn_file, append = TRUE)
+  } else {
+    cat(sprintf("[%s] diagnostics OK  (Rhat=%.4f, min ESS=%.0f, divergences=0)\n",
+                label, max_rhat, min_ess))
+  }
+}
 ```
 
 ```{r libraries}
@@ -36,12 +72,17 @@ library(kableExtra)
 
 ```{r paths}
 BASE        <- "D:/PhD Stuff/Linguistics Stuff/binom-corpus-pls"
-SLUG        <- params$slug
-RESULTS_DIR <- file.path(BASE, "Results", SLUG)
+SLUG        <- if (exists("params")) params$slug  else "znhoughton_opt-babylm-125m-20eps-seed964"
+LAYER       <- if (exists("params")) params$layer else "last"
+RESULTS_DIR <- file.path(BASE, "Results", SLUG, paste0("layer_", LAYER))
 
-DELTA_F   <- file.path(RESULTS_DIR, "delta_features.csv")
-NOVEL_F   <- file.path(RESULTS_DIR, "novel_pls_scores.csv")
-CORPUS_F  <- file.path(RESULTS_DIR, "corpus_pls_scores.csv")
+DELTA_F    <- file.path(RESULTS_DIR, "delta_features.csv")
+NOVEL_F    <- file.path(RESULTS_DIR, "novel_pls_scores.csv")
+CORPUS_F   <- file.path(RESULTS_DIR, "corpus_pls_scores.csv")
+WARN_FILE  <- file.path(RESULTS_DIR, "brms_warnings.txt")
+
+# Clear warnings file at the start of each run
+if (file.exists(WARN_FILE)) file.remove(WARN_FILE)
 
 cat("Model slug:", SLUG, "\n")
 ```
@@ -68,7 +109,7 @@ uses a JZS prior (Cauchy with scale = 0.333 on ρ). BF₁₀ > 10 is conventiona
 For each BF we also extract the posterior median and 95% credible interval on ρ
 from 10,000 posterior samples.
 
-```{r bayes-correlations, cache=TRUE}
+```{r bayes-correlations}
 components  <- paste0("C", 1:15)
 targets     <- c(components, "preference")
 delta_cols  <- names(delta_df)[startsWith(names(delta_df), "delta_")]
@@ -217,7 +258,7 @@ novel_priors <- c(
 > **Note:** This model has ~8,955 unique words, giving ~17,910 random effects.
 > Expect ~30–60 min on a modern CPU with 4 chains. Results are cached.
 
-```{r fit-novel, cache=TRUE}
+```{r fit-novel, cache=FALSE}
 comp_formula <- paste(paste0("C", 1:15), collapse = " + ")
 novel_formula <- as.formula(
   paste("preference ~", comp_formula, "+ (1 | word1) + (1 | word2)")
@@ -248,6 +289,7 @@ diag <- summarise_draws(fit_novel, "rhat", "ess_bulk", "ess_tail") %>%
 
 cat("Max Rhat (should be < 1.01):", round(max(diag$rhat, na.rm = TRUE), 4), "\n")
 cat("Min ESS bulk (should be > 400):", round(min(diag$ess_bulk, na.rm = TRUE), 0), "\n")
+check_diagnostics(fit_novel, paste(SLUG, "novel"), WARN_FILE)
 
 # Posterior predictive check
 pp_check(fit_novel, ndraws = 100) +
@@ -310,20 +352,21 @@ cat(sprintf("σ²(word1)   = %.4f  ICC = %.3f\n", sigma2_w1, icc_w1))
 cat(sprintf("σ²(word2)   = %.4f  ICC = %.3f\n", sigma2_w2, icc_w2))
 cat(sprintf("σ²(residual)= %.4f\n", sigma2_res))
 cat(sprintf("Total ICC (word-level) = %.3f\n", icc_tot))
-cat("\nInterpretation: %.1f%% of variance in ordering preference is attributable\n",
-    icc_tot * 100)
+cat(sprintf("\nInterpretation: %.1f%% of variance in ordering preference is attributable\n",
+    icc_tot * 100))
 cat("to word-level idiosyncratic effects rather than pair-level structure.\n")
 ```
 
 ## 2.6 Bayesian R²
 
 ```{r novel-r2}
-r2_novel <- bayes_R2(fit_novel, summary = FALSE)
+r2_novel <- bayes_R2(fit_novel, summary = FALSE, ndraws = 500)
 cat(sprintf("Bayesian R² (novel, with word random effects):\n"))
 cat(sprintf("  Median = %.3f  [%.3f, %.3f]\n",
             median(r2_novel[, "R2"]),
             quantile(r2_novel[, "R2"], 0.025),
             quantile(r2_novel[, "R2"], 0.975)))
+rm(fit_novel); gc()
 ```
 
 ---
@@ -336,7 +379,7 @@ in-sample R² comparable to the novel transfer result.
 > **Note:** With 212,946 pairs this will be substantially slower than the novel
 > model. Consider running overnight or on a computing cluster.
 
-```{r fit-corpus, cache=TRUE}
+```{r fit-corpus, cache=FALSE}
 corpus_formula <- as.formula(
   paste("preference ~", comp_formula, "+ (1 | word1) + (1 | word2)")
 )
@@ -361,12 +404,13 @@ fit_corpus <- brm(
 ```
 
 ```{r corpus-r2}
-r2_corpus <- bayes_R2(fit_corpus, summary = FALSE)
+r2_corpus <- bayes_R2(fit_corpus, summary = FALSE, ndraws = 500)
 cat(sprintf("Bayesian R² (corpus, in-sample, with word random effects):\n"))
 cat(sprintf("  Median = %.3f  [%.3f, %.3f]\n",
             median(r2_corpus[, "R2"]),
             quantile(r2_corpus[, "R2"], 0.025),
             quantile(r2_corpus[, "R2"], 0.975)))
+check_diagnostics(fit_corpus, paste(SLUG, "corpus"), WARN_FILE)
 ```
 
 ```{r corpus-icc}
@@ -378,6 +422,7 @@ s2_res <- vc_c$residual__$sd[1, "Estimate"]^2
 s2_tot <- s2_w1 + s2_w2 + s2_res
 
 cat(sprintf("Corpus ICC (word-level) = %.3f\n", (s2_w1 + s2_w2) / s2_tot))
+rm(fit_corpus); gc()
 ```
 
 ---
@@ -412,7 +457,7 @@ print(corpus_wcv_summary)
 
 ## 4.1 Bayesian correlation: corpus word CV predictions vs. observed
 
-```{r corpus-wcv-bayes-cor, cache=TRUE}
+```{r corpus-wcv-bayes-cor}
 bf_corpus_wcv <- correlationBF(
   y = corpus_wcv_preds$preference,
   x = corpus_wcv_preds$cv_pred,
@@ -479,7 +524,7 @@ bind_rows(
 To quantify how much the word random effects change the fixed-effect estimates,
 we fit the same regression without random effects.
 
-```{r fit-novel-fe-only, cache=TRUE}
+```{r fit-novel-fe-only, cache=FALSE}
 fe_formula <- as.formula(paste("preference ~", comp_formula))
 
 fit_novel_fe <- brm(
@@ -500,7 +545,7 @@ fit_novel_fe <- brm(
 ```
 
 ```{r compare-fe-re}
-r2_fe   <- bayes_R2(fit_novel_fe, summary = FALSE)
+r2_fe   <- bayes_R2(fit_novel_fe, summary = FALSE, ndraws = 500)
 r2_re   <- r2_novel   # computed above
 
 cat("Novel set — fixed effects only:\n")
@@ -517,11 +562,138 @@ cat(sprintf("  R² = %.3f [%.3f, %.3f]\n",
 
 cat("\nDifference in R² attributable to word random effects:",
     round(median(r2_re[,"R2"]) - median(r2_fe[,"R2"]), 3), "\n")
+check_diagnostics(fit_novel_fe, paste(SLUG, "novel-fe"), WARN_FILE)
+rm(fit_novel_fe); gc()
 ```
 
 ---
 
-# 5. Summary Table
+# 6. MLP Neural Baseline
+
+The MLP is a two-layer network (`Linear(p, 15) → Tanh → Linear(15, 1)`) trained to
+predict ordering preference from the diff-vector (or concatenated individual vectors),
+with hidden dim = 15 matching PLS K. Results are loaded from the pre-computed CSVs
+produced by `Scripts/lib/mlp_comparison.py`.
+
+```{r mlp-load}
+mlp_files <- list.files(RESULTS_DIR, pattern = "^mlp_.*\\.csv$",
+                         full.names = TRUE)
+mlp_files <- mlp_files[!grepl("_(preds|fold_stats|loss_curves)\\.csv$", mlp_files)]
+
+if (length(mlp_files) == 0) {
+  cat("No MLP result files found in", RESULTS_DIR,
+      "— run mlp_comparison.py first.\n")
+  mlp_df <- tibble()
+} else {
+  mlp_df <- map_dfr(mlp_files, function(f) {
+    d <- read_csv(f, show_col_types = FALSE)
+    # CV splits use mean_* column names; normalise to match non-CV splits
+    if ("mean_test_r" %in% names(d)) {
+      d <- d %>% rename(
+        test_r   = mean_test_r,
+        test_r2  = mean_test_r2,
+        test_rho = mean_test_rho,
+        train_r  = mean_train_r,
+        n_train  = mean_n_train,
+        n_test   = mean_n_test
+      ) %>% mutate(train_r2 = round(train_r^2, 6))
+    }
+    d <- d %>% mutate(n_train = as.integer(round(n_train)),
+                      n_test  = as.integer(round(n_test)))
+    stem  <- tools::file_path_sans_ext(basename(f))
+    parts <- str_split(stem, "_")[[1]]
+    d$input <- parts[2]
+    d$split <- paste(parts[3:length(parts)], collapse = "_")
+    d
+  })
+  cat("MLP results loaded:", nrow(mlp_df), "rows\n")
+  print(mlp_df)
+}
+```
+
+## 6.1 MLP vs. PLS comparison table
+
+```{r mlp-vs-pls}
+if (nrow(mlp_df) > 0) {
+  # PLS reference r² for each split type.
+  # transfer: corpus PLS applied frozen to novel (computed directly).
+  # pair_novel: 10-fold pair-level CV within novel.
+  # word_novel: 10-fold word-level CV within novel.
+  # word_strict: no direct PLS equivalent -> NA.
+  lm_pls <- lm(reformulate(comp_formula, "preference"), data = corpus_df)
+  pls_transfer_r2 <- cor(novel_df$preference,
+                         predict(lm_pls, newdata = novel_df))^2
+
+  pls_refs <- tribble(
+    ~split,        ~pls_r2,
+    "transfer",    pls_transfer_r2,
+    "pair_novel",  read_csv(file.path(RESULTS_DIR, "novel_cv_summary.csv"),
+                            show_col_types = FALSE) %>%
+                   pull(cv_r2) %>% first(),
+    "word_novel",  read_csv(file.path(RESULTS_DIR, "novel_wordcv_summary.csv"),
+                            show_col_types = FALSE) %>%
+                   pull(cv_r2) %>% first()
+  )
+
+  mlp_df %>%
+    left_join(pls_refs, by = "split") %>%
+    mutate(
+      test_r2    = round(test_r2, 3),
+      train_r2   = round(train_r2, 3),
+      pls_r2     = round(pls_r2, 3),
+      delta_pls  = round(test_r2 - pls_r2, 3)
+    ) %>%
+    select(input, split, n_train, n_test, train_r2, test_r2, pls_r2, delta_pls) %>%
+    arrange(split, input) %>%
+    kable(
+      col.names = c("Input", "Split", "N train", "N test",
+                    "Train r²", "Test r²", "PLS r²", "Δ vs PLS"),
+      caption = paste("MLP vs. PLS comparison —", SLUG)
+    ) %>%
+    kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+}
+```
+
+## 6.2 MLP predicted vs. observed
+
+```{r mlp-pred-obs, fig.width=12, fig.height=6, warning=FALSE, message=FALSE}
+mlp_pred_files <- list.files(RESULTS_DIR, pattern = "^mlp_.*_preds\\.csv$",
+                              full.names = TRUE)
+
+if (length(mlp_pred_files) > 0) {
+  mlp_preds <- map_dfr(mlp_pred_files, function(f) {
+    d <- read_csv(f, show_col_types = FALSE) %>%
+      rename(predicted = mlp_pred)
+    stem  <- tools::file_path_sans_ext(basename(f))
+    # stem is mlp_{input}_{split}_preds — remove trailing _preds
+    stem  <- str_remove(stem, "_preds$")
+    parts <- str_split(stem, "_")[[1]]
+    d$label <- paste0("MLP-", parts[2], " (", paste(parts[3:length(parts)],
+                                                      collapse = "_"), ")")
+    d
+  })
+
+  ggplot(mlp_preds %>% group_by(label) %>% slice_sample(n = 5000),
+         aes(x = preference, y = predicted)) +
+    geom_point(alpha = 0.15, size = 0.4, colour = "darkorange") +
+    geom_smooth(method = "lm", colour = "firebrick", linewidth = 0.8, se = TRUE) +
+    facet_wrap(~label, scales = "free", ncol = 3) +
+    labs(
+      title = "MLP: predicted vs. observed ordering preference",
+      subtitle = paste("Model:", SLUG),
+      x = "Actual preference (log-prob ratio)",
+      y = "MLP predicted preference"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(strip.text = element_text(face = "bold"))
+} else {
+  cat("No MLP prediction files found — run mlp_comparison.py first.\n")
+}
+```
+
+---
+
+# 7. Summary Table
 
 ```{r summary-table}
 tibble(
@@ -551,6 +723,104 @@ tibble(
     caption = "Bayesian R² summary — all values with 95% credible intervals"
   ) %>%
   kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+```
+
+---
+
+# 8. Predicted vs. Observed Preference Plots
+
+These scatter plots address the concern that r² ≈ .14 could be an artifact of
+preferences clustering near 50/50. If preferences had near-zero variance, both
+axes would be compressed near 0. Visible spread on the x-axis (actual preference)
+alongside a positive correlation confirms that the structure is real.
+
+```{r pred-vs-obs, fig.width=12, fig.height=8, warning=FALSE, message=FALSE}
+corpus_pls  <- read_csv(CORPUS_F, show_col_types = FALSE)
+novel_pls   <- read_csv(NOVEL_F,  show_col_types = FALSE)
+
+comp_cols <- paste0("C", 1:15)
+
+# Corpus in-sample predictions from PLS regression
+lm_corpus   <- lm(reformulate(comp_cols, "preference"), data = corpus_pls)
+corpus_pls$predicted <- predict(lm_corpus)
+
+# Novel frozen predictions
+novel_pls$predicted  <- predict(lm_corpus, newdata = novel_pls)
+
+# CV prediction files
+novel_pair_cv  <- read_csv(file.path(RESULTS_DIR, "novel_cv_predictions.csv"),
+                           show_col_types = FALSE)
+novel_word_cv  <- read_csv(file.path(RESULTS_DIR, "novel_wordcv_predictions.csv"),
+                           show_col_types = FALSE)
+corpus_word_cv <- read_csv(file.path(RESULTS_DIR, "corpus_wordcv_predictions.csv"),
+                           show_col_types = FALSE)
+
+plot_data <- bind_rows(
+  corpus_pls     %>% select(preference, predicted) %>% mutate(condition = "Corpus (in-sample)"),
+  novel_pls      %>% select(preference, predicted) %>% mutate(condition = "Novel (frozen)"),
+  novel_pair_cv  %>% select(preference, predicted = cv_pred) %>% mutate(condition = "Novel pair-level CV"),
+  novel_word_cv  %>% select(preference, predicted = cv_pred) %>% mutate(condition = "Novel word-level CV"),
+  corpus_word_cv %>% select(preference, predicted = cv_pred) %>% mutate(condition = "Corpus word-level CV")
+) %>%
+  mutate(condition = factor(condition, levels = c(
+    "Corpus (in-sample)", "Novel (frozen)",
+    "Novel pair-level CV", "Novel word-level CV", "Corpus word-level CV"
+  )))
+
+ggplot(plot_data %>% group_by(condition) %>% slice_sample(n = 5000),
+       aes(x = preference, y = predicted)) +
+  geom_point(alpha = 0.15, size = 0.4, colour = "steelblue") +
+  geom_smooth(method = "lm", colour = "firebrick", linewidth = 0.8, se = TRUE) +
+  facet_wrap(~condition, scales = "free", ncol = 3) +
+  labs(
+    title = "Predicted vs. observed ordering preference",
+    subtitle = paste("Model:", SLUG),
+    x = "Actual preference (log-prob ratio)",
+    y = "Predicted preference"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(strip.text = element_text(face = "bold"))
+```
+
+## 7.2 Binned means
+
+Bins actual preferences into 20 equal-width intervals and plots the mean
+prediction per bin. A flat line near zero would indicate the correlation is
+driven only by outliers; a monotonic line across the full range confirms
+systematic structure throughout the distribution.
+
+```{r binned-pred-vs-obs, fig.width=12, fig.height=8, warning=FALSE, message=FALSE}
+binned <- plot_data %>%
+  group_by(condition) %>%
+  mutate(bin = cut(preference, breaks = 20)) %>%
+  group_by(condition, bin) %>%
+  summarise(
+    mean_actual    = mean(preference),
+    mean_predicted = mean(predicted),
+    n              = n(),
+    se             = sd(predicted) / sqrt(n),
+    .groups = "drop"
+  ) %>%
+  filter(n >= 10)
+
+ggplot(binned, aes(x = mean_actual, y = mean_predicted)) +
+  geom_ribbon(aes(ymin = mean_predicted - 1.96 * se,
+                  ymax = mean_predicted + 1.96 * se),
+              alpha = 0.2, fill = "steelblue") +
+  geom_line(colour = "firebrick", linewidth = 0.9) +
+  geom_point(aes(size = n), colour = "firebrick", alpha = 0.7) +
+  scale_size_continuous(range = c(1, 4), guide = "none") +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
+  facet_wrap(~condition, scales = "free", ncol = 3) +
+  labs(
+    title = "Mean predicted preference by bin of actual preference",
+    subtitle = paste("Model:", SLUG, "| Each point = mean of ~N pairs; ribbon = 95% CI"),
+    x = "Actual preference (log-prob ratio)",
+    y = "Mean predicted preference"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(strip.text = element_text(face = "bold"))
 ```
 
 ---

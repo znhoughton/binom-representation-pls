@@ -1,0 +1,5 @@
+contrast,mean_diff,ci_lo,ci_hi,significant
+freq_1_vs_freq_2_5,-0.000851,-0.010876,0.009472,False
+freq_2_5_vs_freq_6_20,-0.002647,-0.01338,0.007699,False
+freq_6_20_vs_freq_gt20,0.002129,-0.007307,0.012688,False
+freq_1_vs_freq_gt20,-0.001369,-0.010122,0.008158,False

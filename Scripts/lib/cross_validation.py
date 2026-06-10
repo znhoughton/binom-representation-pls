@@ -40,16 +40,17 @@ FOLDS  = 10
 SEED   = 964
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--slug", default="znhoughton_opt-babylm-125m-20eps-seed964")
-parser.add_argument("--gpu",  type=int, default=0)
-parser.add_argument("--mode", choices=["pair_novel", "word_novel", "word_corpus"],
+parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
+parser.add_argument("--gpu",   type=int, default=0)
+parser.add_argument("--mode",  choices=["pair_novel", "word_novel", "word_corpus"],
                     required=True)
+parser.add_argument("--layer", default="last", choices=["last", "second_to_last"])
 args   = parser.parse_args()
 
 device  = load_device(args.gpu)
-out_dir = BASE / "Results" / args.slug
+out_dir = BASE / "Results" / args.slug / f"layer_{args.layer}"
 out_dir.mkdir(parents=True, exist_ok=True)
-print(f"Slug: {args.slug}  mode: {args.mode}  device: {device}")
+print(f"Slug: {args.slug}  mode: {args.mode}  layer: {args.layer}  device: {device}")
 
 
 def _load_npz(path):
@@ -63,7 +64,7 @@ def _load_npz(path):
 
 # ── pair-level CV (novel) ────────────────────────────────────────────────────
 def run_pair_novel():
-    X, y, w1, w2 = _load_npz(BASE / "Data/novel_embeddings" / args.slug / "layer_last.npz")
+    X, y, w1, w2 = _load_npz(BASE / "Data/novel_embeddings" / args.slug / f"layer_{args.layer}.npz")
     print(f"Novel pairs: {len(y):,}  dim={X.shape[1]}")
 
     kf        = KFold(n_splits=FOLDS, shuffle=True, random_state=SEED)
@@ -169,6 +170,6 @@ def run_word_cv(data_path, prefix):
 if args.mode == "pair_novel":
     run_pair_novel()
 elif args.mode == "word_novel":
-    run_word_cv(BASE / "Data/novel_embeddings" / args.slug / "layer_last.npz", "novel")
+    run_word_cv(BASE / "Data/novel_embeddings" / args.slug / f"layer_{args.layer}.npz", "novel")
 elif args.mode == "word_corpus":
-    run_word_cv(BASE / "Data/embeddings" / args.slug / "layer_last.npz", "corpus")
+    run_word_cv(BASE / "Data/embeddings" / args.slug / f"layer_{args.layer}.npz", "corpus")

@@ -25,10 +25,10 @@ Three OPT models fine-tuned on the BabyLM 150M-token corpus for 20 epochs (seed 
 ```
 binom-corpus-pls/
 ├── Data/
-│   ├── corpus_binomials.csv          # 212,946 attested binomial pairs with frequencies
+│   ├── corpus_binomials.csv          # 48,965 attested binomial pairs with frequencies
 │   ├── babylm_vocab.txt              # BabyLM tokenizer vocabulary (423,810 types)
 │   ├── babylm_word_freqs.csv         # Unigram frequencies from BabyLM corpus
-│   ├── novel_pairs_filtered.csv      # 53,685 filtered novel Wikipedia N+N pairs
+│   ├── wikipedia_novel_binomials.csv # Novel Wikipedia binomial pairs
 │   ├── embeddings/{slug}/
 │   │   └── layer_last.npz            # Corpus diff_vecs + preferences
 │   └── novel_embeddings/{slug}/
@@ -38,10 +38,9 @@ binom-corpus-pls/
 │   │
 │   │   ── Data pipeline ──
 │   ├── extract_corpus_binomials.py   # Extract binomials from BabyLM corpus
-│   ├── score_and_extract.py          # Score corpus pairs, save embeddings
 │   ├── extract_wikipedia_binomials.py # Extract novel candidates from Wikipedia
+│   ├── score_and_extract_all.py      # Score pairs + save embeddings (--mode corpus|novel)
 │   ├── filter_strict_nouns_v3.py     # Final noun-filtering step (WordNet morphy)
-│   ├── score_and_extract_novel.py    # Score novel Wikipedia pairs, save embeddings
 │   │
 │   │   ── Analysis ──
 │   ├── run_full_pipeline.py          # Master runner for all steps per slug

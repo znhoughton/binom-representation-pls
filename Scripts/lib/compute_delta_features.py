@@ -21,13 +21,14 @@ from nltk.corpus import cmudict
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--slug", default="znhoughton_opt-babylm-125m-20eps-seed964")
+parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
+parser.add_argument("--layer", default="last", choices=["last", "second_to_last"])
 parser.add_argument("--brysbaert", default=None)
 parser.add_argument("--kuperman",  default=None)
 args = parser.parse_args()
 
 BASE           = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
-out_dir        = BASE / "Results" / args.slug
+out_dir        = BASE / "Results" / args.slug / f"layer_{args.layer}"
 out_dir.mkdir(parents=True, exist_ok=True)
 
 NOVEL_PLS      = str(out_dir / "novel_pls_scores.csv")

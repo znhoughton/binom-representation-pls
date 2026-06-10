@@ -27,24 +27,27 @@ BASE = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
 K    = 15
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--slug", default="znhoughton_opt-babylm-125m-20eps-seed964")
-parser.add_argument("--gpu",  type=int, default=0)
+parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
+parser.add_argument("--gpu",   type=int, default=0)
+parser.add_argument("--layer", default="last", choices=["last", "second_to_last"])
 args = parser.parse_args()
 
 SLUG      = args.slug
+LAYER     = args.layer
+NPZ_FILE  = f"layer_{LAYER}.npz"
 COMP_COLS = [f"C{k+1}" for k in range(K)]
 device    = load_device(args.gpu)
-out_dir   = BASE / "Results" / SLUG
+out_dir   = BASE / "Results" / SLUG / f"layer_{LAYER}"
 out_dir.mkdir(parents=True, exist_ok=True)
-print(f"Slug: {SLUG}  device: {device}")
+print(f"Slug: {SLUG}  layer: {LAYER}  device: {device}")
 
-corpus_npz = np.load(BASE / "Data/embeddings" / SLUG / "layer_last.npz", allow_pickle=True)
+corpus_npz = np.load(BASE / "Data/embeddings" / SLUG / NPZ_FILE, allow_pickle=True)
 X_corpus   = torch.from_numpy(corpus_npz["diff_vecs"].astype(np.float32))
 y_corpus   = torch.from_numpy(corpus_npz["preference"].astype(np.float32))
 w1_corpus  = corpus_npz["word1"].astype(str)
 w2_corpus  = corpus_npz["word2"].astype(str)
 
-novel_npz  = np.load(BASE / "Data/novel_embeddings" / SLUG / "layer_last.npz", allow_pickle=True)
+novel_npz  = np.load(BASE / "Data/novel_embeddings" / SLUG / NPZ_FILE, allow_pickle=True)
 X_novel    = torch.from_numpy(novel_npz["diff_vecs"].astype(np.float32))
 y_novel    = torch.from_numpy(novel_npz["preference"].astype(np.float32))
 w1_novel   = novel_npz["word1"].astype(str)

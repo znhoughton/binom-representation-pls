@@ -1,0 +1,2 @@
+input,split,folds,epochs,n_train,n_test,test_r,test_r2,test_rho,train_r
+concat,word_strict,1,200,48950,24461,0.144947,0.02101,0.128505,0.7271
