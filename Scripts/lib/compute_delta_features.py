@@ -27,13 +27,13 @@ parser.add_argument("--brysbaert", default=None)
 parser.add_argument("--kuperman",  default=None)
 args = parser.parse_args()
 
-BASE           = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
+BASE           = Path(__file__).resolve().parents[2]
 out_dir        = BASE / "Results" / args.slug / f"layer_{args.layer}"
 out_dir.mkdir(parents=True, exist_ok=True)
 
 NOVEL_PLS      = str(out_dir / "novel_pls_scores.csv")
 BABYLM_FREQS   = str(BASE / "Data/babylm_word_freqs.csv")
-ANIMACY_NORMS  = "D:/PhD Stuff/Linguistics Stuff/exemplar-vs-abstraction-binomials/animacy/Data/animacy_word_list.csv"
+ANIMACY_NORMS  = str(BASE / "Data/animacy_word_list.csv")
 OUT_PATH       = str(out_dir / "delta_features.csv")
 
 BRYSBAERT_PATH = args.brysbaert

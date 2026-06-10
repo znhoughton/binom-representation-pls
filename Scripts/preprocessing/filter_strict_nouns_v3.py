@@ -15,7 +15,7 @@ import shutil, random
 nltk.download("wordnet", quiet=True)
 nltk.download("omw-1.4", quiet=True)
 
-BASE        = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
+BASE        = Path(__file__).resolve().parents[2]
 SLUG        = "znhoughton_opt-babylm-125m-20eps-seed964"
 NPZ_CURRENT = BASE / "Data/novel_embeddings" / SLUG / "layer_last.npz"
 NPZ_BACKUP  = BASE / "Data/novel_embeddings" / SLUG / "layer_last_always_noun.npz"

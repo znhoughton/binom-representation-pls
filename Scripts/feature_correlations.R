@@ -1,3 +1,4 @@
+library(here)
 library(tidyverse)
 
 # Usage: Rscript feature_correlations.R [slug]
@@ -6,7 +7,7 @@ args  <- commandArgs(trailingOnly = TRUE)
 slug  <- if (length(args) > 0) args[1] else "znhoughton_opt-babylm-125m-20eps-seed964"
 layer <- if (length(args) > 1) args[2] else "last"
 
-RESULTS_BASE <- "D:/PhD Stuff/Linguistics Stuff/binom-corpus-pls/Results"
+RESULTS_BASE <- here::here("Results")
 RESULTS_DIR  <- file.path(RESULTS_BASE, slug, paste0("layer_", layer))
 DELTA <- file.path(RESULTS_DIR, "delta_features.csv")
 OUT   <- file.path(RESULTS_DIR, "feature_correlations.csv")

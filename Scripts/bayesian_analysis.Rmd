@@ -60,6 +60,7 @@ check_diagnostics <- function(fit, label, warn_file) {
 ```
 
 ```{r libraries}
+library(here)
 library(tidyverse)
 library(brms)
 library(BayesFactor)
@@ -71,7 +72,7 @@ library(kableExtra)
 ```
 
 ```{r paths}
-BASE        <- "D:/PhD Stuff/Linguistics Stuff/binom-corpus-pls"
+BASE        <- here::here()
 SLUG        <- if (exists("params")) params$slug  else "znhoughton_opt-babylm-125m-20eps-seed964"
 LAYER       <- if (exists("params")) params$layer else "last"
 RESULTS_DIR <- file.path(BASE, "Results", SLUG, paste0("layer_", LAYER))

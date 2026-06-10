@@ -25,13 +25,14 @@ Usage:
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-BASE    = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
-PYTHON  = r"C:\Users\zacha\anaconda3\envs\PRenv\python.exe"
-RSCRIPT = r"C:\Program Files\R\R-4.5.2\bin\Rscript.exe"
+BASE    = Path(__file__).resolve().parents[1]
+PYTHON  = sys.executable
+RSCRIPT = shutil.which("Rscript") or "Rscript"
 SCRIPTS = BASE / "Scripts"
 LIB     = SCRIPTS / "lib"
 

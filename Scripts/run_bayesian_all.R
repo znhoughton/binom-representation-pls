@@ -1,3 +1,4 @@
+library(here)
 library(parallel)
 
 slugs  <- c(
@@ -10,8 +11,8 @@ layers <- c("last", "second_to_last")
 combos <- expand.grid(slug = slugs, layer = layers,
                       stringsAsFactors = FALSE)
 
-RMD    <- "D:/PhD Stuff/Linguistics Stuff/binom-corpus-pls/Scripts/bayesian_analysis.Rmd"
-OUTDIR <- "D:/PhD Stuff/Linguistics Stuff/binom-corpus-pls/Results"
+RMD    <- here::here("Scripts", "bayesian_analysis.Rmd")
+OUTDIR <- here::here("Results")
 
 render_one <- function(i) {
   slug  <- combos$slug[i]

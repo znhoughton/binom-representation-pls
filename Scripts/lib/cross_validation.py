@@ -34,7 +34,7 @@ from sklearn.model_selection import KFold
 sys.path.insert(0, str(Path(__file__).parent))
 from pls_utils import nipals_pls, pearsonr, spearmanr, compute_scale, apply_scale, load_device
 
-BASE   = Path(r"D:\PhD Stuff\Linguistics Stuff\binom-corpus-pls")
+BASE   = Path(__file__).resolve().parents[2]
 K_PLS  = 15
 FOLDS  = 10
 SEED   = 964
