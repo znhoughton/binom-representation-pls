@@ -14,8 +14,9 @@ MLP-based ordering preference prediction.
   word_novel  10-fold CV within novel (word-level split; both words in held-out fold)
   word_strict train on corpus -> test on novel pairs where NEITHER word is in corpus
 
-Architecture: Linear(input_dim, 15) -> Tanh -> Linear(15, 1)
+Architecture: Linear(input_dim, 15) -> ReLU -> Linear(15, 1)
   Hidden dim 15 matches PLS K for fair comparison.
+  Weight decay (L2) and early stopping (val loss, patience=20) reduce overfitting.
 
 Outputs (per slug/layer):
   mlp_{input}_{split}.csv            -- summary (mean +/- std for CV splits)
@@ -44,12 +45,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from pls_utils import pearsonr, spearmanr, compute_scale, apply_scale, load_device
 
 BASE   = Path(__file__).resolve().parents[2]
-HIDDEN = 15
-EPOCHS = 200
-FOLDS  = 10
-LR     = 1e-3
-BATCH  = 2048
-SEED   = 964
+HIDDEN       = 15
+MAX_EPOCHS   = 500
+PATIENCE     = 20
+VAL_FRAC     = 0.1
+FOLDS        = 10
+LR           = 1e-3
+WEIGHT_DECAY = 1e-4
+BATCH        = 2048
+SEED         = 964
 
 CV_SPLITS = {"pair_novel", "word_novel"}
 
@@ -111,7 +115,7 @@ class OrderingMLP(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, HIDDEN),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(HIDDEN, 1)
         )
     def forward(self, x):
@@ -121,23 +125,32 @@ class OrderingMLP(nn.Module):
 def train_eval(X_tr_raw, y_tr_raw, X_te, y_te, fold=0):
     """
     Train MLP on (X_tr_raw, y_tr_raw), evaluate on (X_te, y_te).
-    Augmentation and scaling applied internally.
-    Preloads training data to GPU when VRAM allows; falls back to per-batch
-    transfer otherwise (e.g. large concat embeddings for 1.3b model).
+    Holds out VAL_FRAC of training data for early stopping (patience=PATIENCE).
+    Scaling fitted on inner train only; augmentation applied on-the-fly per batch.
     Returns (metrics_dict, loss_rows, y_pred_te).
     """
-    # On-the-fly flip augmentation avoids pre-allocating the doubled tensor
-    # (which is ~10 GB for 1.3b concat and OOMs under normal daytime RAM pressure).
-    # Antisymmetric flips are applied randomly per-batch in the training loop below.
-    X_tr, y_tr = X_tr_raw, y_tr_raw
+    # Split off validation set for early stopping
+    n_all   = len(y_tr_raw)
+    n_val   = max(1, int(n_all * VAL_FRAC))
+    rng_val = np.random.default_rng(SEED + fold + 20000)
+    val_idx = rng_val.choice(n_all, size=n_val, replace=False)
+    tr_mask = np.ones(n_all, dtype=bool)
+    tr_mask[val_idx] = False
+    tr_idx  = np.where(tr_mask)[0]
+
+    X_tr = X_tr_raw[torch.from_numpy(tr_idx)]
+    y_tr = y_tr_raw[torch.from_numpy(tr_idx)]
+    X_val = X_tr_raw[torch.from_numpy(val_idx)]
+    y_val = y_tr_raw[torch.from_numpy(val_idx)]
 
     X_tr_sc, mean_, std_ = compute_scale(X_tr)
-    X_te_sc = apply_scale(X_te, mean_, std_)
+    X_te_sc  = apply_scale(X_te,  mean_, std_)
+    X_val_sc = apply_scale(X_val, mean_, std_)
 
     input_dim = X_tr.shape[1]
     n_tr      = len(y_tr)
 
-    # Pre-load to GPU if VRAM allows; avoids per-batch PCIe transfers
+    # Pre-load inner train to GPU if VRAM allows
     if device.type == "cuda":
         nb = (X_tr_sc.nelement() + y_tr.nelement()) * 4
         free, _ = torch.cuda.mem_get_info(device)
@@ -149,16 +162,21 @@ def train_eval(X_tr_raw, y_tr_raw, X_te, y_te, fold=0):
     y_tr_d = y_tr.to(device)    if on_gpu else y_tr
 
     mlp     = OrderingMLP(input_dim).to(device)
-    opt     = torch.optim.Adam(mlp.parameters(), lr=LR)
+    opt     = torch.optim.Adam(mlp.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
     loss_fn = nn.MSELoss()
     g       = torch.Generator()
     g.manual_seed(SEED + fold)
     g_flip  = torch.Generator()
     g_flip.manual_seed(SEED + fold + 10000)
 
-    total_loss = torch.zeros(1, device=device)
-    loss_rows  = []
-    for epoch in range(EPOCHS):
+    best_val_loss  = float("inf")
+    best_state     = {k: v.clone() for k, v in mlp.state_dict().items()}
+    patience_count = 0
+    stopped_epoch  = MAX_EPOCHS
+    total_loss     = torch.zeros(1, device=device)
+    loss_rows      = []
+
+    for epoch in range(MAX_EPOCHS):
         mlp.train()
         perm = torch.randperm(n_tr, generator=g)
         total_loss.zero_()
@@ -181,9 +199,31 @@ def train_eval(X_tr_raw, y_tr_raw, X_te, y_te, fold=0):
             opt.step()
             total_loss += loss.detach() * len(idx)
         epoch_loss = total_loss.item() / n_tr
-        loss_rows.append({"fold": fold, "epoch": epoch + 1, "train_loss": epoch_loss})
+
+        mlp.eval()
+        with torch.no_grad():
+            val_loss = loss_fn(mlp(X_val_sc.to(device)).cpu(), y_val).item()
+
+        loss_rows.append({"fold": fold, "epoch": epoch + 1,
+                          "train_loss": epoch_loss, "val_loss": val_loss})
+
+        if val_loss < best_val_loss:
+            best_val_loss  = val_loss
+            best_state     = {k: v.clone() for k, v in mlp.state_dict().items()}
+            patience_count = 0
+        else:
+            patience_count += 1
+            if patience_count >= PATIENCE:
+                stopped_epoch = epoch + 1
+                print(f"  [fold {fold}] early stop epoch {stopped_epoch}  "
+                      f"best_val={best_val_loss:.4f}", flush=True)
+                break
+
         if (epoch + 1) % 50 == 0:
-            print(f"  [fold {fold}] epoch {epoch+1}/{EPOCHS}  loss={epoch_loss:.4f}", flush=True)
+            print(f"  [fold {fold}] epoch {epoch+1}/{MAX_EPOCHS}  "
+                  f"loss={epoch_loss:.4f}  val={val_loss:.4f}", flush=True)
+
+    mlp.load_state_dict(best_state)
 
     del X_tr_d, y_tr_d
     if device.type == "cuda":
@@ -198,13 +238,14 @@ def train_eval(X_tr_raw, y_tr_raw, X_te, y_te, fold=0):
     r_tr = pearsonr(y_tr_raw, y_pred_tr)
     r_te = pearsonr(y_te,     y_pred_te)
     rho  = spearmanr(y_te,    y_pred_te)
-    print(f"  [fold {fold}] r={r_te:.4f}  r²={r_te**2:.4f}  rho={rho:.4f}", flush=True)
+    print(f"  [fold {fold}] r={r_te:.4f}  r²={r_te**2:.4f}  rho={rho:.4f}  "
+          f"epochs={stopped_epoch}", flush=True)
 
     metrics = {
         "fold": fold, "n_train": len(y_tr_raw), "n_test": len(y_te),
-        "train_r":  round(r_tr,     6), "train_r2":  round(r_tr**2, 6),
-        "test_r":   round(r_te,     6), "test_r2":   round(r_te**2, 6),
-        "test_rho": round(rho,      6),
+        "train_r":  round(r_tr,          6), "train_r2":     round(r_tr**2, 6),
+        "test_r":   round(r_te,          6), "test_r2":      round(r_te**2, 6),
+        "test_rho": round(rho,           6), "stopped_epoch": stopped_epoch,
     }
     return metrics, loss_rows, y_pred_te
 
@@ -306,7 +347,7 @@ fold_df = pd.DataFrame(fold_stats_rows)
 if args.split in CV_SPLITS:
     summary = {
         "input": args.input, "split": args.split,
-        "folds": len(fold_df), "epochs": EPOCHS,
+        "folds": len(fold_df), "epochs": round(fold_df["stopped_epoch"].mean(), 1),
         "mean_n_train":  round(fold_df["n_train"].mean(), 1),
         "mean_n_test":   round(fold_df["n_test"].mean(),  1),
         "mean_test_r":   round(fold_df["test_r"].mean(),  6),
@@ -324,7 +365,7 @@ else:
     row = fold_stats_rows[0]
     summary = {
         "input": args.input, "split": args.split,
-        "folds": 1, "epochs": EPOCHS,
+        "folds": 1, "epochs": row["stopped_epoch"],
         "n_train": row["n_train"],  "n_test":   row["n_test"],
         "test_r":  row["test_r"],   "test_r2":  row["test_r2"],
         "test_rho": row["test_rho"], "train_r": row["train_r"],
