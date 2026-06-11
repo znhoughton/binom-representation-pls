@@ -42,6 +42,6 @@ render_one <- function(i) {
 }
 
 # 7 slots × 4 chains = 28 cores; all 6 combos fit in one batch
-mclapply(seq_len(nrow(combos)), render_one, mc.cores = 7)
+mclapply(seq_len(nrow(combos)), render_one, mc.cores = 3)
 
 cat("\nAll done.\n")
