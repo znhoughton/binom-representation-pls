@@ -1,4 +1,4 @@
-"""
+﻿"""
 run_pipeline.py
 ---------------
 Main pipeline entry point: extract embeddings → run analysis.
@@ -239,18 +239,17 @@ def run_core_analysis(slug, layer, condition, active_steps, gpu, run_control, co
                 f"layer={layer}  condition={condition}  [CONTROL]")
 
 
-def run_aux_analysis(slug, layer, active_steps, gpu):
+def run_aux_analysis(slug, layer, active_steps):
     """Auxiliary steps only make sense for the default (binomial) condition."""
     for name, script, extra in AUX_STEPS:
         if name not in active_steps:
             continue
         if extra is None:
-            # R script: takes slug and layer as positional args
+            # R script: positional slug + layer args
             run([RSCRIPT, str(script), slug, layer],
                 f"{script.name}  slug={slug}  layer={layer}")
         else:
-            run([PYTHON, str(script),
-                 "--slug", slug, "--layer", layer, "--gpu", str(gpu)] + extra,
+            run([PYTHON, str(script), "--slug", slug, "--layer", layer] + extra,
                 f"{script.name}  {' '.join(extra)}  slug={slug}  layer={layer}")
 
 
@@ -324,11 +323,12 @@ def main():
                             control_only=args.control_only,
                         )
 
-                    if active_aux and condition == "default":
-                        run_aux_analysis(slug, layer, active_aux, args.gpu)
-                    elif active_aux and condition != "default":
-                        print(f"  (skipping auxiliary steps for condition={condition}; "
-                              f"these only apply to 'default')")
+                    if active_aux and condition == "default" and not args.control_only:
+                        run_aux_analysis(slug, layer, active_aux)
+                    elif active_aux and (condition != "default" or args.control_only):
+                        reason = "control-only mode" if args.control_only else f"condition={condition}"
+                        print(f"  (skipping auxiliary steps: {reason}; "
+                              f"these only apply to default real runs)")
 
     print("\nAll done.")
 
