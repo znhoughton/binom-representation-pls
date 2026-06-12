@@ -312,12 +312,9 @@ elif args.split == "word_novel":
     X_nov, y_nov, w1_nov, w2_nov = load_novel()
     if args.control:
         y_nov = _shuffle(y_nov, seed_offset=0)
-    all_words   = np.array(sorted(set(w1_nov) | set(w2_nov)))
-    perm        = rng.permutation(len(all_words))
-    fold_assign = np.empty(len(all_words), dtype=int)
-    for f in range(FOLDS):
-        fold_assign[perm[f::FOLDS]] = f
-    word_to_fold = {w: fold_assign[i] for i, w in enumerate(all_words)}
+    all_words    = np.array(sorted(set(w1_nov) | set(w2_nov)))
+    perm         = rng.permutation(len(all_words))
+    word_to_fold = {all_words[i]: int(perm[i] % FOLDS) for i in range(len(all_words))}
 
     w1_folds = np.array([word_to_fold.get(w, -1) for w in w1_nov])
     w2_folds = np.array([word_to_fold.get(w, -1) for w in w2_nov])
