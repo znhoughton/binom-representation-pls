@@ -64,6 +64,8 @@ parser.add_argument("--embed-dir-novel",  dest="embed_dir_novel",  default=None)
 parser.add_argument("--out-dir", dest="out_dir", default=None)
 parser.add_argument("--control", action="store_true",
                     help="Hewitt & Liang control: shuffle labels before CV")
+parser.add_argument("--binary", action="store_true",
+                    help="Binarize preference labels to {-1,+1} before fitting")
 args = parser.parse_args()
 
 SLUG  = args.slug
@@ -76,18 +78,20 @@ novel_dir  = Path(args.embed_dir_novel)  if args.embed_dir_novel  \
              else BASE / "Data" / "novel_embeddings" / SLUG
 out_dir    = Path(args.out_dir)          if args.out_dir          \
              else BASE / "Results" / SLUG / f"layer_{LAYER}"
-prefix     = "control_" if args.control else ""
+prefix     = ("binary_" if args.binary else "") + ("control_" if args.control else "")
 
 out_dir.mkdir(parents=True, exist_ok=True)
 device = load_device(args.gpu)
 print(f"Slug: {SLUG}  mode: {args.mode}  layer: {LAYER}  "
-      f"control: {args.control}  device: {device}")
+      f"binary: {args.binary}  control: {args.control}  device: {device}")
 
 
 def _load_npz(path):
     npz = np.load(path, allow_pickle=True)
     X   = torch.from_numpy(npz["diff_vecs"].astype(np.float32))
     y   = torch.from_numpy(npz["preference"].astype(np.float32))
+    if args.binary:
+        y = (y > 0).float() * 2 - 1
     w1  = npz["word1"].astype(str)
     w2  = npz["word2"].astype(str)
     return X, y, w1, w2
@@ -96,6 +100,10 @@ def _load_npz(path):
 def _shuffle_labels(y: torch.Tensor) -> torch.Tensor:
     perm = np.random.default_rng(SEED).permutation(len(y))
     return y[torch.from_numpy(perm)]
+
+
+def _accuracy(y_true: torch.Tensor, y_pred: torch.Tensor) -> float:
+    return ((y_pred > 0) == (y_true > 0)).float().mean().item()
 
 
 # ── pair-level CV (novel) ─────────────────────────────────────────────────────
@@ -119,13 +127,16 @@ def run_pair_novel():
         pred_te = (X_te_sc.to(device) @ W_star.to(device)).cpu() @ b
 
         all_preds[te_t] = pred_te
-        r = pearsonr(y_te, pred_te)
-        fold_rows.append({"fold": fi+1, "n_test": len(te), "r": round(r,6), "r2": round(r**2,6)})
-        print(f"  Fold {fi+1:2d}: n={len(te):,}  r={r:.4f}  r²={r**2:.4f}")
+        r   = pearsonr(y_te, pred_te)
+        acc = _accuracy(y_te, pred_te)
+        fold_rows.append({"fold": fi+1, "n_test": len(te),
+                          "r": round(r,6), "r2": round(r**2,6), "acc": round(acc,6)})
+        print(f"  Fold {fi+1:2d}: n={len(te):,}  r={r:.4f}  r²={r**2:.4f}  acc={acc:.4f}")
 
     r_cv   = pearsonr(y, all_preds)
     rho_cv = spearmanr(y, all_preds)
-    print(f"\nOverall CV  r={r_cv:.4f}  r²={r_cv**2:.4f}  rho={rho_cv:.4f}")
+    acc_cv = _accuracy(y, all_preds)
+    print(f"\nOverall CV  r={r_cv:.4f}  r²={r_cv**2:.4f}  rho={rho_cv:.4f}  acc={acc_cv:.4f}")
 
     pd.DataFrame({"word1": w1, "word2": w2,
                   "preference": y.numpy(), "cv_pred": all_preds.numpy()}).to_csv(
@@ -133,7 +144,7 @@ def run_pair_novel():
     pd.DataFrame(fold_rows).to_csv(out_dir / f"{prefix}novel_cv_fold_stats.csv", index=False)
     pd.DataFrame([{"k_folds": FOLDS, "k_pls": K_PLS, "n": len(y),
                    "cv_r": round(r_cv,6), "cv_r2": round(r_cv**2,6),
-                   "cv_rho": round(rho_cv,6)}]).to_csv(
+                   "cv_rho": round(rho_cv,6), "cv_acc": round(acc_cv,6)}]).to_csv(
         out_dir / f"{prefix}novel_cv_summary.csv", index=False)
     print(f"Saved pair-level CV outputs to {out_dir}")
 
@@ -179,21 +190,23 @@ def run_word_cv(data_path, file_prefix):
         _, W_star, b = nipals_pls(X_tr_sc, y_tr, K_PLS, device)
         pred_te = (X_te_sc.to(device) @ W_star.to(device)).cpu() @ b
 
-        r = pearsonr(y_te, pred_te)
-        print(f"  r={r:.4f}  r²={r**2:.4f}")
+        r   = pearsonr(y_te, pred_te)
+        acc = _accuracy(y_te, pred_te)
+        print(f"  r={r:.4f}  r²={r**2:.4f}  acc={acc:.4f}")
         all_pred_idx.extend(np.where(test_mask)[0].tolist())
         all_pred_val.extend(pred_te.tolist())
         fold_rows.append({"fold": fk+1, "n_train": int(n_tr), "n_test": int(n_te),
-                          "r": round(r,6), "r2": round(r**2,6)})
+                          "r": round(r,6), "r2": round(r**2,6), "acc": round(acc,6)})
 
     pred_idx = np.array(all_pred_idx)
     pred_val = torch.tensor(all_pred_val)
     y_tested = y[torch.tensor(pred_idx)]
     r_cv     = pearsonr(y_tested, pred_val)
     rho_cv   = spearmanr(y_tested, pred_val)
+    acc_cv   = _accuracy(y_tested, pred_val)
 
     print(f"\nTested: {len(pred_idx):,} / {len(y):,}  ({100*len(pred_idx)/len(y):.1f}%)")
-    print(f"Word-level CV  r={r_cv:.4f}  r²={r_cv**2:.4f}  rho={rho_cv:.4f}")
+    print(f"Word-level CV  r={r_cv:.4f}  r²={r_cv**2:.4f}  rho={rho_cv:.4f}  acc={acc_cv:.4f}")
 
     pd.DataFrame({
         "original_idx": pred_idx, "word1": w1[pred_idx], "word2": w2[pred_idx],
@@ -204,7 +217,7 @@ def run_word_cv(data_path, file_prefix):
         out_dir / f"{prefix}{file_prefix}_wordcv_fold_stats.csv", index=False)
     pd.DataFrame([{"k_folds": FOLDS, "k_pls": K_PLS, "n_tested": len(pred_idx),
                    "n_total": len(y), "cv_r": round(r_cv,6), "cv_r2": round(r_cv**2,6),
-                   "cv_rho": round(rho_cv,6)}]).to_csv(
+                   "cv_rho": round(rho_cv,6), "cv_acc": round(acc_cv,6)}]).to_csv(
         out_dir / f"{prefix}{file_prefix}_wordcv_summary.csv", index=False)
     print(f"Saved word-level CV outputs to {out_dir}")
 

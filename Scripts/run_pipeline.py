@@ -208,7 +208,8 @@ def run_extraction(model_key, model_id, layer, data_split, condition, gpu, force
              f"data={data_split}  condition={condition}")
 
 
-def run_core_analysis(slug, layer, condition, active_steps, gpu, run_control, control_only=False):
+def run_core_analysis(slug, layer, condition, active_steps, gpu,
+                      run_control, control_only=False, binary=False):
     ed_corpus = str(EMBED_DIRS[condition]["corpus"] / slug)
     ed_novel  = str(EMBED_DIRS[condition]["novel"]  / slug)
     out       = str(results_dir(slug, layer, condition))
@@ -227,16 +228,21 @@ def run_core_analysis(slug, layer, condition, active_steps, gpu, run_control, co
             "--out-dir",          out,
         ] + extra
 
+        if binary:
+            base_cmd = base_cmd + ["--binary"]
+
         # Real run (skipped when --control-only)
         if not control_only:
             run(base_cmd, f"{script.name}  {' '.join(extra)}  slug={slug}  "
-                          f"layer={layer}  condition={condition}")
+                          f"layer={layer}  condition={condition}"
+                          + ("  [BINARY]" if binary else ""))
 
         # Control run
         if run_control:
             run(base_cmd + ["--control"],
                 f"{script.name}  {' '.join(extra)}  slug={slug}  "
-                f"layer={layer}  condition={condition}  [CONTROL]")
+                f"layer={layer}  condition={condition}"
+                + ("  [BINARY]" if binary else "") + "  [CONTROL]")
 
 
 def run_aux_analysis(slug, layer, active_steps):
@@ -271,6 +277,8 @@ def main():
                         help="Run Hewitt & Liang control alongside each core analysis step")
     parser.add_argument("--control-only",    action="store_true",
                         help="Run ONLY the Hewitt & Liang control (skip real analysis passes)")
+    parser.add_argument("--binary",          action="store_true",
+                        help="Binarize preference labels to {-1,+1} before fitting")
     parser.add_argument("--gpu",  type=int, default=0)
     parser.add_argument("--force", action="store_true",
                         help="Re-extract even if output files already exist")
@@ -321,6 +329,7 @@ def main():
                             active_core, args.gpu,
                             run_control=args.run_control or args.control_only,
                             control_only=args.control_only,
+                            binary=args.binary,
                         )
 
                     if active_aux and condition == "default" and not args.control_only:
