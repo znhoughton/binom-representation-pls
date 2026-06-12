@@ -83,6 +83,8 @@ parser.add_argument("--embed-dir-novel",  dest="embed_dir_novel",  default=None)
 parser.add_argument("--out-dir", dest="out_dir", default=None)
 parser.add_argument("--control", action="store_true",
                     help="Hewitt & Liang control: shuffle labels before training/eval")
+parser.add_argument("--binary", action="store_true",
+                    help="Binarize preference labels to {-1,+1} before fitting")
 args = parser.parse_args()
 
 SLUG  = args.slug
@@ -95,7 +97,7 @@ novel_dir  = Path(args.embed_dir_novel)  if args.embed_dir_novel  \
              else BASE / "Data" / "novel_embeddings" / SLUG
 out_dir    = Path(args.out_dir)          if args.out_dir          \
              else BASE / "Results" / SLUG / f"layer_{LAYER}"
-prefix     = "control_" if args.control else ""
+prefix     = ("binary_" if args.binary else "") + ("control_" if args.control else "")
 
 out_dir.mkdir(parents=True, exist_ok=True)
 tag    = f"{args.input}_{args.split}"
@@ -103,7 +105,7 @@ device = load_device(args.gpu)
 torch.manual_seed(SEED)
 rng = np.random.default_rng(SEED)
 print(f"Slug: {SLUG}  input: {args.input}  split: {args.split}  "
-      f"control: {args.control}  device: {device}")
+      f"binary: {args.binary}  control: {args.control}  device: {device}")
 
 
 # ── data loading ──────────────────────────────────────────────────────────────
@@ -113,6 +115,8 @@ def _load_npz(path):
     w1  = npz["word1"].astype(str)
     w2  = npz["word2"].astype(str)
     y   = torch.from_numpy(npz["preference"].astype(np.float32))
+    if args.binary:
+        y = (y > 0).float() * 2 - 1
     if args.input == "diff":
         X = torch.from_numpy(npz["diff_vecs"].astype(np.float32))
     else:
@@ -254,17 +258,19 @@ def train_eval(X_tr_raw, y_tr_raw, X_te, y_te, fold=0):
         y_pred_tr = mlp(apply_scale(X_tr_raw, mean_, std_).to(device)).cpu()
         y_pred_te = mlp(X_te_sc.to(device)).cpu()
 
-    r_tr = pearsonr(y_tr_raw, y_pred_tr)
-    r_te = pearsonr(y_te,     y_pred_te)
-    rho  = spearmanr(y_te,    y_pred_te)
+    r_tr  = pearsonr(y_tr_raw, y_pred_tr)
+    r_te  = pearsonr(y_te,     y_pred_te)
+    rho   = spearmanr(y_te,    y_pred_te)
+    acc   = ((y_pred_te > 0) == (y_te > 0)).float().mean().item()
     print(f"  [fold {fold}] r={r_te:.4f}  r²={r_te**2:.4f}  rho={rho:.4f}  "
-          f"epochs={stopped_epoch}", flush=True)
+          f"acc={acc:.4f}  epochs={stopped_epoch}", flush=True)
 
     metrics = {
         "fold": fold, "n_train": len(y_tr_raw), "n_test": len(y_te),
         "train_r":  round(r_tr,          6), "train_r2":      round(r_tr**2, 6),
         "test_r":   round(r_te,          6), "test_r2":       round(r_te**2, 6),
-        "test_rho": round(rho,           6), "stopped_epoch": stopped_epoch,
+        "test_rho": round(rho,           6), "test_acc":      round(acc,     6),
+        "stopped_epoch": stopped_epoch,
     }
     return metrics, loss_rows, y_pred_te
 
@@ -375,30 +381,34 @@ if args.split in CV_SPLITS:
     summary = {
         "input": args.input, "split": args.split,
         "folds": len(fold_df), "epochs": round(fold_df["stopped_epoch"].mean(), 1),
-        "mean_n_train":  round(fold_df["n_train"].mean(), 1),
-        "mean_n_test":   round(fold_df["n_test"].mean(),  1),
-        "mean_test_r":   round(fold_df["test_r"].mean(),  6),
-        "std_test_r":    round(fold_df["test_r"].std(),   6),
-        "mean_test_r2":  round(fold_df["test_r2"].mean(), 6),
-        "std_test_r2":   round(fold_df["test_r2"].std(),  6),
-        "mean_test_rho": round(fold_df["test_rho"].mean(),6),
-        "std_test_rho":  round(fold_df["test_rho"].std(), 6),
-        "mean_train_r":  round(fold_df["train_r"].mean(), 6),
+        "mean_n_train":  round(fold_df["n_train"].mean(),   1),
+        "mean_n_test":   round(fold_df["n_test"].mean(),    1),
+        "mean_test_r":   round(fold_df["test_r"].mean(),    6),
+        "std_test_r":    round(fold_df["test_r"].std(),     6),
+        "mean_test_r2":  round(fold_df["test_r2"].mean(),   6),
+        "std_test_r2":   round(fold_df["test_r2"].std(),    6),
+        "mean_test_rho": round(fold_df["test_rho"].mean(),  6),
+        "std_test_rho":  round(fold_df["test_rho"].std(),   6),
+        "mean_test_acc": round(fold_df["test_acc"].mean(),  6),
+        "std_test_acc":  round(fold_df["test_acc"].std(),   6),
+        "mean_train_r":  round(fold_df["train_r"].mean(),   6),
     }
     print(f"\n{FOLDS}-fold summary:  "
           f"r={summary['mean_test_r']:.4f} ± {summary['std_test_r']:.4f}  "
-          f"r²={summary['mean_test_r2']:.4f} ± {summary['std_test_r2']:.4f}")
+          f"r²={summary['mean_test_r2']:.4f} ± {summary['std_test_r2']:.4f}  "
+          f"acc={summary['mean_test_acc']:.4f} ± {summary['std_test_acc']:.4f}")
 else:
     row = fold_stats_rows[0]
     summary = {
         "input": args.input, "split": args.split,
         "folds": 1, "epochs": row["stopped_epoch"],
-        "n_train": row["n_train"],   "n_test":   row["n_test"],
-        "test_r":  row["test_r"],    "test_r2":  row["test_r2"],
-        "test_rho": row["test_rho"], "train_r":  row["train_r"],
+        "n_train":  row["n_train"],  "n_test":   row["n_test"],
+        "test_r":   row["test_r"],   "test_r2":  row["test_r2"],
+        "test_rho": row["test_rho"], "test_acc": row["test_acc"],
+        "train_r":  row["train_r"],
     }
     print(f"\nResult:  r={summary['test_r']:.4f}  r²={summary['test_r2']:.4f}  "
-          f"rho={summary['test_rho']:.4f}")
+          f"rho={summary['test_rho']:.4f}  acc={summary['test_acc']:.4f}")
 
 pd.DataFrame([summary]).to_csv(out_dir / f"{prefix}mlp_{tag}.csv", index=False)
 fold_df.to_csv(out_dir / f"{prefix}mlp_{tag}_fold_stats.csv", index=False)

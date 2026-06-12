@@ -11,6 +11,8 @@ New args
                        (default: Data/novel_embeddings/{slug})
   --out-dir            output directory
                        (default: Results/{slug}/layer_{layer})
+  --binary             binarize preference labels to {-1,+1} before fitting;
+                       outputs prefixed with 'binary_'
   --control            Hewitt & Liang control: permute preference labels
                        before fitting; outputs prefixed with 'control_'
 
@@ -57,6 +59,8 @@ parser.add_argument("--out-dir", dest="out_dir", default=None,
                     help="Output directory")
 parser.add_argument("--control", action="store_true",
                     help="Hewitt & Liang control: shuffle labels before fitting")
+parser.add_argument("--binary", action="store_true",
+                    help="Binarize preference labels to {-1,+1} before fitting")
 args = parser.parse_args()
 
 SLUG  = args.slug
@@ -69,13 +73,13 @@ novel_dir  = Path(args.embed_dir_novel)  if args.embed_dir_novel  \
              else BASE / "Data" / "novel_embeddings" / SLUG
 out_dir    = Path(args.out_dir)          if args.out_dir          \
              else BASE / "Results" / SLUG / f"layer_{LAYER}"
-prefix     = "control_" if args.control else ""
+prefix     = ("binary_" if args.binary else "") + ("control_" if args.control else "")
 
 out_dir.mkdir(parents=True, exist_ok=True)
 device = load_device(args.gpu)
 COMP_COLS = [f"C{k+1}" for k in range(K)]
 
-print(f"Slug: {SLUG}  layer: {LAYER}  control: {args.control}  device: {device}")
+print(f"Slug: {SLUG}  layer: {LAYER}  binary: {args.binary}  control: {args.control}  device: {device}")
 print(f"Corpus dir : {corpus_dir}")
 print(f"Novel dir  : {novel_dir}")
 print(f"Output dir : {out_dir}")
@@ -95,6 +99,10 @@ w2_novel   = novel_npz["word2"].astype(str)
 print(f"Corpus: {len(y_corpus):,} pairs  dim={X_corpus.shape[1]}")
 print(f"Novel : {len(y_novel):,} pairs")
 
+if args.binary:
+    y_corpus = (y_corpus > 0).float() * 2 - 1
+    y_novel  = (y_novel  > 0).float() * 2 - 1
+
 if args.control:
     # Corpus and novel use independent seeds so the shuffles are not correlated.
     # seed_offset=1 for novel matches mlp_comparison.py's convention.
@@ -113,21 +121,25 @@ T_novel = (X_n_sc @ W_star.to(device)).cpu()
 y_pred_corpus = T_corpus @ b
 y_pred_novel  = T_novel  @ b
 
-corpus_r2 = 1.0 - float((y_corpus - y_pred_corpus).var()) / (float(y_corpus.var()) + 1e-14)
-r_novel   = pearsonr(y_novel, y_pred_novel)
-rho_novel = spearmanr(y_novel, y_pred_novel)
+corpus_r2  = 1.0 - float((y_corpus - y_pred_corpus).var()) / (float(y_corpus.var()) + 1e-14)
+r_novel    = pearsonr(y_novel, y_pred_novel)
+rho_novel  = spearmanr(y_novel, y_pred_novel)
+acc_corpus = ((y_pred_corpus > 0) == (y_corpus > 0)).float().mean().item()
+acc_novel  = ((y_pred_novel  > 0) == (y_novel  > 0)).float().mean().item()
 
-print(f"\nCorpus R²  : {corpus_r2:.4f}")
+print(f"\nCorpus R²  : {corpus_r2:.4f}  acc={acc_corpus:.4f}")
 print(f"Novel r    : {r_novel:.4f}  r²={r_novel**2:.4f}")
-print(f"Novel rho  : {rho_novel:.4f}")
+print(f"Novel rho  : {rho_novel:.4f}  acc={acc_novel:.4f}")
 
 df_c = pd.DataFrame(T_corpus.numpy(), columns=COMP_COLS)
 df_c["preference"] = y_corpus.numpy()
+df_c["pls_pred"]   = y_pred_corpus.numpy()
 df_c["word1"] = w1_corpus; df_c["word2"] = w2_corpus
 df_c.to_csv(out_dir / f"{prefix}corpus_pls_scores.csv", index=False)
 
 df_n = pd.DataFrame(T_novel.numpy(), columns=COMP_COLS)
 df_n["preference"] = y_novel.numpy()
+df_n["pls_pred"]   = y_pred_novel.numpy()
 df_n["word1"] = w1_novel; df_n["word2"] = w2_novel
 df_n.to_csv(out_dir / f"{prefix}novel_pls_scores.csv", index=False)
 
