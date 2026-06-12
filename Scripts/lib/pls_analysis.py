@@ -96,9 +96,12 @@ print(f"Corpus: {len(y_corpus):,} pairs  dim={X_corpus.shape[1]}")
 print(f"Novel : {len(y_novel):,} pairs")
 
 if args.control:
-    rng = np.random.default_rng(SEED)
-    y_corpus = y_corpus[torch.from_numpy(rng.permutation(len(y_corpus)))]
-    y_novel  = y_novel[torch.from_numpy(rng.permutation(len(y_novel)))]
+    # Corpus and novel use independent seeds so the shuffles are not correlated.
+    # seed_offset=1 for novel matches mlp_comparison.py's convention.
+    y_corpus = y_corpus[torch.from_numpy(
+        np.random.default_rng(SEED).permutation(len(y_corpus)))]
+    y_novel  = y_novel[torch.from_numpy(
+        np.random.default_rng(SEED + 1).permutation(len(y_novel)))]
 
 X_c_sc, mean_c, std_c = compute_scale(X_corpus.to(device))
 X_n_sc = apply_scale(X_novel.to(device), mean_c, std_c)

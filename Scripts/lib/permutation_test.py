@@ -41,7 +41,7 @@ parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964
 parser.add_argument("--gpu",   type=int, default=0)
 parser.add_argument("--B",     type=int, default=1000)
 parser.add_argument("--seed",  type=int, default=964)
-parser.add_argument("--layer", default="last", choices=["last", "second_to_last"])
+parser.add_argument("--layer", default="last")
 args = parser.parse_args()
 
 device  = load_device(args.gpu)
