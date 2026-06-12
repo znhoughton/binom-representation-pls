@@ -1,25 +1,39 @@
 """
 cross_validation.py
--------------------------------------
+-------------------
 10-fold cross-validation for PLS ordering preferences.
 
-Modes:
-  pair_novel   — pair-level CV on novel pairs (random KFold split)
-  word_novel   — word-level CV on novel pairs (split by unique words)
-  word_corpus  — word-level CV on corpus pairs (split by unique words)
+Modes
+-----
+  pair_novel   pair-level CV on novel pairs (random KFold split)
+  word_novel   word-level CV on novel pairs (split by unique words)
+  word_corpus  word-level CV on corpus pairs (split by unique words)
 
-In word-level CV, a pair is testable only when both its words fall in the
-same held-out fold (~10% of pairs). This tests generalization to new words.
+In word-level CV, a pair is testable only when both words fall in the same
+held-out fold (~10% of pairs). This tests generalization to new word pairs.
 
-Output (per slug/mode):
-  novel_cv_{predictions,fold_stats,summary}.csv      (pair_novel)
-  novel_wordcv_{predictions,fold_stats,summary}.csv  (word_novel)
-  corpus_wordcv_{predictions,fold_stats,summary}.csv (word_corpus)
+New args
+--------
+  --embed-dir-corpus   path to dir containing corpus layer_*.npz
+  --embed-dir-novel    path to dir containing novel layer_*.npz
+  --out-dir            output directory
+  --control            Hewitt & Liang control: shuffle preference labels
+                       once globally before CV; outputs prefixed 'control_'
 
-Usage:
-  python Scripts/lib/cross_validation.py --mode pair_novel
-  python Scripts/lib/cross_validation.py --mode word_novel --slug ...
-  python Scripts/lib/cross_validation.py --mode word_corpus --slug ...
+Outputs
+-------
+  {out_dir}/novel_cv_{predictions,fold_stats,summary}.csv      (pair_novel)
+  {out_dir}/novel_wordcv_{predictions,fold_stats,summary}.csv  (word_novel)
+  {out_dir}/corpus_wordcv_{predictions,fold_stats,summary}.csv (word_corpus)
+  (control runs: control_ prefix on each file)
+
+Usage
+-----
+  python Scripts/lib/cross_validation.py --mode pair_novel --slug ...
+  python Scripts/lib/cross_validation.py --mode word_novel --slug ... --control
+  python Scripts/lib/cross_validation.py --mode pair_novel --slug ... \\
+    --embed-dir-novel Data/novel_embeddings_isolated/{slug} \\
+    --out-dir Results/{slug}/layer_last_isolated
 """
 
 import argparse
@@ -34,23 +48,40 @@ from sklearn.model_selection import KFold
 sys.path.insert(0, str(Path(__file__).parent))
 from pls_utils import nipals_pls, pearsonr, spearmanr, compute_scale, apply_scale, load_device
 
-BASE   = Path(__file__).resolve().parents[2]
-K_PLS  = 15
-FOLDS  = 10
-SEED   = 964
+BASE  = Path(__file__).resolve().parents[2]
+K_PLS = 15
+FOLDS = 10
+SEED  = 964
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
 parser.add_argument("--gpu",   type=int, default=0)
 parser.add_argument("--mode",  choices=["pair_novel", "word_novel", "word_corpus"],
                     required=True)
-parser.add_argument("--layer", default="last", choices=["last", "second_to_last"])
-args   = parser.parse_args()
+parser.add_argument("--layer", default="last")
+parser.add_argument("--embed-dir-corpus", dest="embed_dir_corpus", default=None)
+parser.add_argument("--embed-dir-novel",  dest="embed_dir_novel",  default=None)
+parser.add_argument("--out-dir", dest="out_dir", default=None)
+parser.add_argument("--control", action="store_true",
+                    help="Hewitt & Liang control: shuffle labels before CV")
+args = parser.parse_args()
 
-device  = load_device(args.gpu)
-out_dir = BASE / "Results" / args.slug / f"layer_{args.layer}"
+SLUG  = args.slug
+LAYER = args.layer
+NPZ   = f"layer_{LAYER}.npz"
+
+corpus_dir = Path(args.embed_dir_corpus) if args.embed_dir_corpus \
+             else BASE / "Data" / "embeddings" / SLUG
+novel_dir  = Path(args.embed_dir_novel)  if args.embed_dir_novel  \
+             else BASE / "Data" / "novel_embeddings" / SLUG
+out_dir    = Path(args.out_dir)          if args.out_dir          \
+             else BASE / "Results" / SLUG / f"layer_{LAYER}"
+prefix     = "control_" if args.control else ""
+
 out_dir.mkdir(parents=True, exist_ok=True)
-print(f"Slug: {args.slug}  mode: {args.mode}  layer: {args.layer}  device: {device}")
+device = load_device(args.gpu)
+print(f"Slug: {SLUG}  mode: {args.mode}  layer: {LAYER}  "
+      f"control: {args.control}  device: {device}")
 
 
 def _load_npz(path):
@@ -62,9 +93,16 @@ def _load_npz(path):
     return X, y, w1, w2
 
 
-# ── pair-level CV (novel) ────────────────────────────────────────────────────
+def _shuffle_labels(y: torch.Tensor) -> torch.Tensor:
+    perm = np.random.default_rng(SEED).permutation(len(y))
+    return y[torch.from_numpy(perm)]
+
+
+# ── pair-level CV (novel) ─────────────────────────────────────────────────────
 def run_pair_novel():
-    X, y, w1, w2 = _load_npz(BASE / "Data/novel_embeddings" / args.slug / f"layer_{args.layer}.npz")
+    X, y, w1, w2 = _load_npz(novel_dir / NPZ)
+    if args.control:
+        y = _shuffle_labels(y)
     print(f"Novel pairs: {len(y):,}  dim={X.shape[1]}")
 
     kf        = KFold(n_splits=FOLDS, shuffle=True, random_state=SEED)
@@ -91,18 +129,20 @@ def run_pair_novel():
 
     pd.DataFrame({"word1": w1, "word2": w2,
                   "preference": y.numpy(), "cv_pred": all_preds.numpy()}).to_csv(
-        out_dir / "novel_cv_predictions.csv", index=False)
-    pd.DataFrame(fold_rows).to_csv(out_dir / "novel_cv_fold_stats.csv", index=False)
+        out_dir / f"{prefix}novel_cv_predictions.csv", index=False)
+    pd.DataFrame(fold_rows).to_csv(out_dir / f"{prefix}novel_cv_fold_stats.csv", index=False)
     pd.DataFrame([{"k_folds": FOLDS, "k_pls": K_PLS, "n": len(y),
                    "cv_r": round(r_cv,6), "cv_r2": round(r_cv**2,6),
                    "cv_rho": round(rho_cv,6)}]).to_csv(
-        out_dir / "novel_cv_summary.csv", index=False)
+        out_dir / f"{prefix}novel_cv_summary.csv", index=False)
     print(f"Saved pair-level CV outputs to {out_dir}")
 
 
-# ── word-level CV (shared logic for novel and corpus) ────────────────────────
-def run_word_cv(data_path, prefix):
+# ── word-level CV (shared for novel and corpus) ───────────────────────────────
+def run_word_cv(data_path, file_prefix):
     X, y, w1, w2 = _load_npz(data_path)
+    if args.control:
+        y = _shuffle_labels(y)
     rng = np.random.default_rng(SEED)
 
     all_words = sorted(set(w1) | set(w2))
@@ -123,7 +163,8 @@ def run_word_cv(data_path, prefix):
         test_mask  = (w1_fold == fk) & (w2_fold == fk)
         train_mask = (w1_fold != fk) & (w2_fold != fk)
         n_te, n_tr = test_mask.sum(), train_mask.sum()
-        print(f"Fold {fk+1}: train={n_tr:,}  test={n_te:,}  excl={len(y)-n_te-n_tr:,}", end="")
+        print(f"Fold {fk+1}: train={n_tr:,}  test={n_te:,}  "
+              f"excl={len(y)-n_te-n_tr:,}", end="")
         if n_te == 0:
             print("  (skip)"); continue
 
@@ -158,18 +199,19 @@ def run_word_cv(data_path, prefix):
         "original_idx": pred_idx, "word1": w1[pred_idx], "word2": w2[pred_idx],
         "preference": y_tested.numpy(), "cv_pred": pred_val.numpy(),
         "fold": [word_fold[w1[i]]+1 for i in pred_idx]
-    }).to_csv(out_dir / f"{prefix}_wordcv_predictions.csv", index=False)
-    pd.DataFrame(fold_rows).to_csv(out_dir / f"{prefix}_wordcv_fold_stats.csv", index=False)
+    }).to_csv(out_dir / f"{prefix}{file_prefix}_wordcv_predictions.csv", index=False)
+    pd.DataFrame(fold_rows).to_csv(
+        out_dir / f"{prefix}{file_prefix}_wordcv_fold_stats.csv", index=False)
     pd.DataFrame([{"k_folds": FOLDS, "k_pls": K_PLS, "n_tested": len(pred_idx),
                    "n_total": len(y), "cv_r": round(r_cv,6), "cv_r2": round(r_cv**2,6),
                    "cv_rho": round(rho_cv,6)}]).to_csv(
-        out_dir / f"{prefix}_wordcv_summary.csv", index=False)
+        out_dir / f"{prefix}{file_prefix}_wordcv_summary.csv", index=False)
     print(f"Saved word-level CV outputs to {out_dir}")
 
 
 if args.mode == "pair_novel":
     run_pair_novel()
 elif args.mode == "word_novel":
-    run_word_cv(BASE / "Data/novel_embeddings" / args.slug / f"layer_{args.layer}.npz", "novel")
+    run_word_cv(novel_dir / NPZ, "novel")
 elif args.mode == "word_corpus":
-    run_word_cv(BASE / "Data/embeddings" / args.slug / f"layer_{args.layer}.npz", "corpus")
+    run_word_cv(corpus_dir / NPZ, "corpus")
