@@ -92,7 +92,9 @@ def load_concat(mode):
     npz = np.load(path, allow_pickle=True)
     va  = torch.from_numpy(npz["vec_alpha"].astype(np.float32))
     vna = torch.from_numpy(npz["vec_non_alpha"].astype(np.float32))
-    return (torch.cat([va, vna], dim=1),
+    X   = torch.cat([va, vna], dim=1)
+    del va, vna
+    return (X,
             torch.from_numpy(npz["preference"].astype(np.float32)),
             npz["word1"].astype(str), npz["word2"].astype(str))
 
