@@ -78,8 +78,9 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model",    required=True, help="HuggingFace model ID")
     p.add_argument("--data",     choices=["corpus", "novel"], required=True)
-    p.add_argument("--layer",    default="last",
-                   help="Layer to extract: 'last', 'second_to_last', or integer index")
+    p.add_argument("--layer",    default=None, nargs="+",
+                   help="Layer(s) to extract: 'last', 'second_to_last', or integer index. "
+                        "Multiple values extract all in one forward pass (default: last).")
     p.add_argument("--context",  choices=["binomial", "isolated"], default="binomial")
     p.add_argument("--extract",  choices=["word", "last"], default="word",
                    help="word: pool over target token(s);  last: final token of input")
@@ -119,6 +120,21 @@ def resolve_layer_idx(model, layer_arg: str) -> int:
     return idx
 
 
+def extract_layer_vecs(hidden_states, layer_indices: list[int], span_toks: list[int],
+                       extract_mode: str, pool_mode: str) -> dict[int, np.ndarray]:
+    """Extract vectors for multiple layers from already-computed hidden states."""
+    result = {}
+    last_tok = max(span_toks)
+    for lidx in layer_indices:
+        hs = hidden_states[lidx][0].float().cpu()
+        if extract_mode == "word":
+            vec = pool_vecs(hs, span_toks, pool_mode)
+        else:
+            vec = hs[last_tok]
+        result[lidx] = vec.numpy().astype(np.float32)
+    return result
+
+
 # ── Token-span helpers ────────────────────────────────────────────────────────
 
 def find_span(sentence: str, w1: str, w2: str):
@@ -147,10 +163,10 @@ def pool_vecs(hs: torch.Tensor, indices: list, mode: str) -> torch.Tensor:
 @torch.no_grad()
 def _process_binomial_sent(model, tokenizer, sent: str, device,
                             w_first: str, w_second: str, span_start: int,
-                            layer_idx: int, extract_mode: str, pool_mode: str):
+                            layer_indices: list, extract_mode: str, pool_mode: str):
     """
     Forward-pass one (ordered) binomial sentence.
-    Returns (logprob, embedding) or None on tokenization failure.
+    Returns (logprob, {layer_idx: vec}) or None on tokenization failure.
     """
     cs_w1  = span_start
     ce_w1  = span_start + len(w_first)
@@ -181,21 +197,16 @@ def _process_binomial_sent(model, tokenizer, sent: str, device,
     ids = inputs["input_ids"][0]
     logprob = sum(lp[t - 1, ids[t]].item() for t in span_toks if t > 0)
 
-    hs = out.hidden_states[layer_idx][0].float().cpu()
-
-    if extract_mode == "word":
-        vec = pool_vecs(hs, span_toks, pool_mode)
-    else:  # extract_mode == "last"
-        vec = hs[last_tok]
-
-    return logprob, vec.numpy().astype(np.float32)
+    vecs = extract_layer_vecs(out.hidden_states, layer_indices,
+                              span_toks, extract_mode, pool_mode)
+    return logprob, vecs
 
 
 @torch.no_grad()
 def extract_binomial_pair(model, tokenizer, word1, word2, sentence, device,
-                          layer_idx, extract_mode, pool_mode):
+                          layer_indices, extract_mode, pool_mode):
     """
-    Returns (preference, vec_alpha, vec_non_alpha) or None on failure.
+    Returns (preference, {lidx: va}, {lidx: vna}) or None on failure.
     word1 < word2 alphabetically.
     """
     span_a = find_span(sentence, word1, word2)
@@ -209,28 +220,28 @@ def extract_binomial_pair(model, tokenizer, word1, word2, sentence, device,
     non_alpha_sent = sentence[:s] + word2 + " and " + word1
 
     res_a = _process_binomial_sent(model, tokenizer, alpha_sent, device,
-                                   word1, word2, s, layer_idx, extract_mode, pool_mode)
+                                   word1, word2, s, layer_indices, extract_mode, pool_mode)
     res_b = _process_binomial_sent(model, tokenizer, non_alpha_sent, device,
-                                   word2, word1, s, layer_idx, extract_mode, pool_mode)
+                                   word2, word1, s, layer_indices, extract_mode, pool_mode)
 
     if res_a is None or res_b is None:
         return None
 
-    alpha_lp, va  = res_a
-    non_lp,   vna = res_b
+    alpha_lp, vas  = res_a
+    non_lp,   vnas = res_b
 
-    return alpha_lp - non_lp, va, vna
+    return alpha_lp - non_lp, vas, vnas
 
 
 # ── Isolated extraction ───────────────────────────────────────────────────────
 
 @torch.no_grad()
 def extract_isolated_pair(model, tokenizer, word1, word2, preference: float, device,
-                          layer_idx, pool_mode, template: str):
+                          layer_indices, pool_mode, template: str):
     """
     Embed word1 and word2 each in their isolated context (e.g. "the bread").
     preference is copied from the binomial source — not re-computed here.
-    Returns (preference, vec_alpha, vec_non_alpha) or None on failure.
+    Returns (preference, {lidx: va}, {lidx: vna}) or None on failure.
     """
     word_offset = template.find("{word}")
     if word_offset == -1:
@@ -247,15 +258,15 @@ def extract_isolated_pair(model, tokenizer, word1, word2, preference: float, dev
             return None
         inputs = {k: v.to(device) for k, v in enc.items() if k != "offset_mapping"}
         out = model(**inputs, output_hidden_states=True)
-        hs  = out.hidden_states[layer_idx][0].float().cpu()
-        return pool_vecs(hs, word_toks, pool_mode).numpy().astype(np.float32)
+        return extract_layer_vecs(out.hidden_states, layer_indices,
+                                  word_toks, "word", pool_mode)
 
-    va  = embed_word(word1)
-    vna = embed_word(word2)
-    if va is None or vna is None:
+    vas  = embed_word(word1)
+    vnas = embed_word(word2)
+    if vas is None or vnas is None:
         return None
 
-    return preference, va, vna
+    return preference, vas, vnas
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -263,17 +274,23 @@ def extract_isolated_pair(model, tokenizer, word1, word2, preference: float, dev
 def main():
     args = parse_args()
 
-    slug     = args.model.replace("/", "_").replace(".", "_")
-    out_dir  = Path(args.out)
-    out_file = out_dir / f"{layer_tag(args.layer)}.npz"
+    layer_args = args.layer if args.layer else ["last"]
+    slug       = args.model.replace("/", "_").replace(".", "_")
+    out_dir    = Path(args.out)
 
-    if out_file.exists() and not args.force:
-        print(f"Output already exists: {out_file}  (use --force to re-extract)")
+    # Determine which layers still need extraction
+    out_files   = {la: out_dir / f"{layer_tag(la)}.npz" for la in layer_args}
+    needed      = [la for la in layer_args if not out_files[la].exists() or args.force]
+    already_done = [la for la in layer_args if la not in needed]
+
+    for la in already_done:
+        print(f"Output already exists, skipping: {out_files[la]}  (use --force to re-extract)")
+    if not needed:
         return
 
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     print(f"Model:    {args.model}")
-    print(f"Data:     {args.data}  Layer: {args.layer}  Device: {device}")
+    print(f"Data:     {args.data}  Layers: {needed}  Device: {device}")
     print(f"Context:  {args.context}  Extract: {args.extract}  Pool: {args.pool}")
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -288,14 +305,16 @@ def main():
     )
     model.eval()
 
-    layer_idx = resolve_layer_idx(model, args.layer)
-    print(f"Layer index: {layer_idx} / {model.config.num_hidden_layers}")
+    layer_indices = [resolve_layer_idx(model, la) for la in needed]
+    print(f"Layer indices: {layer_indices} / {model.config.num_hidden_layers}")
 
-    preferences    = []
-    vec_alphas     = []
-    vec_non_alphas = []
-    word1s, word2s = [], []
-    skipped = 0
+    # Per-layer accumulators
+    vas_by_layer  = {li: [] for li in layer_indices}
+    vnas_by_layer = {li: [] for li in layer_indices}
+    preferences   = []
+    word1s        = []
+    word2s        = []
+    skipped       = 0
 
     # ── Binomial extraction ───────────────────────────────────────────────────
     if args.context == "binomial":
@@ -309,7 +328,7 @@ def main():
             try:
                 result = extract_binomial_pair(
                     model, tokenizer, w1, w2, sent, device,
-                    layer_idx, args.extract, args.pool
+                    layer_indices, args.extract, args.pool
                 )
             except Exception as exc:
                 skipped += 1
@@ -319,19 +338,22 @@ def main():
             if result is None:
                 skipped += 1
                 continue
-            pref, va, vna = result
+            pref, vas, vnas = result
             preferences.append(pref)
-            vec_alphas.append(va)
-            vec_non_alphas.append(vna)
             word1s.append(w1)
             word2s.append(w2)
+            for li in layer_indices:
+                vas_by_layer[li].append(vas[li])
+                vnas_by_layer[li].append(vnas[li])
 
     # ── Isolated extraction ───────────────────────────────────────────────────
     else:
+        # Preference source: use the first needed layer's binomial npz.
+        # Prefs are layer-invariant (copied from binomial context) so any layer works.
         if args.pref_source:
             src_path = Path(args.pref_source)
         else:
-            src_path = BINOMIAL_OUT_DIRS[args.data] / slug / f"{layer_tag(args.layer)}.npz"
+            src_path = BINOMIAL_OUT_DIRS[args.data] / slug / f"{layer_tag(needed[0])}.npz"
 
         if not src_path.exists():
             raise FileNotFoundError(
@@ -350,7 +372,7 @@ def main():
             try:
                 result = extract_isolated_pair(
                     model, tokenizer, w1, w2, float(pref), device,
-                    layer_idx, args.pool, args.template
+                    layer_indices, args.pool, args.template
                 )
             except Exception as exc:
                 skipped += 1
@@ -360,29 +382,34 @@ def main():
             if result is None:
                 skipped += 1
                 continue
-            pref_out, va, vna = result
+            pref_out, vas, vnas = result
             preferences.append(pref_out)
-            vec_alphas.append(va)
-            vec_non_alphas.append(vna)
             word1s.append(w1)
             word2s.append(w2)
+            for li in layer_indices:
+                vas_by_layer[li].append(vas[li])
+                vnas_by_layer[li].append(vnas[li])
 
-    # ── Save ──────────────────────────────────────────────────────────────────
+    # ── Save one .npz per layer ───────────────────────────────────────────────
     print(f"Extracted {len(preferences):,} pairs  ({skipped} skipped)")
-    va_arr  = np.stack(vec_alphas).astype(np.float32)
-    vna_arr = np.stack(vec_non_alphas).astype(np.float32)
-
     out_dir.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        out_file,
-        word1         = np.array(word1s,      dtype=object),
-        word2         = np.array(word2s,       dtype=object),
-        preference    = np.array(preferences,  dtype=np.float32),
-        vec_alpha     = va_arr,
-        vec_non_alpha = vna_arr,
-        diff_vecs     = (va_arr - vna_arr).astype(np.float32),
-    )
-    print(f"Saved -> {out_file}")
+    w1_arr   = np.array(word1s, dtype=object)
+    w2_arr   = np.array(word2s, dtype=object)
+    pref_arr = np.array(preferences, dtype=np.float32)
+
+    for la, li in zip(needed, layer_indices):
+        va_arr  = np.stack(vas_by_layer[li]).astype(np.float32)
+        vna_arr = np.stack(vnas_by_layer[li]).astype(np.float32)
+        np.savez_compressed(
+            out_files[la],
+            word1         = w1_arr,
+            word2         = w2_arr,
+            preference    = pref_arr,
+            vec_alpha     = va_arr,
+            vec_non_alpha = vna_arr,
+            diff_vecs     = (va_arr - vna_arr).astype(np.float32),
+        )
+        print(f"Saved -> {out_files[la]}")
 
     del model
     torch.cuda.empty_cache()

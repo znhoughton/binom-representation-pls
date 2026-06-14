@@ -177,7 +177,8 @@ def results_dir(slug: str, layer: str, condition: str) -> Path:
     return BASE / "Results" / slug / f"layer_{layer}{tag}"
 
 
-def run_extraction(model_key, model_id, layer, data_split, condition, gpu, force):
+def run_extraction(model_key, model_id, layers, data_split, condition, gpu, force):
+    """Extract embeddings for all requested layers in a single forward pass per pair."""
     cond    = EXTRACT_CONDITIONS[condition]
     slug    = slug_for(model_id)
     out_dir = EMBED_DIRS[condition][data_split] / slug
@@ -186,7 +187,7 @@ def run_extraction(model_key, model_id, layer, data_split, condition, gpu, force
         PYTHON, str(SCRIPTS / "extract_embeddings.py"),
         "--model", model_id,
         "--data",  data_split,
-        "--layer", layer,
+        "--layer", *layers,
         "--out",   str(out_dir),
         "--gpu",   str(gpu),
         "--context", cond["context"],
@@ -200,11 +201,12 @@ def run_extraction(model_key, model_id, layer, data_split, condition, gpu, force
         cmd.append("--force")
 
     if cond["context"] == "isolated":
+        # Use the first layer's binomial npz as preference source
         pref_src = (EMBED_DIRS["default"][data_split] / slug /
-                    f"layer_{layer}.npz")
+                    f"layer_{layers[0]}.npz")
         cmd += ["--pref-source", str(pref_src)]
 
-    run(cmd, f"extract  model={model_key}  layer={layer}  "
+    run(cmd, f"extract  model={model_key}  layers={layers}  "
              f"data={data_split}  condition={condition}")
 
 
@@ -307,11 +309,11 @@ def main():
             for model_key in args.models:
                 model_id = MODELS[model_key]
                 for data_split in args.data:
-                    for layer in args.layers:
-                        run_extraction(
-                            model_key, model_id, layer, data_split,
-                            condition, args.gpu, args.force
-                        )
+                    # Pass all layers at once — extracted in a single forward pass per pair
+                    run_extraction(
+                        model_key, model_id, args.layers, data_split,
+                        condition, args.gpu, args.force
+                    )
 
     # ── Analysis ──────────────────────────────────────────────────────────────
     if not args.skip_analysis:
