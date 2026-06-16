@@ -1,6 +1,10 @@
 # ── Embeddings (large; regenerate with Scripts/preprocessing/run_preprocessing_pipeline.py) ──
 Data/embeddings/
 Data/novel_embeddings/
+Data/embeddings_last/
+Data/novel_embeddings_last/
+Data/embeddings_isolated/
+Data/novel_embeddings_isolated/
 
 # ── Large intermediate result files (regenerate with Scripts/run_full_pipeline.py) ──
 # Per-stratum PLS component score dumps — not read by any downstream script
@@ -30,6 +34,9 @@ __pycache__/
 # ── Bayesian report outputs (copy manually from server) ───────────────────────
 Results/bayesian_analysis_*.html
 Results/bayesian_analysis_*_files/
+
+# ── Personal notes ────────────────────────────────────────────────────────────
+math_notes.md
 
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store

@@ -1,0 +1,2 @@
+input,split,folds,epochs,n_train,n_test,test_r,test_r2,test_rho,train_r
+diff,word_strict,1,21,48950,24461,-0.005536,3.1e-05,-0.006619,0.087835

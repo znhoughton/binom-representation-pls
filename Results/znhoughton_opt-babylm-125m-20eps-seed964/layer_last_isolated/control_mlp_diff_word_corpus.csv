@@ -1,0 +1,2 @@
+input,split,folds,epochs,mean_n_train,mean_n_test,mean_test_r,std_test_r,mean_test_r2,std_test_r2,mean_test_rho,std_test_rho,mean_test_acc,std_test_acc,mean_train_r
+diff,word_corpus,10,21.6,39691.2,531.2,-0.012765,0.048546,0.002284,0.001043,-0.015864,0.048945,0.494186,0.015228,0.099264

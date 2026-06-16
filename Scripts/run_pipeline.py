@@ -18,8 +18,8 @@ Analysis steps (core)
   cv_pair          PLS pair-level CV (novel)
   cv_word_nov      PLS word-level CV (novel)
   cv_word_cor      PLS word-level CV (corpus)
-  mlp_diff_*       MLP-diff for all four splits
-  mlp_concat_*     MLP-concat for all four splits
+  mlp_diff_*       MLP-diff for all five splits
+  mlp_concat_*     MLP-concat for all five splits
 
 Analysis steps (auxiliary — default condition only)
 -----------------------------------------------------
@@ -130,7 +130,9 @@ CORE_STEPS = [
     ("mlp_concat_transfer",    LIB / "mlp_comparison.py",  ["--input", "concat", "--split", "transfer"]),
     ("mlp_concat_pair_novel",  LIB / "mlp_comparison.py",  ["--input", "concat", "--split", "pair_novel"]),
     ("mlp_concat_word_novel",  LIB / "mlp_comparison.py",  ["--input", "concat", "--split", "word_novel"]),
-    ("mlp_concat_word_strict", LIB / "mlp_comparison.py",  ["--input", "concat", "--split", "word_strict"]),
+    ("mlp_concat_word_strict",  LIB / "mlp_comparison.py",  ["--input", "concat", "--split", "word_strict"]),
+    ("mlp_diff_word_corpus",    LIB / "mlp_comparison.py",  ["--input", "diff",   "--split", "word_corpus"]),
+    ("mlp_concat_word_corpus",  LIB / "mlp_comparison.py",  ["--input", "concat", "--split", "word_corpus"]),
 ]
 
 # Auxiliary steps (default condition only; no --embed-dir support)

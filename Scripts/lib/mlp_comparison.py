@@ -9,10 +9,11 @@ MLP-based ordering preference prediction.
           training includes antisymmetric augmentation
 
 --split controls the train/test design:
-  transfer    train on corpus -> test on all novel
-  pair_novel  10-fold CV within novel (random pair split)
-  word_novel  10-fold CV within novel (word-level split; both words held out)
-  word_strict train on corpus -> test on novel pairs where neither word is in corpus
+  transfer     train on corpus -> test on all novel
+  pair_novel   10-fold CV within novel (random pair split)
+  word_novel   10-fold CV within novel (word-level split; both words held out)
+  word_strict  train on corpus -> test on novel pairs where neither word is in corpus
+  word_corpus  10-fold CV within corpus (word-level split; both words held out)
 
 New args
 --------
@@ -69,13 +70,14 @@ WEIGHT_DECAY = 1e-4
 BATCH        = 2048
 SEED         = 964
 
-CV_SPLITS = {"pair_novel", "word_novel"}
+CV_SPLITS = {"pair_novel", "word_novel", "word_corpus"}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--slug",  default="znhoughton_opt-babylm-125m-20eps-seed964")
 parser.add_argument("--gpu",   type=int, default=0)
 parser.add_argument("--input", choices=["diff", "concat"], required=True)
-parser.add_argument("--split", choices=["transfer", "pair_novel", "word_novel", "word_strict"],
+parser.add_argument("--split",
+                    choices=["transfer", "pair_novel", "word_novel", "word_strict", "word_corpus"],
                     required=True)
 parser.add_argument("--layer", default="last")
 parser.add_argument("--embed-dir-corpus", dest="embed_dir_corpus", default=None)
@@ -371,6 +373,38 @@ elif args.split == "word_strict":
     pred_rows = [{"word1": w1[i], "word2": w2[i],
                   "preference": y_te[i].item(), "mlp_pred": y_pred[i].item(),
                   "fold": 0} for i in range(len(y_te))]
+
+elif args.split == "word_corpus":
+    X_cor, y_cor, w1_cor, w2_cor = load_corpus()
+    if args.control:
+        y_cor = _shuffle(y_cor, seed_offset=0)
+    all_words    = np.array(sorted(set(w1_cor) | set(w2_cor)))
+    perm         = rng.permutation(len(all_words))
+    word_to_fold = {all_words[i]: int(perm[i] % FOLDS) for i in range(len(all_words))}
+
+    w1_folds = np.array([word_to_fold.get(w, -1) for w in w1_cor])
+    w2_folds = np.array([word_to_fold.get(w, -1) for w in w2_cor])
+
+    for fold in range(FOLDS):
+        te_mask = (w1_folds == fold) & (w2_folds == fold)
+        tr_mask = (w1_folds != fold) & (w2_folds != fold)
+        n_te = te_mask.sum()
+        if n_te < 10:
+            print(f"Fold {fold+1}: only {n_te} test pairs — skipping.")
+            continue
+        print(f"\nFold {fold+1}/{FOLDS}  train={tr_mask.sum():,}  test={n_te:,}  "
+              f"excluded={len(y_cor)-tr_mask.sum()-n_te:,}")
+        X_tr = X_cor[torch.from_numpy(tr_mask)]
+        y_tr = y_cor[torch.from_numpy(tr_mask)]
+        X_te = X_cor[torch.from_numpy(te_mask)]
+        y_te = y_cor[torch.from_numpy(te_mask)]
+        metrics, loss_rows, y_pred = train_eval(X_tr, y_tr, X_te, y_te, fold=fold)
+        fold_stats_rows.append(metrics)
+        loss_curve_rows.extend(loss_rows)
+        for i, idx in enumerate(np.where(te_mask)[0]):
+            pred_rows.append({"word1": w1_cor[idx], "word2": w2_cor[idx],
+                               "preference": y_te[i].item(), "mlp_pred": y_pred[i].item(),
+                               "fold": fold})
 
 
 # ── aggregate and save ────────────────────────────────────────────────────────

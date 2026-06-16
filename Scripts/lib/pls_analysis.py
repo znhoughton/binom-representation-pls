@@ -20,7 +20,8 @@ Outputs
 -------
   {out_dir}/corpus_pls_scores.csv
   {out_dir}/novel_pls_scores.csv
-  (control run: control_corpus_pls_scores.csv, control_novel_pls_scores.csv)
+  {out_dir}/pls_word_strict.csv       (subset of novel where neither word is in corpus)
+  (control run: control_ prefix on each file)
 
 Usage
 -----
@@ -144,3 +145,27 @@ df_n["word1"] = w1_novel; df_n["word2"] = w2_novel
 df_n.to_csv(out_dir / f"{prefix}novel_pls_scores.csv", index=False)
 
 print(f"\nSaved {prefix}corpus_pls_scores.csv and {prefix}novel_pls_scores.csv -> {out_dir}")
+
+# ── word-strict subset ────────────────────────────────────────────────────────
+corpus_words = set(w1_corpus) | set(w2_corpus)
+strict_mask  = np.array([w1_novel[i] not in corpus_words and
+                          w2_novel[i] not in corpus_words
+                          for i in range(len(w1_novel))])
+n_strict = int(strict_mask.sum())
+if n_strict >= 10:
+    y_ws      = y_novel[torch.from_numpy(strict_mask)]
+    yp_ws     = y_pred_novel[torch.from_numpy(strict_mask)]
+    r_ws      = pearsonr(y_ws, yp_ws)
+    rho_ws    = spearmanr(y_ws, yp_ws)
+    print(f"Word-strict: n={n_strict}  r={r_ws:.4f}  r²={r_ws**2:.4f}  rho={rho_ws:.4f}")
+    pd.DataFrame([{
+        "n": n_strict, "r": round(r_ws, 6),
+        "r2": round(r_ws ** 2, 6), "rho": round(rho_ws, 6),
+    }]).to_csv(out_dir / f"{prefix}pls_word_strict.csv", index=False)
+    pd.DataFrame({
+        "word1": w1_novel[strict_mask], "word2": w2_novel[strict_mask],
+        "preference": y_ws.numpy(), "pls_pred": yp_ws.numpy(),
+    }).to_csv(out_dir / f"{prefix}pls_word_strict_predictions.csv", index=False)
+    print(f"Saved {prefix}pls_word_strict.csv and {prefix}pls_word_strict_predictions.csv -> {out_dir}")
+else:
+    print(f"Word-strict: only {n_strict} qualifying pairs — skipping.")

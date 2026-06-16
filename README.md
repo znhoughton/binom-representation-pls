@@ -148,16 +148,16 @@ $py = "C:\Users\zacha\anaconda3\envs\PRenv\python.exe"
 ### Running extraction directly
 
 ```powershell
-# Default condition:
+# Default condition (both layers in one forward pass):
 & $py Scripts\extract_embeddings.py `
     --model znhoughton/opt-babylm-350m-20eps-seed964 `
-    --data corpus --layer last `
+    --data corpus --layer last second_to_last `
     --out Data/embeddings/znhoughton_opt-babylm-350m-20eps-seed964
 
-# Isolated context:
+# Isolated context (both layers):
 & $py Scripts\extract_embeddings.py `
     --model znhoughton/opt-babylm-350m-20eps-seed964 `
-    --data corpus --layer last --context isolated `
+    --data corpus --layer last second_to_last --context isolated `
     --out Data/embeddings_isolated/znhoughton_opt-babylm-350m-20eps-seed964
 ```
 
