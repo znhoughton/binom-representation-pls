@@ -134,6 +134,54 @@ Accuracy from binary classification models (BCE loss, binarized labels). Default
 
 Accuracy tracks r² across all conditions: MLP-concat pair-CV is highest (.601–.666), word-strict is lowest (.521–.568). Hidden-dim has negligible effect (≤0.01 throughout). Last-token accuracy is close to default; isolated is uniformly 1–3 points lower, consistent with the r² drop.
 
+### Summary: best probe performance (h128 MLP, 15-component PLS)
+
+h128 was marginally the best-performing hidden dim on average (MLP-diff: h128 mean r² = .103 vs h64 = .102 vs h15 = .101; MLP-concat: h128 = .143 vs h64 = .139 vs h15 = .130). Tables below use h128 for both MLP probes and 15-component PLS. SDs in parentheses for multi-fold splits (Pair-CV, Word-CV, Corpus word-CV). See Figure 1.
+
+#### r²
+
+| Condition | Split | 125m PLS | 125m Md | 125m Mc | 350m PLS | 350m Md | 350m Mc | 1.3b PLS | 1.3b Md | 1.3b Mc |
+|:--|:--|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Default | Transfer | .084 | .092 | .135 | .097 | .100 | .129 | .019 | .058 | .071 |
+| Default | Pair-CV | .200 (.005) | .232 (.002) | .379 (.004) | .225 (.006) | .258 (.006) | .407 (.006) | .171 (.004) | .190 (.004) | .273 (.005) |
+| Default | Word-CV (novel) | .152 (.028) | .150 (.027) | .216 (.023) | .170 (.023) | .172 (.021) | .240 (.023) | .117 (.026) | .113 (.022) | .147 (.026) |
+| Default | Corpus word-CV | .172 (.041) | .176 (.044) | .196 (.043) | .139 (.046) | .144 (.046) | .176 (.051) | .129 (.037) | .146 (.036) | .139 (.038) |
+| Default | Word-strict | .034 | .032 | .053 | .043 | .039 | .052 | .024 | .022 | .029 |
+| Last-token | Transfer | .075 | .080 | .116 | .070 | .070 | .106 | .015 | .059 | .068 |
+| Last-token | Pair-CV | .157 (.003) | .167 (.003) | .311 (.005) | .168 (.004) | .181 (.004) | .333 (.005) | .144 (.002) | .150 (.004) | .232 (.004) |
+| Last-token | Word-CV (novel) | .118 (.017) | .107 (.017) | .159 (.017) | .132 (.021) | .121 (.020) | .166 (.025) | .098 (.018) | .093 (.018) | .111 (.016) |
+| Last-token | Corpus word-CV | .196 (.063) | .191 (.064) | .208 (.060) | .168 (.049) | .165 (.050) | .190 (.043) | .152 (.044) | .156 (.042) | .164 (.036) |
+| Last-token | Word-strict | .036 | .033 | .054 | .044 | .036 | .056 | .029 | .029 | .032 |
+| Isolated | Transfer | .040 | .053 | .064 | .034 | .046 | .052 | .000 | .037 | .044 |
+| Isolated | Pair-CV | .115 (.002) | .134 (.003) | .242 (.004) | .114 (.003) | .134 (.004) | .246 (.005) | .113 (.003) | .125 (.004) | .185 (.003) |
+| Isolated | Word-CV (novel) | .064 (.017) | .062 (.015) | .087 (.009) | .064 (.017) | .060 (.015) | .089 (.017) | .049 (.016) | .047 (.012) | .059 (.012) |
+| Isolated | Corpus word-CV | .126 (.046) | .127 (.047) | .145 (.046) | .099 (.038) | .109 (.040) | .118 (.035) | .093 (.029) | .107 (.042) | .106 (.032) |
+| Isolated | Word-strict | .014 | .014 | .016 | .014 | .014 | .016 | .005 | .004 | .006 |
+
+#### Accuracy
+
+| Condition | Split | 125m PLS | 125m Md | 125m Mc | 350m PLS | 350m Md | 350m Mc | 1.3b PLS | 1.3b Md | 1.3b Mc |
+|:--|:--|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Default | Transfer | .594 | .584 | .599 | .598 | .591 | .592 | .578 | .573 | .574 |
+| Default | Pair-CV | .623 (.002) | .630 (.003) | .662 (.003) | — | .634 (.001) | .666 (.003) | — | .618 (.003) | .631 (.002) |
+| Default | Word-CV (novel) | .598 (.014) | .615 (.013) | .631 (.014) | — | .617 (.011) | .634 (.007) | — | .601 (.010) | .604 (.010) |
+| Default | Corpus word-CV | .592 (.044) | .623 (.026) | .632 (.025) | — | .627 (.014) | .630 (.028) | — | .623 (.028) | .622 (.032) |
+| Default | Word-strict | — | .542 | .553 | — | .559 | .549 | — | .546 | .545 |
+| Last-token | Transfer | .594 | .593 | .597 | .594 | .588 | .596 | .580 | .574 | .576 |
+| Last-token | Pair-CV | .619 (.003) | .623 (.002) | .656 (.002) | .619 (.003) | .627 (.002) | .656 (.004) | .612 (.002) | .613 (.003) | .629 (.003) |
+| Last-token | Word-CV (novel) | .594 (.010) | .606 (.007) | .617 (.015) | .600 (.011) | .611 (.008) | .619 (.010) | .588 (.011) | .592 (.010) | .600 (.009) |
+| Last-token | Corpus word-CV | .608 (.056) | .628 (.035) | .635 (.027) | .630 (.059) | .632 (.029) | .636 (.023) | .589 (.051) | .624 (.032) | .629 (.028) |
+| Last-token | Word-strict | — | .560 | .560 | — | .562 | .568 | — | .548 | .550 |
+| Isolated | Transfer | .577 | .576 | .581 | .574 | .574 | .579 | .564 | .563 | .562 |
+| Isolated | Pair-CV | .604 (.003) | .610 (.002) | .641 (.003) | .601 (.003) | .609 (.003) | .639 (.003) | .602 (.002) | .601 (.003) | .618 (.003) |
+| Isolated | Word-CV (novel) | .573 (.013) | .582 (.015) | .591 (.012) | .572 (.011) | .576 (.014) | .587 (.013) | .561 (.009) | .565 (.010) | .572 (.008) |
+| Isolated | Corpus word-CV | .588 (.054) | .608 (.028) | .604 (.035) | .625 (.051) | .615 (.024) | .613 (.027) | .550 (.021) | .607 (.023) | .612 (.033) |
+| Isolated | Word-strict | — | .544 | .545 | — | .547 | .552 | — | .527 | .523 |
+
+![Summary of probe performance across conditions](Plots/summary_probe_performance.png)
+
+*Figure 1. r² by probe type (PLS, MLP-diff h128, MLP-concat h128) across embedding conditions (Default, Last-token, Isolated) and generalization splits, for each model size. MLP-concat consistently outperforms PLS and MLP-diff, with Pair-CV showing the highest r² and Word-strict the lowest across all conditions.*
+
 ### Last-token (binomial sentence, last subtoken of span)
 
 | Eval split | 125m PLS | 125m MLP-diff | 125m MLP-concat | 350m PLS | 350m MLP-diff | 350m MLP-concat | 1.3b PLS | 1.3b MLP-diff | 1.3b MLP-concat |
