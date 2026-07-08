@@ -25,11 +25,16 @@ AND whose per-pair prediction NPZ already exists. A clean rerun from scratch sim
 finds nothing to skip.
 """
 import argparse
+import os
 import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+# Use cached models only — avoids silent hangs from HF Hub network checks
+# on rate-limited / unauthenticated connections. Models must be pre-downloaded.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 PYTHON  = sys.executable
 RSCRIPT = shutil.which("Rscript") or "Rscript"
