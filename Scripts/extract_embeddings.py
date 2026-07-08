@@ -259,7 +259,6 @@ def extract_binomial_batch(model, tokenizer, rows, device,
     all_span_infos = []
     pair_indices = []
 
-    MAX_LEFT_CHARS = 400  # ~80 tokens; prevents long sentences from blowing up VRAM
     for idx, (w1, w2, sent) in enumerate(rows):
         span_a = find_span(sent, w1, w2)
         span_b = find_span(sent, w2, w1)
@@ -267,14 +266,12 @@ def extract_binomial_batch(model, tokenizer, rows, device,
             pair_indices.append(None)
             continue
         s = (span_a if span_a is not None else span_b)[0]
-        prefix = sent[max(0, s - MAX_LEFT_CHARS):s]
-        new_s  = len(prefix)
         a_pos = len(all_sents)
-        all_sents.append(prefix + w1 + " and " + w2)
-        all_span_infos.append((w1, w2, new_s))
+        all_sents.append(sent[:s] + w1 + " and " + w2)
+        all_span_infos.append((w1, w2, s))
         na_pos = len(all_sents)
-        all_sents.append(prefix + w2 + " and " + w1)
-        all_span_infos.append((w2, w1, new_s))
+        all_sents.append(sent[:s] + w2 + " and " + w1)
+        all_span_infos.append((w2, w1, s))
         pair_indices.append((a_pos, na_pos))
 
     if not all_sents:
@@ -658,18 +655,26 @@ def main():
         batch_fn = extract_attn_zeroed_batch if args.context == "attn_zeroed" else extract_binomial_batch
 
         if args.batch_size > 1:
-            for batch_start in tqdm(range(0, len(all_rows), args.batch_size),
-                                    total=(len(all_rows) + args.batch_size - 1) // args.batch_size):
-                batch = all_rows[batch_start:batch_start + args.batch_size]
+            effective_bs = args.batch_size
+            i = 0
+            pbar = tqdm(total=len(all_rows))
+            while i < len(all_rows):
+                batch = all_rows[i:i + effective_bs]
                 try:
                     results = batch_fn(
                         model, tokenizer, batch, device,
                         layer_indices, args.extract, args.pool
                     )
+                except torch.cuda.OutOfMemoryError:
+                    torch.cuda.empty_cache()
+                    effective_bs = max(1, effective_bs // 2)
+                    print(f"\n  OOM: retrying with batch_size={effective_bs}", flush=True)
+                    continue  # retry same position with smaller batch
                 except Exception as exc:
                     skipped += len(batch)
-                    if skipped <= 5 * args.batch_size:
-                        print(f"  WARNING batch {batch_start}: {exc}")
+                    print(f"  WARNING batch {i}: {exc}", flush=True)
+                    i += len(batch)
+                    pbar.update(len(batch))
                     continue
                 for (w1, w2, _), result in zip(batch, results):
                     if result is None:
@@ -688,8 +693,11 @@ def main():
                         acc[li]["na_w1"].append(nw1)
                         acc[li]["na_and"].append(nand)
                         acc[li]["na_w2"].append(nw2)
+                i += len(batch)
+                pbar.update(len(batch))
                 if len(preferences) >= flush_every:
                     _flush_chunks()
+            pbar.close()
         else:
             raise ValueError("batch_size must be > 1 for per-word extraction. Use --batch-size 256.")
 

@@ -22,7 +22,7 @@ EXTRACT_SCRIPT = str(BASE / "Scripts" / "extract_embeddings.py")
 MODELS = [
     {"flag": "125m", "id": "znhoughton/opt-babylm-125m-20eps-seed964",
      "slug": "znhoughton_opt-babylm-125m-20eps-seed964",
-     "num_layers": 12, "batch_size": 4096, "shard_pairs": 500000},
+     "num_layers": 12, "batch_size": 8192, "shard_pairs": 500000},
     {"flag": "350m", "id": "znhoughton/opt-babylm-350m-20eps-seed964",
      "slug": "znhoughton_opt-babylm-350m-20eps-seed964",
      "num_layers": 24, "batch_size": 8192, "shard_pairs": 500000},
