@@ -1,2 +1,0 @@
-input,split,folds,epochs,mean_n_train,mean_n_test,mean_test_r,std_test_r,mean_test_r2,std_test_r2,mean_test_rho,std_test_rho,mean_test_acc,std_test_acc,mean_train_r
-concat,pair_novel,10,21.9,306037.8,34004.2,-0.002194,0.003582,1.6e-05,1.6e-05,-0.001434,0.003667,0.499947,0.001794,0.055427

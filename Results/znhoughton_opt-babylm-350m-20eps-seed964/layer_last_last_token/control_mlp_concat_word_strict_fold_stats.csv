@@ -1,2 +1,0 @@
-fold,n_train,n_test,train_r,train_r2,test_r,test_r2,test_rho,test_acc,stopped_epoch
-0,48950,24461,0.074632,0.00557,0.008689,7.6e-05,0.006572,0.495523,22
