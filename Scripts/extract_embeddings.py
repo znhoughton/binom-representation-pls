@@ -259,6 +259,7 @@ def extract_binomial_batch(model, tokenizer, rows, device,
     all_span_infos = []
     pair_indices = []
 
+    MAX_LEFT_CHARS = 400  # ~80 tokens; prevents long sentences from blowing up VRAM
     for idx, (w1, w2, sent) in enumerate(rows):
         span_a = find_span(sent, w1, w2)
         span_b = find_span(sent, w2, w1)
@@ -266,12 +267,14 @@ def extract_binomial_batch(model, tokenizer, rows, device,
             pair_indices.append(None)
             continue
         s = (span_a if span_a is not None else span_b)[0]
+        prefix = sent[max(0, s - MAX_LEFT_CHARS):s]
+        new_s  = len(prefix)
         a_pos = len(all_sents)
-        all_sents.append(sent[:s] + w1 + " and " + w2)
-        all_span_infos.append((w1, w2, s))
+        all_sents.append(prefix + w1 + " and " + w2)
+        all_span_infos.append((w1, w2, new_s))
         na_pos = len(all_sents)
-        all_sents.append(sent[:s] + w2 + " and " + w1)
-        all_span_infos.append((w2, w1, s))
+        all_sents.append(prefix + w2 + " and " + w1)
+        all_span_infos.append((w2, w1, new_s))
         pair_indices.append((a_pos, na_pos))
 
     if not all_sents:
