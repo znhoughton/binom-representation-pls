@@ -325,6 +325,7 @@ def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name,
 
 
 def main():
+    global BATCH
     p = argparse.ArgumentParser()
     p.add_argument("--model-slug", required=True, dest="model_slug")
     p.add_argument("--num-layers", type=int, required=True, dest="num_layers",
@@ -350,7 +351,6 @@ def main():
                    help=f"Training mini-batch size (default: {BATCH}; increase for high-VRAM GPUs)")
     args = p.parse_args()
 
-    global BATCH
     BATCH = args.batch
 
     device = load_device(args.gpu)
