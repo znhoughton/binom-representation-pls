@@ -70,14 +70,10 @@ def _incremental_mean_std(X, global_idx, chunk=4096):
 def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
     """Train one CV fold.
 
-    For mean_pooled/words_only (X_tr ~5 GB, fits in 8 GB VRAM): uses the fast
-    GPU-cached path — scale X_tr once on CPU, move to GPU, batch entirely on GPU.
-
-    For individual (X_tr ~7.6 GB, exceeds VRAM): uses the memory-safe path —
-    mean/std computed incrementally, batches drawn from CPU X with on-the-fly
-    scaling and per-batch PCIe transfer.
-
-    tr_idx / te_idx are numpy int arrays of global indices into X and y.
+    Assumes sufficient GPU memory to hold all training/val/test data at once
+    (true for 128 GB unified memory; original incremental/CPU-fallback path removed).
+    Mean and std are computed on the GPU after loading X_tr, which is much faster
+    than the old 2-pass CPU loop.
     """
     n_all = len(tr_idx)
     n_val = max(1, int(n_all * VAL_FRAC))
@@ -86,39 +82,28 @@ def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
     inner_tr_idx = tr_idx[np.setdiff1d(np.arange(n_all), val_local)]
     inner_val_idx = tr_idx[val_local]
 
-    mean_, std_ = _incremental_mean_std(X, inner_tr_idx)
+    # Load training data to GPU and compute mean/std there
+    X_tr  = X[torch.from_numpy(inner_tr_idx)].to(device)
+    mean_ = X_tr.mean(0)
+    std_  = X_tr.std(0, unbiased=True); std_[std_ < 1e-8] = 1.0
+    X_tr  = (X_tr - mean_).div_(std_)
+    y_tr  = y[torch.from_numpy(inner_tr_idx)].to(device)
 
-    X_val_sc = (X[torch.from_numpy(inner_val_idx)] - mean_).div_(std_)
-    y_val = y[torch.from_numpy(inner_val_idx)]
-    X_te_sc = (X[torch.from_numpy(te_idx)] - mean_).div_(std_)
-    y_te = y[torch.from_numpy(te_idx)]
+    X_val = (X[torch.from_numpy(inner_val_idx)].to(device) - mean_).div_(std_)
+    y_val = y[torch.from_numpy(inner_val_idx)].to(device)
+    X_te  = (X[torch.from_numpy(te_idx)].to(device) - mean_).div_(std_)
+    y_te  = y[torch.from_numpy(te_idx)]
 
-    input_dim = X.shape[1]
-    n_tr = len(inner_tr_idx)
+    n_tr, input_dim = X_tr.shape
 
-    # GPU-cached path: pre-scale X_tr and move entirely to GPU.
-    # Only safe when X_tr fits comfortably in VRAM (~5 GB for mean_pooled/words_only).
-    # individual mode at 1.3B (7.6 GB X_tr) skips this and batches from CPU.
-    use_gpu_cache = False
-    X_tr_d = None
-    if device.type == "cuda":
-        x_tr_bytes = n_tr * input_dim * 4
-        free_vram, _ = torch.cuda.mem_get_info(device)
-        if x_tr_bytes < free_vram * 0.80:
-            X_tr_sc = (X[torch.from_numpy(inner_tr_idx)] - mean_).div_(std_)
-            X_tr_d = X_tr_sc.to(device)
-            y_tr_d = y[torch.from_numpy(inner_tr_idx)].to(device)
-            del X_tr_sc
-            use_gpu_cache = True
-
-    mlp = OrderingMLP(input_dim, HIDDEN).to(device)
+    mlp = torch.compile(OrderingMLP(input_dim, HIDDEN).to(device))
     opt = torch.optim.Adam(mlp.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
     loss_fn = nn.MSELoss()
-    g = torch.Generator(); g.manual_seed(SEED + fold)
+    g      = torch.Generator(); g.manual_seed(SEED + fold)
     g_flip = torch.Generator(); g_flip.manual_seed(SEED + fold + 10000)
 
-    best_val_loss = float("inf")
-    best_state = {k: v.clone() for k, v in mlp.state_dict().items()}
+    best_val_loss  = float("inf")
+    best_state     = {k: v.clone() for k, v in mlp.state_dict().items()}
     patience_count = 0
 
     for epoch in range(MAX_EPOCHS):
@@ -126,23 +111,16 @@ def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
         perm = torch.randperm(n_tr, generator=g)
         for start in range(0, n_tr, BATCH):
             idx = perm[start:start + BATCH]
-            if use_gpu_cache:
-                xb = X_tr_d[idx]
-                yb = y_tr_d[idx]
-            else:
-                local_idx = idx.numpy()
-                batch_global = torch.from_numpy(inner_tr_idx[local_idx])
-                xb = (X[batch_global] - mean_).div_(std_).to(device)
-                yb = y[batch_global].to(device)
+            xb  = X_tr[idx]
+            yb  = y_tr[idx]
             flip = (torch.rand(len(xb), generator=g_flip) < 0.5).to(device)
             if flip.any():
                 if mode in ("mean_pooled", "words_only"):
                     half = xb.shape[1] // 2
-                    flipped = torch.cat([xb[flip, half:], xb[flip, :half]], dim=1)
+                    xb[flip] = torch.cat([xb[flip, half:], xb[flip, :half]], dim=1)
                 elif mode == "individual":
                     third = xb.shape[1] // 3
-                    flipped = torch.cat([xb[flip, 2*third:], xb[flip, third:2*third], xb[flip, :third]], dim=1)
-                xb[flip] = flipped
+                    xb[flip] = torch.cat([xb[flip, 2*third:], xb[flip, third:2*third], xb[flip, :third]], dim=1)
                 yb[flip] = -yb[flip]
             opt.zero_grad()
             loss_fn(mlp(xb), yb).backward()
@@ -150,11 +128,10 @@ def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
 
         mlp.eval()
         with torch.no_grad():
-            val_loss = loss_fn(mlp(X_val_sc.to(device)).cpu(), y_val).item()
-
+            val_loss = loss_fn(mlp(X_val), y_val).item()
         if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            best_state = {k: v.clone() for k, v in mlp.state_dict().items()}
+            best_val_loss  = val_loss
+            best_state     = {k: v.clone() for k, v in mlp.state_dict().items()}
             patience_count = 0
         else:
             patience_count += 1
@@ -162,15 +139,13 @@ def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
                 break
 
     mlp.load_state_dict(best_state)
-    if use_gpu_cache:
-        del X_tr_d, y_tr_d
-    del X_val_sc
+    del X_tr, y_tr, X_val, y_val
     if device.type == "cuda":
         torch.cuda.empty_cache()
 
     mlp.eval()
     with torch.no_grad():
-        y_pred = mlp(X_te_sc.to(device)).cpu()
+        y_pred = mlp(X_te).cpu()
 
     r = pearsonr(y_te, y_pred)
     return float(r ** 2), y_te.numpy(), y_pred.numpy()
@@ -380,6 +355,7 @@ def main():
 
     device = load_device(args.gpu)
     torch.manual_seed(SEED)
+    torch.set_float32_matmul_precision("high")  # TF32 on Ampere/Blackwell Tensor Cores
     rng = np.random.default_rng(SEED)
 
     CONDITION_DIRS = {
