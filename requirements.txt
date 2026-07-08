@@ -1,0 +1,22 @@
+# Core ML / numerics
+numpy
+scipy
+scikit-learn
+pandas
+
+# Deep learning (install CUDA build separately — see note below)
+# torch>=2.0.0
+
+# Hugging Face (for model/tokenizer loading during extraction)
+transformers
+accelerate
+huggingface_hub
+
+# Plotting (optional — only needed for scatter/summary plots)
+matplotlib
+
+# ---
+# PyTorch CUDA installation (required for GPU training and extraction):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+# Replace cu121 with the CUDA version matching your driver (cu118, cu124, etc.)
+# Verify with: python -c "import torch; print(torch.cuda.is_available())"

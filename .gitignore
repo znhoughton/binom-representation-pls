@@ -1,16 +1,20 @@
-# ── Embeddings (large; regenerate with Scripts/preprocessing/run_preprocessing_pipeline.py) ──
+# ── Embeddings (large; regenerate with run_chain.py) ─────────────────────────
 Data/embeddings/
 Data/novel_embeddings/
+Data/embeddings_attn_zeroed/
+Data/novel_embeddings_attn_zeroed/
 Data/embeddings_last/
 Data/novel_embeddings_last/
 Data/embeddings_isolated/
 Data/novel_embeddings_isolated/
 
-# ── Large intermediate result files (regenerate with Scripts/run_full_pipeline.py) ──
+# ── Large intermediate result files ───────────────────────────────────────────
 # Per-stratum PLS component score dumps — not read by any downstream script
 Results/**/stratum_*_corpus.csv
 Results/**/stratum_*_novel.csv
-# Pair-level CV per-fold predictions (retained — needed by bayesian_analysis.Rmd)
+# Per-pair CV prediction NPZ files from by_layer_mlp.py (regenerate with run_chain.py)
+Results/**/cv_preds/
+Results/**/cv_preds_control/
 # brms model objects — too large for git; re-fit via bayesian_analysis.Rmd
 Results/**/*.rds
 
