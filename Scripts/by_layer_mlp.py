@@ -349,7 +349,11 @@ def main():
                    help="Shuffle labels before CV (selectivity control); writes to by_layer_mlp_control.csv")
     p.add_argument("--batch", type=int, default=BATCH,
                    help=f"Training mini-batch size (default: {BATCH}; increase for high-VRAM GPUs)")
+    p.add_argument("--embeddings-dir", default=None, dest="embeddings_dir",
+                   help="Root directory for embedding subdirs (default: <project>/Data)")
     args = p.parse_args()
+
+    emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
 
     BATCH = args.batch
 
@@ -394,7 +398,7 @@ def main():
         freq_df = pd.read_csv(BASE / "Data" / "corpus_binomials.csv")
         freq_df["total_freq"] = freq_df["freq_w1_w2"] + freq_df["freq_w2_w1"]
 
-        ref_corpus_dir = BASE / "Data" / "embeddings" / args.model_slug
+        ref_corpus_dir = emb_root / "embeddings" / args.model_slug
         ref_corpus_path = ref_corpus_dir / "layer_last.npz"
         if not ref_corpus_path.exists():
             ref_corpus_path = ref_corpus_dir / f"layer_{args.num_layers}.npz"
@@ -474,8 +478,8 @@ def main():
 
     for condition in args.conditions:
         dirs = CONDITION_DIRS[condition]
-        novel_dir = BASE / "Data" / dirs["novel"] / args.model_slug
-        corpus_dir = BASE / "Data" / dirs["corpus"] / args.model_slug
+        novel_dir = emb_root / dirs["novel"] / args.model_slug
+        corpus_dir = emb_root / dirs["corpus"] / args.model_slug
 
         # Find available layers for this condition
         layer_tags = [f"layer_{i}" for i in range(args.num_layers + 1)]

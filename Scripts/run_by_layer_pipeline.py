@@ -50,9 +50,9 @@ def run_label(label):
     print(f"{'='*60}", flush=True)
 
 
-def extract_sharded(model, cond, data_split, gpu, force=False):
+def extract_sharded(model, cond, data_split, gpu, emb_root, force=False):
     """Extract embeddings using subprocess sharding to bound memory."""
-    out_dir = str(BASE / "Data" / cond[f"{data_split}_dir"] / model["slug"])
+    out_dir = str(emb_root / cond[f"{data_split}_dir"] / model["slug"])
     num_layers = model["num_layers"]
     layers = [str(i) for i in range(num_layers + 1)]
     bs = model["batch_size"]
@@ -188,7 +188,11 @@ def main():
     p.add_argument("--skip-extraction", action="store_true", dest="skip_extraction")
     p.add_argument("--skip-mlp", action="store_true", dest="skip_mlp")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--embeddings-dir", default=None, dest="embeddings_dir",
+                   help="Root directory for embedding subdirs (default: <project>/Data)")
     args = p.parse_args()
+
+    emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
 
     total_t0 = time.perf_counter()
 
@@ -202,7 +206,7 @@ def main():
                 if args.conditions and cond["name"] not in args.conditions:
                     continue
                 for data_split in ["corpus", "novel"]:
-                    ok = extract_sharded(model, cond, data_split, args.gpu, args.force)
+                    ok = extract_sharded(model, cond, data_split, args.gpu, emb_root, args.force)
                     if not ok:
                         print(f"  FAILED. Continuing with next.", flush=True)
 

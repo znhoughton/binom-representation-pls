@@ -108,62 +108,66 @@ def delete_dir(path, label=""):
         print("  Skipping.", flush=True)
 
 
-def do_extract(model, cond, gpu):
+def do_extract(model, cond, gpu, emb_dir):
     run(
         [
             PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
-            "--models",     model["flag"],
-            "--conditions", cond["name"],
-            "--gpu",        str(gpu),
+            "--models",         model["flag"],
+            "--conditions",     cond["name"],
+            "--gpu",            str(gpu),
             "--skip-mlp",
+            "--embeddings-dir", str(emb_dir),
         ],
         label=f"EXTRACT  {model['flag']} / {cond['name']}",
     )
 
 
-def do_mlp(model, cond, gpu, batch):
+def do_mlp(model, cond, gpu, batch, emb_dir):
     run(
         [
             PYTHON, SCRIPTS / "by_layer_mlp.py",
-            "--model-slug", model["slug"],
-            "--num-layers", str(model["n_layers"]),
-            "--conditions", cond["name"],
+            "--model-slug",     model["slug"],
+            "--num-layers",     str(model["n_layers"]),
+            "--conditions",     cond["name"],
             "--modes", "mean_pooled", "individual", "words_only",
-            "--splits",     "pair_novel", "word_novel",
-            "--gpu",        str(gpu),
-            "--batch",      str(batch),
+            "--splits",         "pair_novel", "word_novel",
+            "--gpu",            str(gpu),
+            "--batch",          str(batch),
+            "--embeddings-dir", str(emb_dir),
         ],
         label=f"MLP CV  {model['flag']} / {cond['name']}",
     )
 
 
-def do_corpus_freq(model, cond, gpu):
+def do_corpus_freq(model, cond, gpu, emb_dir):
     run(
         [
             PYTHON, SCRIPTS / "by_layer_mlp.py",
-            "--model-slug", model["slug"],
-            "--num-layers", str(model["n_layers"]),
-            "--conditions", cond["name"],
+            "--model-slug",     model["slug"],
+            "--num-layers",     str(model["n_layers"]),
+            "--conditions",     cond["name"],
             "--modes", "mean_pooled", "individual", "words_only",
             "--corpus-freq",
-            "--gpu",        str(gpu),
+            "--gpu",            str(gpu),
+            "--embeddings-dir", str(emb_dir),
         ],
         label=f"CORPUS-FREQ PRED  {model['flag']} / {cond['name']}",
     )
 
 
-def do_controls(model, cond, gpu, batch):
+def do_controls(model, cond, gpu, batch, emb_dir):
     run(
         [
             PYTHON, SCRIPTS / "by_layer_mlp.py",
-            "--model-slug", model["slug"],
-            "--num-layers", str(model["n_layers"]),
-            "--conditions", cond["name"],
+            "--model-slug",     model["slug"],
+            "--num-layers",     str(model["n_layers"]),
+            "--conditions",     cond["name"],
             "--modes", "mean_pooled", "individual", "words_only",
-            "--splits",     "pair_novel", "word_novel",
-            "--gpu",        str(gpu),
-            "--batch",      str(batch),
+            "--splits",         "pair_novel", "word_novel",
+            "--gpu",            str(gpu),
+            "--batch",          str(batch),
             "--control",
+            "--embeddings-dir", str(emb_dir),
         ],
         label=f"CONTROLS  {model['flag']} / {cond['name']}",
     )
@@ -191,7 +195,11 @@ def main():
                    help="Skip control-trial runs")
     p.add_argument("--skip-corpus-freq", action="store_true", dest="skip_corpus_freq",
                    help="Skip novel→corpus transfer prediction and R regression")
+    p.add_argument("--embeddings-dir", default=None, dest="embeddings_dir",
+                   help="Root directory for embedding subdirs (default: <project>/Data)")
     args = p.parse_args()
+
+    emb_dir = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
 
     model_list = [m for m in MODELS
                   if args.models is None or m["flag"] in args.models]
@@ -204,23 +212,23 @@ def main():
 
         for cond in CONDITIONS:
             # ── 1. Extract novel + corpus embeddings ────────────────────────
-            do_extract(model, cond, args.gpu)
+            do_extract(model, cond, args.gpu, emb_dir)
 
             # ── 2. MLP CV probes (saves summary CSV + per-pair pred NPZs) ──
-            do_mlp(model, cond, args.gpu, batch)
+            do_mlp(model, cond, args.gpu, batch, emb_dir)
 
             # ── 3. Novel → corpus transfer prediction ───────────────────────
             if not args.skip_corpus_freq:
-                do_corpus_freq(model, cond, args.gpu)
+                do_corpus_freq(model, cond, args.gpu, emb_dir)
 
             # ── 4. Control trials ───────────────────────────────────────────
             if not args.skip_controls:
-                do_controls(model, cond, args.gpu, batch)
+                do_controls(model, cond, args.gpu, batch, emb_dir)
 
             # ── 5. Delete embeddings to free disk ───────────────────────────
-            delete_dir(BASE / "Data" / cond["novel_dir"]  / model["slug"],
+            delete_dir(emb_dir / cond["novel_dir"]  / model["slug"],
                        label=f"{cond['novel_dir']}/{model['slug']}")
-            delete_dir(BASE / "Data" / cond["corpus_dir"] / model["slug"],
+            delete_dir(emb_dir / cond["corpus_dir"] / model["slug"],
                        label=f"{cond['corpus_dir']}/{model['slug']}")
 
         # ── 6. R regression (both conditions now in CSV) ───────────────────
