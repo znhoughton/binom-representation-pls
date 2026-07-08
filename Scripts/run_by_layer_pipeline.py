@@ -28,7 +28,7 @@ MODELS = [
      "num_layers": 24, "batch_size": 8192, "shard_pairs": 500000},
     {"flag": "1.3b", "id": "znhoughton/opt-babylm-1.3b-20eps-seed964",
      "slug": "znhoughton_opt-babylm-1_3b-20eps-seed964",
-     "num_layers": 24, "batch_size": 4096, "shard_pairs": 500000},
+     "num_layers": 24, "batch_size": 8192, "shard_pairs": 500000},
 ]
 
 CONDITIONS = [
