@@ -25,6 +25,7 @@ AND whose per-pair prediction NPZ already exists. A clean rerun from scratch sim
 finds nothing to skip.
 """
 import argparse
+import csv
 import os
 import shutil
 import subprocess
@@ -108,7 +109,24 @@ def delete_dir(path, label=""):
         print("  Skipping.", flush=True)
 
 
+def _mlp_complete(model, cond):
+    """True if all CV rows for this model/condition are present in the summary CSV."""
+    csv_path = BASE / "Results" / model["slug"] / "by_layer_mlp.csv"
+    if not csv_path.exists():
+        return False
+    expected = (model["n_layers"] + 1) * 3 * 2  # (layers+1) × modes × splits
+    with open(csv_path, newline="") as f:
+        rows = [r for r in csv.DictReader(f)
+                if r["condition"] == cond["name"]
+                and r["split"] in ("pair_novel", "word_novel")
+                and r["mode"] in ("mean_pooled", "individual", "words_only")]
+    return len(rows) >= expected
+
+
 def do_extract(model, cond, gpu, emb_dir):
+    if _mlp_complete(model, cond):
+        banner(f"EXTRACT  {model['flag']} / {cond['name']}  (skipped — MLP CSV complete)")
+        return
     run(
         [
             PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
