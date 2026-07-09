@@ -37,7 +37,7 @@ from pathlib import Path
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 PYTHON  = sys.executable
-RSCRIPT = shutil.which("Rscript") or "Rscript"
+RSCRIPT = shutil.which("Rscript")  # None if R is not installed
 BASE    = Path(__file__).resolve().parent
 SCRIPTS = BASE / "Scripts"
 
@@ -174,6 +174,10 @@ def do_controls(model, cond, gpu, batch, emb_dir):
 
 
 def do_r_regression(model):
+    if RSCRIPT is None:
+        banner(f"R REGRESSION  {model['flag']}  (SKIPPED — Rscript not found)")
+        print("  Run Scripts/corpus_freq_regression.R and Scripts/plot_by_layer_results.R locally.", flush=True)
+        return
     run(
         [RSCRIPT, SCRIPTS / "corpus_freq_regression.R", model["slug"]],
         label=f"R REGRESSION  {model['flag']}",
