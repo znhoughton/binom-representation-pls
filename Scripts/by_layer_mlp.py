@@ -140,7 +140,7 @@ def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
 
     n_tr, input_dim = X_tr.shape
 
-    mlp = torch.compile(OrderingMLP(input_dim, HIDDEN).to(device))
+    mlp = OrderingMLP(input_dim, HIDDEN).to(device)
     opt = torch.optim.Adam(mlp.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
     loss_fn = nn.MSELoss()
     g      = torch.Generator(); g.manual_seed(SEED + fold)
@@ -403,7 +403,7 @@ def main():
 
     device = load_device(args.gpu)
     torch.manual_seed(SEED)
-    torch.set_float32_matmul_precision("high")  # TF32 on Ampere/Blackwell Tensor Cores
+
     rng = np.random.default_rng(SEED)
 
     CONDITION_DIRS = {
