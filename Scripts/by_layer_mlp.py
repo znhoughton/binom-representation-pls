@@ -19,8 +19,52 @@ import torch
 import torch.nn as nn
 from sklearn.model_selection import KFold
 
-sys.path.insert(0, str(Path(__file__).parent / "lib"))
-from pls_utils import pearsonr, spearmanr, compute_scale, apply_scale, load_device, nipals_pls
+def pearsonr(a, b):
+    a = a.reshape(-1).float()
+    b = b.reshape(-1).float()
+    a = a - a.mean()
+    b = b - b.mean()
+    return float((a @ b) / (a.norm() * b.norm()).clamp(min=1e-8))
+
+
+def compute_scale(X):
+    mean_ = X.mean(dim=0)
+    std_ = X.std(dim=0).clamp(min=1e-8)
+    return (X - mean_) / std_, mean_, std_
+
+
+def apply_scale(X, mean_, std_):
+    return (X - mean_) / std_
+
+
+def load_device(gpu=0):
+    if torch.cuda.is_available():
+        return torch.device(f"cuda:{gpu}")
+    return torch.device("cpu")
+
+
+def nipals_pls(X, y, K, device):
+    """NIPALS PLS1; returns (T_scores, W_star, b_coef) on CPU."""
+    X = X.float().to(device)
+    y = y.float().reshape(-1).to(device)
+    n, p = X.shape
+    W = torch.zeros(p, K, device=device)
+    P = torch.zeros(p, K, device=device)
+    T = torch.zeros(n, K, device=device)
+    E, f = X.clone(), y.clone()
+    for k in range(K):
+        w = E.T @ f
+        w = w / w.norm().clamp(min=1e-8)
+        t = E @ w
+        t_sq = (t @ t).clamp(min=1e-8)
+        p_k = E.T @ t / t_sq
+        q_k = float(f @ t / t_sq)
+        E = E - t.unsqueeze(1) * p_k.unsqueeze(0)
+        f = f - q_k * t
+        W[:, k], P[:, k], T[:, k] = w, p_k, t
+    W_star = W @ torch.linalg.inv(P.T @ W)
+    b_coef = torch.linalg.lstsq(T, y.unsqueeze(-1)).solution.squeeze(-1)
+    return T.cpu(), W_star.cpu(), b_coef.cpu()
 
 BASE = Path(__file__).resolve().parents[1]
 
