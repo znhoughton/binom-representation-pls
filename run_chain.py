@@ -37,7 +37,7 @@ from pathlib import Path
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 PYTHON  = sys.executable
-RSCRIPT = shutil.which("Rscript")  # None if R is not installed
+RSCRIPT = shutil.which("Rscript") or "Rscript"
 BASE    = Path(__file__).resolve().parent
 SCRIPTS = BASE / "Scripts"
 
@@ -174,10 +174,6 @@ def do_controls(model, cond, gpu, batch, emb_dir):
 
 
 def do_r_regression(model):
-    if RSCRIPT is None:
-        banner(f"R REGRESSION  {model['flag']}  (SKIPPED — Rscript not found)")
-        print("  Run Scripts/corpus_freq_regression.R and Scripts/plot_by_layer_results.R locally.", flush=True)
-        return
     run(
         [RSCRIPT, SCRIPTS / "corpus_freq_regression.R", model["slug"]],
         label=f"R REGRESSION  {model['flag']}",
@@ -235,13 +231,14 @@ def main():
             delete_dir(emb_dir / cond["corpus_dir"] / model["slug"],
                        label=f"{cond['corpus_dir']}/{model['slug']}")
 
-        # ── 6. R regression (both conditions now in CSV) ───────────────────
-        if not args.skip_corpus_freq:
-            do_r_regression(model)
-
         elapsed = time.perf_counter() - t_chain
         banner(f"MODEL {model['flag'].upper()} COMPLETE  "
                f"(chain running {elapsed / 3600:.1f}h total)")
+
+    # ── R regression: run after all models complete ────────────────────────
+    if not args.skip_corpus_freq:
+        for model in model_list:
+            do_r_regression(model)
 
     banner("PIPELINE COMPLETE")
     print(f"  All models done in {(time.perf_counter() - t_chain) / 3600:.1f}h", flush=True)
