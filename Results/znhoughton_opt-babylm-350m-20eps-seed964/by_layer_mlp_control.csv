@@ -149,3 +149,13 @@ default,24,individual,pair_novel,2.4e-05,4.5e-05,10
 default,24,individual,word_novel,0.000212,0.000219,10
 default,24,words_only,pair_novel,1.5e-05,1.6e-05,10
 default,24,words_only,word_novel,0.000211,0.000217,10
+attn_zeroed,0,mean_pooled,pair_novel,2e-05,2.3e-05,10
+attn_zeroed,0,mean_pooled,word_novel,0.000248,0.000241,10
+attn_zeroed,0,individual,pair_novel,7.2e-05,0.000103,10
+attn_zeroed,0,individual,word_novel,0.000245,0.00026,10
+attn_zeroed,0,words_only,pair_novel,2.6e-05,3.3e-05,10
+attn_zeroed,0,words_only,word_novel,0.000181,0.000205,10
+attn_zeroed,1,mean_pooled,pair_novel,1e-05,1.1e-05,10
+attn_zeroed,1,mean_pooled,word_novel,0.000293,0.000338,10
+attn_zeroed,1,individual,pair_novel,4.3e-05,5.2e-05,10
+attn_zeroed,1,individual,word_novel,0.000181,0.000237,10
