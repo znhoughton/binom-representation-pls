@@ -122,7 +122,7 @@ p_r2 <- ggplot(df,
   geom_point(data    = df_obs,
              mapping = aes(shape = cond_mode),
              size = 1.5, show.legend = FALSE) +
-  facet_wrap(~split, ncol = 1L, scales = "free_y") +
+  facet_wrap(~split, ncol = 1L, scales = "fixed") +
   scale_colour_manual(values = PALETTE, name = "Condition / Mode", drop = FALSE) +
   scale_shape_manual(values = SHAPES, drop = FALSE) +
   scale_linetype_manual(
@@ -167,9 +167,10 @@ if (is.null(np)) {
 
 load_npz <- function(path) {
   d <- np$load(path, allow_pickle = TRUE)
-  data.frame(y_true = as.numeric(d[["y_true"]]),
-             y_pred = as.numeric(d[["y_pred"]]),
-             stringsAsFactors = FALSE)
+  df <- data.frame(y_true = as.numeric(d[["y_true"]]),
+                   y_pred = as.numeric(d[["y_pred"]]),
+                   stringsAsFactors = FALSE)
+  df[!is.nan(df$y_true) & !is.nan(df$y_pred), ]
 }
 
 # key layers (evenly spaced if not specified)
@@ -184,10 +185,11 @@ key_layers <- if (!is.null(key_layers_a)) {
 }
 cat(sprintf("Scatter key layers: %s\n", paste(key_layers, collapse = ", ")))
 
-for (sp in c("pair_novel", "word_novel")) {
 
-  parts <- list()
+for (sp in c("pair_novel", "word_novel")) {
   for (cond in c("default", "attn_zeroed")) {
+
+    parts <- list()
     for (mode in c("mean_pooled", "individual", "words_only")) {
       for (lyr in key_layers) {
         fpath <- file.path(
@@ -195,69 +197,65 @@ for (sp in c("pair_novel", "word_novel")) {
           sprintf("%s_layer%d_%s_%s.npz", cond, lyr, mode, sp)
         )
         if (!file.exists(fpath)) next
-        d         <- load_npz(fpath)
-        d$condition <- cond
+        d           <- load_npz(fpath)
         d$mode      <- mode
         d$layer_lab <- sprintf("Layer %d", lyr)
         parts[[length(parts) + 1L]] <- d
       }
     }
+
+    if (!length(parts)) {
+      cat("No cv_preds found for split:", sp, "/ cond:", cond, "— skipping.\n")
+      next
+    }
+
+    sdf <- bind_rows(parts) %>%
+      mutate(
+        mode      = factor(mode,
+                           levels = c("mean_pooled", "individual", "words_only")),
+        layer_lab = factor(layer_lab,
+                           levels = paste("Layer", sort(key_layers)))
+      )
+
+    r_ann <- sdf %>%
+      group_by(mode, layer_lab) %>%
+      summarise(
+        label  = sprintf("r = %.3f", cor(y_true, y_pred)),
+        x_pos  = -Inf,
+        y_pos  =  Inf,
+        .groups = "drop"
+      )
+
+    cond_label <- if (cond == "default") "Default" else "Attn-zeroed"
+    sp_label   <- sub("_", "-", sp)
+    p_sc <- ggplot(sdf, aes(x = y_true, y = y_pred)) +
+      geom_bin2d(bins = 60L) +
+      geom_smooth(method  = "lm", formula = y ~ x,
+                  se      = FALSE, colour = "#1565C0", linewidth = 0.7) +
+      geom_text(data        = r_ann,
+                mapping     = aes(x = x_pos, y = y_pos, label = label),
+                hjust = -0.08, vjust = 1.4, size = 2.5,
+                inherit.aes = FALSE) +
+      scale_fill_viridis_c(option = "magma", trans = "sqrt",
+                           name = "Count",
+                           guide = guide_colourbar(barheight = 6L)) +
+      facet_grid(mode ~ layer_lab) +
+      labs(x     = "Observed preference",
+           y     = "Predicted preference",
+           title = paste0(model_label, " — obs vs. pred — ",
+                          sp_label, " — ", cond_label)) +
+      theme_bw(base_size = 9L) +
+      theme(strip.text       = element_text(size = 7.5),
+            panel.grid.minor = element_blank(),
+            legend.position  = "right")
+
+    n_col  <- length(key_layers)
+    n_row  <- length(levels(sdf$mode))
+    stem   <- paste0("scatter_", sp, "_", cond)
+    save_plot(p_sc, stem,
+              width  = 3.8 * n_col + 2.0,
+              height = 3.2 * n_row + 1.5)
   }
-
-  if (!length(parts)) {
-    cat("No cv_preds found for split:", sp, "— skipping.\n")
-    next
-  }
-
-  sdf <- bind_rows(parts) %>%
-    mutate(
-      condition = factor(condition,
-                         levels = c("default", "attn_zeroed"),
-                         labels = c("Default", "Attn-zeroed")),
-      mode      = factor(mode,
-                         levels = c("mean_pooled", "individual", "words_only")),
-      layer_lab = factor(layer_lab,
-                         levels = paste("Layer", sort(key_layers)))
-    )
-
-  r_ann <- sdf %>%
-    group_by(condition, mode, layer_lab) %>%
-    summarise(
-      label  = sprintf("r = %.3f", cor(y_true, y_pred)),
-      x_pos  = -Inf,
-      y_pos  =  Inf,
-      .groups = "drop"
-    )
-
-  sp_label <- sub("_", "-", sp)
-  p_sc <- ggplot(sdf, aes(x = y_true, y = y_pred)) +
-    geom_bin2d(bins = 60L) +
-    geom_smooth(method  = "lm", formula = y ~ x,
-                se      = FALSE, colour = "#1565C0", linewidth = 0.7) +
-    geom_abline(slope = 1L, intercept = 0L,
-                linetype = "dashed", colour = "grey50", linewidth = 0.4) +
-    geom_text(data        = r_ann,
-              mapping     = aes(x = x_pos, y = y_pos, label = label),
-              hjust = -0.08, vjust = 1.4, size = 2.5,
-              inherit.aes = FALSE) +
-    scale_fill_viridis_c(option = "magma", trans = "sqrt",
-                         name = "Count",
-                         guide = guide_colourbar(barheight = 6L)) +
-    facet_grid(condition + mode ~ layer_lab) +
-    labs(x     = "Observed preference",
-         y     = "Predicted preference",
-         title = paste0(model_label,
-                        " — obs vs. pred — ", sp_label)) +
-    theme_bw(base_size = 9L) +
-    theme(strip.text       = element_text(size = 7.5),
-          panel.grid.minor = element_blank(),
-          legend.position  = "right")
-
-  n_col <- length(key_layers)
-  n_row <- length(unique(interaction(sdf$condition, sdf$mode)))
-  save_plot(p_sc, paste0("scatter_", sp),
-            width  = 2.8 * n_col + 1.8,
-            height = 2.2 * n_row + 1.2)
 }
 
 cat("Done.\n")

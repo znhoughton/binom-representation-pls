@@ -57,51 +57,64 @@ Solid lines = observed; dashed lines of same colour = shuffled-label control.
 
 | Layer | default / mean_pooled | default / individual | default / words_only | attn_zeroed / mean_pooled | attn_zeroed / individual | attn_zeroed / words_only |
 |---:|---:|---:|---:|---:|---:|---:|
-| 0  | .272 | .273 | .309 | .293 | .286 | .328 |
-| 1  | .314 | .257 | .300 | .289 | .285 | .320 |
-| 2  | .321 | .263 | .301 | .289 | .291 | .325 |
-| 3  | .330 | .270 | .308 | .298 | .300 | .334 |
-| 4  | .339 | .278 | .314 | .319 | .309 | .344 |
-| 5  | .353 | .290 | .326 | .338 | .334 | .364 |
-| 6  | .369 | .303 | .343 | .355 | .352 | .381 |
-| 7  | .376 | .304 | .347 | .363 | .355 | .384 |
-| 8  | .379 | .308 | .351 | .369 | .356 | .389 |
-| 9  | .381 | .306 | .353 | .371 | .353 | .390 |
-| 10 | .378 | .305 | .349 | .369 | .351 | .389 |
-| 11 | .372 | .299 | .342 | .367 | .342 | .382 |
-| 12 | .372 | .294 | .344 | .369 | .347 | .386 |
+| 0  | .276 | .276 | .311 | .292 | .291 | .330 |
+| 1  | .319 | .266 | .303 | .292 | .290 | .325 |
+| 2  | .327 | .271 | .304 | .287 | .296 | .327 |
+| 3  | .334 | .277 | .311 | .291 | .303 | .335 |
+| 4  | .344 | .285 | .316 | .307 | .313 | .344 |
+| 5  | .356 | .297 | .328 | .331 | .333 | .362 |
+| 6  | .371 | .309 | .344 | .343 | .353 | .382 |
+| 7  | .378 | .313 | .348 | .351 | .357 | .386 |
+| 8  | .384 | .315 | .354 | .355 | .356 | .390 |
+| 9  | .385 | .315 | .355 | .357 | .354 | .392 |
+| 10 | .382 | .312 | .353 | .357 | .352 | .390 |
+| 11 | .377 | .306 | .348 | .353 | .345 | .382 |
+| 12 | .377 | .303 | .352 | .363 | .350 | .390 |
 
 ### word_novel r² by layer
 
 | Layer | default / mean_pooled | default / individual | default / words_only | attn_zeroed / mean_pooled | attn_zeroed / individual | attn_zeroed / words_only |
 |---:|---:|---:|---:|---:|---:|---:|
-| 0  | .081 | .118 | .135 | .072 | .110 | .120 |
-| 1  | .138 | .112 | .130 | .089 | .111 | .123 |
-| 2  | .142 | .121 | .134 | .088 | .121 | .123 |
-| 3  | .150 | .124 | .146 | .096 | .126 | .136 |
-| 4  | .171 | .133 | .150 | .112 | .138 | .143 |
-| 5  | .178 | .143 | .156 | .137 | .149 | .158 |
-| 6  | .196 | .147 | .176 | .153 | .174 | .180 |
-| 7  | .203 | .152 | .185 | .160 | .175 | .183 |
-| 8  | .206 | .159 | .196 | .167 | .178 | .188 |
-| 9  | .213 | .160 | .191 | .167 | .171 | .189 |
-| 10 | .211 | .155 | .187 | .169 | .174 | .187 |
-| 11 | .208 | .146 | .184 | .166 | .167 | .181 |
-| 12 | .205 | .146 | .183 | .165 | .165 | .187 |
+| 0  | .080 | .121 | .142 | .074 | .116 | .120 |
+| 1  | .143 | .116 | .139 | .091 | .116 | .130 |
+| 2  | .147 | .124 | .140 | .089 | .123 | .126 |
+| 3  | .159 | .131 | .148 | .101 | .132 | .138 |
+| 4  | .174 | .136 | .150 | .109 | .138 | .146 |
+| 5  | .185 | .143 | .160 | .135 | .152 | .160 |
+| 6  | .204 | .152 | .182 | .156 | .174 | .184 |
+| 7  | .205 | .159 | .188 | .160 | .179 | .186 |
+| 8  | .209 | .167 | .197 | .161 | .183 | .194 |
+| 9  | .217 | .159 | .195 | .166 | .177 | .191 |
+| 10 | .214 | .159 | .189 | .172 | .179 | .190 |
+| 11 | .211 | .154 | .188 | .167 | .174 | .186 |
+| 12 | .207 | .153 | .186 | .168 | .170 | .185 |
 
 **Key observations (125M):**
-- Both conditions improve monotonically through ~layers 8–9, then plateau. No strong peak-then-drop.
-- attn_zeroed meets or exceeds default on pair_novel in later layers, particularly for `words_only` (e.g., layer 8: .389 vs .351). The cross-word attention signal doesn't appear necessary for ordering prediction.
-- `mean_pooled` and `words_only` outperform `individual` on pair_novel throughout; `individual` catches up more on word_novel.
-- word_novel is substantially lower than pair_novel (generalization to unseen word combinations is harder), but improves across layers similarly.
+- Both conditions improve monotonically through layers 8–9, then plateau slightly. Peak pair_novel r²: default / mean_pooled = .385 (layer 9), attn_zeroed / words_only = .392 (layer 9).
+- attn_zeroed exceeds default on pair_novel from around layer 5 onward, most clearly for `words_only` (layer 9: .392 vs .355) and `individual` (layer 7: .357 vs .313). Cross-word attention doesn't appear necessary for ordering prediction and may actually hurt.
+- `mean_pooled` and `words_only` outperform `individual` on pair_novel in both conditions throughout; `individual` closes the gap somewhat on word_novel.
+- word_novel is substantially lower than pair_novel overall (peak default / mean_pooled = .217 vs .385), but follows the same layer trajectory. attn_zeroed word_novel is lower than default in early layers but converges by layer 8.
+- Controls are all r² < 0.001, confirming the probe is capturing a genuine signal and not fitting noise.
 
 ### Observed vs. predicted — pair-novel split (key layers)
 
-![Obs vs. pred — pair-novel](Results/znhoughton_opt-babylm-125m-20eps-seed964/Plots/scatter_pair_novel.png)
+**Default condition:**
+
+![Obs vs. pred — pair-novel, default](Results/znhoughton_opt-babylm-125m-20eps-seed964/Plots/scatter_pair_novel_default.png)
+
+**Attention-zeroed condition:**
+
+![Obs vs. pred — pair-novel, attn-zeroed](Results/znhoughton_opt-babylm-125m-20eps-seed964/Plots/scatter_pair_novel_attn_zeroed.png)
 
 ### Observed vs. predicted — word-novel split (key layers)
 
-![Obs vs. pred — word-novel](Results/znhoughton_opt-babylm-125m-20eps-seed964/Plots/scatter_word_novel.png)
+**Default condition:**
+
+![Obs vs. pred — word-novel, default](Results/znhoughton_opt-babylm-125m-20eps-seed964/Plots/scatter_word_novel_default.png)
+
+**Attention-zeroed condition:**
+
+![Obs vs. pred — word-novel, attn-zeroed](Results/znhoughton_opt-babylm-125m-20eps-seed964/Plots/scatter_word_novel_attn_zeroed.png)
 
 ### Corpus-frequency analysis
 
