@@ -240,7 +240,7 @@ MLP trained on all novel pairs (~340k), tested on corpus pairs (~49k). For each 
 
 ### r² by layer
 
-Solid lines = observed; dashed lines of same colour = shuffled-label control.
+Solid lines = observed; dashed lines of same colour = shuffled-label control (partial — controls still running).
 
 ![r² by layer](Results/znhoughton_opt-babylm-350m-20eps-seed964/Plots/r2_by_layer.png)
 
@@ -313,11 +313,19 @@ Solid lines = observed; dashed lines of same colour = shuffled-label control.
 
 ### Observed vs. predicted — pair-novel split (key layers)
 
-![Obs vs. pred — pair-novel](Results/znhoughton_opt-babylm-350m-20eps-seed964/Plots/scatter_pair_novel.png)
+**Default condition:**
+![Obs vs. pred — pair-novel — default](Results/znhoughton_opt-babylm-350m-20eps-seed964/Plots/scatter_pair_novel_default.png)
+
+**Attention-zeroed condition:**
+![Obs vs. pred — pair-novel — attn_zeroed](Results/znhoughton_opt-babylm-350m-20eps-seed964/Plots/scatter_pair_novel_attn_zeroed.png)
 
 ### Observed vs. predicted — word-novel split (key layers)
 
-![Obs vs. pred — word-novel](Results/znhoughton_opt-babylm-350m-20eps-seed964/Plots/scatter_word_novel.png)
+**Default condition:**
+![Obs vs. pred — word-novel — default](Results/znhoughton_opt-babylm-350m-20eps-seed964/Plots/scatter_word_novel_default.png)
+
+**Attention-zeroed condition:**
+![Obs vs. pred — word-novel — attn_zeroed](Results/znhoughton_opt-babylm-350m-20eps-seed964/Plots/scatter_word_novel_attn_zeroed.png)
 
 ### Corpus-frequency analysis
 
