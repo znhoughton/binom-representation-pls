@@ -16,9 +16,6 @@ Results/**/stratum_*_novel.csv
 Results/**/by_layer_corpus_pred.csv
 # Continuously appended during MLP training/eval — grows large mid-run
 Results/**/by_layer_mlp.csv
-# Per-pair CV prediction NPZ files from by_layer_mlp.py (regenerate with run_chain.py)
-Results/**/cv_preds/
-Results/**/cv_preds_control/
 # brms model objects — too large for git; re-fit via bayesian_analysis.Rmd
 Results/**/*.rds
 
