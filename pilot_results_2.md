@@ -1306,3 +1306,56 @@ Self-contained reproduction of all corpus-frequency results across all three mod
 | 22 | −0.165 | [−0.201, −0.130] | <.001 *** |
 | 23 | −0.169 | [−0.204, −0.134] | <.001 *** |
 | 24 | −0.165 | [−0.200, −0.130] | <.001 *** |
+
+---
+
+## Model-size interaction with corpus-frequency effect
+
+To test whether the frequency effect scales with model size, the three models' data were combined and `lm(|residual| ~ log_freq * factor(model_size))` was fit per condition × layer × mode, with **350M as the reference level**. This allows non-linear patterns (e.g., 125M could differ in sign from 1.3B relative to 350M).
+
+Script: `Scripts/corpus_freq_regression_by_model_size.R`; results: `Results/corpus_freq_regression_by_model_size.csv`.
+
+![Frequency regression by model size](Results/freq_regression_by_model_size.png)
+
+### Summary
+
+| Condition | Mode | 125M vs 350M | 1.3B vs 350M |
+|---|---|---|---|
+| attn_zeroed | mean_pooled | ns (all layers) | *** more negative (all layers) |
+| attn_zeroed | individual | ns (all layers) | * to *** more negative (most layers) |
+| attn_zeroed | words_only | ns (all layers) | * to *** more negative (most layers) |
+| default | mean_pooled | ns (all layers) | ns (all layers) |
+| default | individual | ns (all layers) | ns (all layers) |
+| default | words_only | ns (all layers) | ns (all layers) |
+
+**Interpretation:** The negative frequency effect in the attn_zeroed condition grows significantly from 350M to 1.3B but not from 125M to 350M — the jump in individual-word representation quality is concentrated at the 1.3B scale. The positive frequency effect in the default condition is completely scale-invariant.
+
+### Effective log-frequency slopes by model — attn_zeroed / mean_pooled
+
+| Layer | β 125M | β 350M | β 1.3B | p (125 vs 350) | p (1.3B vs 350) |
+|---:|---:|---:|---:|---|---|
+| 0  | −0.068 | −0.067 | −0.159 | ns | <.001 *** |
+| 1  | −0.076 | −0.053 | −0.137 | ns | <.001 *** |
+| 2  | −0.055 | −0.046 | −0.121 | ns | <.001 *** |
+| 3  | −0.057 | −0.057 | −0.116 | ns | .006 ** |
+| 4  | −0.058 | −0.057 | −0.132 | ns | <.001 *** |
+| 5  | −0.061 | −0.040 | −0.117 | ns | <.001 *** |
+| 6  | −0.065 | −0.047 | −0.116 | ns | .001 ** |
+| 7  | −0.059 | −0.042 | −0.127 | ns | <.001 *** |
+| 8  | −0.076 | −0.051 | −0.134 | ns | <.001 *** |
+| 9  | −0.067 | −0.054 | −0.121 | ns | .001 ** |
+| 10 | −0.048 | −0.042 | −0.136 | ns | <.001 *** |
+| 11 | −0.066 | −0.039 | −0.120 | ns | <.001 *** |
+| 12 | −0.070 | −0.054 | −0.127 | ns | <.001 *** |
+| 13 | — | −0.050 | −0.131 | — | <.001 *** |
+| 14 | — | −0.052 | −0.138 | — | <.001 *** |
+| 15 | — | −0.047 | −0.132 | — | <.001 *** |
+| 16 | — | −0.046 | −0.110 | — | .004 ** |
+| 17 | — | −0.043 | −0.127 | — | <.001 *** |
+| 18 | — | −0.047 | −0.132 | — | <.001 *** |
+| 19 | — | −0.065 | −0.111 | — | .037 * |
+| 20 | — | −0.037 | −0.122 | — | <.001 *** |
+| 21 | — | −0.038 | −0.128 | — | <.001 *** |
+| 22 | — | −0.044 | −0.118 | — | .001 ** |
+| 23 | — | −0.048 | −0.150 | — | <.001 *** |
+| 24 | — | −0.027 | −0.145 | — | <.001 *** |
