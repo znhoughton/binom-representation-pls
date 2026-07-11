@@ -20,7 +20,7 @@ freq_df <- read_csv(file.path(BASE, "Data", "corpus_binomials.csv"), show_col_ty
 df <- pred |>
   left_join(freq_df, by = c("word1", "word2")) |>
   mutate(
-    residual = y_true - y_pred,
+    residual = abs(y_true - y_pred),
     log_freq = log(total_freq)
   )
 
