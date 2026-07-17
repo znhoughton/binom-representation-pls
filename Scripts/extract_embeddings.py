@@ -77,7 +77,9 @@ BINOMIAL_OUT_DIRS = {
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--model",    required=True, help="HuggingFace model ID")
+    p.add_argument("--model",      required=True, help="HuggingFace model ID")
+    p.add_argument("--checkpoint", type=int, default=None,
+                   help="Training checkpoint step to load (e.g. 24 → revision='step-24').")
     p.add_argument("--data",     choices=["corpus", "novel"], required=True)
     p.add_argument("--layer",    default=None, nargs="+",
                    help="Layer(s) to extract: 'last', 'second_to_last', or integer index. "
@@ -588,10 +590,12 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model, cache_dir=HF_CACHE_DIR,
-        torch_dtype=torch.float16, device_map={"": device}
-    )
+    model_kwargs = dict(cache_dir=HF_CACHE_DIR, torch_dtype=torch.float16,
+                        device_map={"": device})
+    if args.checkpoint is not None:
+        model_kwargs["revision"] = f"step-{args.checkpoint}"
+        print(f"Checkpoint: step-{args.checkpoint}")
+    model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
     model.eval()
 
     layer_indices = [resolve_layer_idx(model, la) for la in needed]
