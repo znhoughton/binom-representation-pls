@@ -29,7 +29,7 @@ Usage:
 
 import argparse
 import csv
-import gzip
+import lzma
 import shutil
 import subprocess
 import sys
@@ -108,7 +108,7 @@ def _pred_compressed(slug: str) -> bool:
 
 def compress_corpus_pred(slug: str):
     src = BASE / "Results" / slug / "by_layer_corpus_pred.csv"
-    dst = BASE / "Results" / slug / "by_layer_corpus_pred.csv.gz"
+    dst = BASE / "Results" / slug / "by_layer_corpus_pred.csv.xz"
     if not src.exists():
         return
     if _pred_compressed(slug):
@@ -117,7 +117,7 @@ def compress_corpus_pred(slug: str):
         return
     banner(f"COMPRESS  {slug}/by_layer_corpus_pred.csv")
     src_mb = src.stat().st_size / 1e6
-    with open(src, "rb") as f_in, gzip.open(dst, "wb", compresslevel=6) as f_out:
+    with open(src, "rb") as f_in, lzma.open(dst, "wb") as f_out:
         shutil.copyfileobj(f_in, f_out)
     dst_mb = dst.stat().st_size / 1e6
     print(f"  {src_mb:.0f} MB → {dst_mb:.0f} MB ({dst_mb/src_mb*100:.0f}%)", flush=True)
