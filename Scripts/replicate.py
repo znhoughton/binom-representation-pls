@@ -100,12 +100,19 @@ def delete_dir(path, label=""):
         print("  Deleted.", flush=True)
 
 
+def _pred_compressed(slug: str) -> bool:
+    r = BASE / "Results" / slug
+    return (r / "by_layer_corpus_pred.csv.gz").exists() or \
+           (r / "by_layer_corpus_pred.csv.xz").exists()
+
+
 def compress_corpus_pred(slug: str):
     src = BASE / "Results" / slug / "by_layer_corpus_pred.csv"
     dst = BASE / "Results" / slug / "by_layer_corpus_pred.csv.gz"
     if not src.exists():
         return
-    if dst.exists():
+    if _pred_compressed(slug):
+        # Already compressed (.gz or .xz); just remove the orphaned uncompressed copy
         src.unlink(missing_ok=True)
         return
     banner(f"COMPRESS  {slug}/by_layer_corpus_pred.csv")
@@ -141,8 +148,7 @@ def phase1_complete(model: dict) -> bool:
     for cond in CONDITIONS:
         if mlp_row_count(slug, cond["name"]) < expected_per_cond:
             return False
-    gz = BASE / "Results" / slug / "by_layer_corpus_pred.csv.gz"
-    return gz.exists()
+    return _pred_compressed(slug)
 
 
 # ── Phase 1: OPT-BabyLM full by-layer ─────────────────────────────────────────
