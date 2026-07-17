@@ -50,11 +50,16 @@ def run_label(label):
     print(f"{'='*60}", flush=True)
 
 
-def extract_sharded(model, cond, data_split, gpu, emb_root, force=False):
-    """Extract embeddings using subprocess sharding to bound memory."""
+def extract_sharded(model, cond, data_split, gpu, emb_root, force=False,
+                    checkpoint=None, layers_override=None):
+    """Extract embeddings using subprocess sharding to bound memory.
+
+    layers_override: list of layer strings (e.g. ["last"]) to extract instead
+                     of all layers. When None, extracts every layer 0..num_layers.
+    """
     out_dir = str(emb_root / cond[f"{data_split}_dir"] / model["slug"])
     num_layers = model["num_layers"]
-    layers = [str(i) for i in range(num_layers + 1)]
+    layers = layers_override if layers_override else [str(i) for i in range(num_layers + 1)]
     bs = model["batch_size"]
 
     total_pairs = NOVEL_TOTAL if data_split == "novel" else CORPUS_TOTAL
@@ -70,21 +75,31 @@ def extract_sharded(model, cond, data_split, gpu, emb_root, force=False):
     run_label(label)
     t0 = time.perf_counter()
 
-    # Check if already done (all layer files exist)
+    # Check if already done (requested layer files exist)
     out_path = Path(out_dir)
     if not force:
-        existing = [out_path / f"layer_{i}.npz" for i in range(num_layers + 1)]
+        def _layer_file(l):
+            if l == "last":
+                return out_path / "layer_last.npz"
+            return out_path / f"layer_{l}.npz"
+        existing = [_layer_file(l) for l in layers]
         if all(f.exists() and f.stat().st_size > 1000 for f in existing):
-            print("  All layers exist, skipping.", flush=True)
+            print("  All requested layers exist, skipping.", flush=True)
             return True
+
+    def _layer_tag(l):
+        """Match extract_embeddings.py's layer_tag(): 'last' → 'layer_last', '5' → 'layer_5'."""
+        if l in ("last", "second_to_last"):
+            return f"layer_{l}"
+        return f"layer_{int(l)}"
 
     # Run shards sequentially
     shard_dir = out_path / "_shards"
     shard_dir.mkdir(parents=True, exist_ok=True)
 
     for shard in range(n_shards):
-        # Check if shard already done
-        shard_check = shard_dir / f"layer_0_shard{shard}.npz"
+        # Check if shard already done (use first requested layer as sentinel)
+        shard_check = shard_dir / f"{_layer_tag(layers[0])}_shard{shard}.npz"
         if shard_check.exists() and not force:
             print(f"  Shard {shard}/{n_shards} exists, skipping.", flush=True)
             continue
@@ -102,6 +117,8 @@ def extract_sharded(model, cond, data_split, gpu, emb_root, force=False):
             "--shard-index", str(shard),
             "--num-shards", str(n_shards),
         ]
+        if checkpoint is not None:
+            cmd += ["--checkpoint", str(checkpoint)]
         if force:
             cmd.append("--force")
 
@@ -121,13 +138,14 @@ def extract_sharded(model, cond, data_split, gpu, emb_root, force=False):
     print(f"  Merging {n_shards} shards...", flush=True)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    for layer in range(num_layers + 1):
-        final_path = out_path / f"layer_{layer}.npz"
+    for l in layers:
+        tag = _layer_tag(l)
+        final_path = out_path / f"{tag}.npz"
 
         # Collect shard files for this layer
         shard_files = []
         for shard in range(n_shards):
-            sf = shard_dir / f"layer_{layer}_shard{shard}.npz"
+            sf = shard_dir / f"{tag}_shard{shard}.npz"
             if sf.exists():
                 shard_files.append(sf)
 
@@ -190,6 +208,18 @@ def main():
     p.add_argument("--force", action="store_true")
     p.add_argument("--embeddings-dir", default=None, dest="embeddings_dir",
                    help="Root directory for embedding subdirs (default: <project>/Data)")
+    p.add_argument("--layers", nargs="+", default=None,
+                   help="Layers to extract (e.g. 'last' for final-layer-only). "
+                        "Default: all layers 0..num_layers.")
+    # Checkpoint overrides — used by run_checkpoint_pipeline.py
+    p.add_argument("--model-id",   default=None, dest="model_id",
+                   help="Override model HF Hub ID for the selected model")
+    p.add_argument("--checkpoint", type=int, default=None,
+                   help="Checkpoint step to load (passed to extract_embeddings.py --checkpoint)")
+    p.add_argument("--slug",       default=None,
+                   help="Override output slug (directory name) for the selected model")
+    p.add_argument("--extract-batch-size", type=int, default=None, dest="extract_batch_size",
+                   help="Override the model's default batch size for embedding extraction")
     args = p.parse_args()
 
     emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
@@ -202,11 +232,20 @@ def main():
         for model in MODELS:
             if args.models and not any(m in model["flag"] for m in args.models):
                 continue
+            model = dict(model)  # shallow copy before overriding
+            if args.model_id:
+                model["id"] = args.model_id
+            if args.slug:
+                model["slug"] = args.slug
+            if args.extract_batch_size:
+                model["batch_size"] = args.extract_batch_size
             for cond in CONDITIONS:
                 if args.conditions and cond["name"] not in args.conditions:
                     continue
                 for data_split in ["corpus", "novel"]:
-                    ok = extract_sharded(model, cond, data_split, args.gpu, emb_root, args.force)
+                    ok = extract_sharded(model, cond, data_split, args.gpu, emb_root,
+                                         args.force, checkpoint=args.checkpoint,
+                                         layers_override=args.layers)
                     if not ok:
                         print(f"  FAILED. Continuing with next.", flush=True)
 
@@ -216,6 +255,11 @@ def main():
         for model in MODELS:
             if args.models and not any(m in model["flag"] for m in args.models):
                 continue
+            model = dict(model)
+            if args.model_id:
+                model["id"] = args.model_id
+            if args.slug:
+                model["slug"] = args.slug
             cmd = [
                 PYTHON, str(BASE / "Scripts" / "by_layer_mlp.py"),
                 "--model-slug", model["slug"],
