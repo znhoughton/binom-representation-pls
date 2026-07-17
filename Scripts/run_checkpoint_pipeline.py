@@ -114,13 +114,19 @@ def delete_dir(path, label=""):
         print("  Deleted.", flush=True)
 
 
+def _pred_compressed(slug: str) -> bool:
+    r = BASE / "Results" / slug
+    return (r / "by_layer_corpus_pred.csv.gz").exists() or \
+           (r / "by_layer_corpus_pred.csv.xz").exists()
+
+
 def compress_corpus_pred(slug: str):
     """Compress by_layer_corpus_pred.csv → .gz and remove the original."""
     src = BASE / "Results" / slug / "by_layer_corpus_pred.csv"
     dst = BASE / "Results" / slug / "by_layer_corpus_pred.csv.gz"
     if not src.exists():
         return
-    if dst.exists():
+    if _pred_compressed(slug):
         src.unlink(missing_ok=True)
         return
     banner(f"COMPRESS  {slug}/by_layer_corpus_pred.csv")
@@ -133,9 +139,8 @@ def compress_corpus_pred(slug: str):
 
 
 def step_complete(slug: str, n_layers: int) -> bool:
-    """True when both conditions' MLP rows exist and corpus-freq .gz is present."""
-    gz = BASE / "Results" / slug / "by_layer_corpus_pred.csv.gz"
-    if not gz.exists():
+    """True when both conditions' MLP rows exist and corpus-freq is compressed."""
+    if not _pred_compressed(slug):
         return False
     return all(mlp_complete(slug, n_layers, cond["name"]) for cond in CONDITIONS)
 
