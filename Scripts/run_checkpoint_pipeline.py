@@ -36,14 +36,14 @@ SCRIPTS = BASE / "Scripts"
 
 # Fractions of total training at which to sample (log-spaced, ~8 points)
 # Covers: ~0.6%, 1.5%, 3.8%, 9.4%, 23%, 57%, 100%
-LOG_FRACTIONS = [0.006, 0.015, 0.038, 0.094, 0.23, 0.57, 1.0]
+LOG_FRACTIONS = [0.006, 0.015, 0.038, 0.094, 0.23, 0.57]
 
 MODELS = [
     {
         "flag":       "125m",
         "id":         "znhoughton/opt-babylm-125m-20eps-seed964",
         "n_layers":   12,
-        "mlp_batch":  32768,
+        "mlp_batch":  262144,
         "total_steps": 3984,
         "step_interval": 24,
     },
@@ -51,7 +51,7 @@ MODELS = [
         "flag":       "350m",
         "id":         "znhoughton/opt-babylm-350m-20eps-seed964",
         "n_layers":   24,
-        "mlp_batch":  32768,
+        "mlp_batch":  262144,
         "total_steps": 7968,
         "step_interval": 48,
     },
@@ -59,7 +59,7 @@ MODELS = [
         "flag":       "1.3b",
         "id":         "znhoughton/opt-babylm-1.3b-20eps-seed964",
         "n_layers":   24,
-        "mlp_batch":  32768,
+        "mlp_batch":  262144,
         "total_steps": 15908,
         "step_interval": 97,
     },
@@ -103,6 +103,23 @@ def run(cmd, label="", abort_on_fail=True):
     print(f"  {status} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
     if rc != 0 and abort_on_fail:
         sys.exit(rc)
+
+
+def run_parallel(cmds_labels: list, abort_on_fail=True):
+    """Launch all (cmd, label) pairs simultaneously and wait for all to finish."""
+    procs = []
+    for cmd, label in cmds_labels:
+        banner(label)
+        procs.append(subprocess.Popen([str(c) for c in cmd]))
+    t0 = time.perf_counter()
+    failed = False
+    for p in procs:
+        if p.wait() != 0:
+            failed = True
+    elapsed = time.perf_counter() - t0
+    print(f"  {'OK' if not failed else 'FAILED'} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
+    if failed and abort_on_fail:
+        sys.exit(1)
 
 
 def delete_dir(path, label=""):
@@ -166,8 +183,8 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
         return
     banner(f"MODEL {model['flag'].upper()}  step={step}  ({step/model['total_steps']*100:.1f}% of training)")
 
+    # ── Extract sequentially (GPU-heavy; one condition at a time) ─────────────
     for cond in CONDITIONS:
-        # Extract
         if not mlp_complete(slug, model["n_layers"], cond["name"]):
             run(
                 [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
@@ -184,51 +201,43 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
         else:
             banner(f"EXTRACT  {model['flag']} step={step} / {cond['name']}  (skipped — MLP complete)")
 
-        # MLP CV
-        run(
-            [PYTHON, SCRIPTS / "by_layer_mlp.py",
-             "--model-slug", slug,
-             "--num-layers", str(model["n_layers"]),
-             "--conditions", cond["name"],
-             "--modes", "mean_pooled", "individual", "words_only",
-             "--splits", "pair_novel", "word_novel",
-             "--gpu",    str(gpu),
-             "--batch",  str(model["mlp_batch"]),
-             "--embeddings-dir", str(emb_dir)],
-            label=f"MLP CV  {model['flag']} step={step} / {cond['name']}",
-        )
+    def mlp_cmd(cond_name):
+        return [PYTHON, SCRIPTS / "by_layer_mlp.py",
+                "--model-slug", slug,
+                "--num-layers", str(model["n_layers"]),
+                "--conditions", cond_name,
+                "--modes", "mean_pooled", "individual", "words_only",
+                "--splits", "pair_novel", "word_novel",
+                "--gpu",    str(gpu),
+                "--batch",  str(model["mlp_batch"]),
+                "--embeddings-dir", str(emb_dir)]
 
-        # Corpus freq transfer
-        if not skip_corpus_freq:
-            run(
-                [PYTHON, SCRIPTS / "by_layer_mlp.py",
-                 "--model-slug", slug,
-                 "--num-layers", str(model["n_layers"]),
-                 "--conditions", cond["name"],
-                 "--modes", "mean_pooled", "individual", "words_only",
-                 "--corpus-freq",
-                 "--gpu",    str(gpu),
-                 "--embeddings-dir", str(emb_dir)],
-                label=f"CORPUS-FREQ  {model['flag']} step={step} / {cond['name']}",
-            )
+    # ── MLP CV — both conditions in parallel ───────────────────────────────────
+    run_parallel([(mlp_cmd(c["name"]),
+                   f"MLP CV  {model['flag']} step={step} / {c['name']}")
+                  for c in CONDITIONS])
 
-        # Controls
-        if not skip_controls:
-            run(
-                [PYTHON, SCRIPTS / "by_layer_mlp.py",
-                 "--model-slug", slug,
-                 "--num-layers", str(model["n_layers"]),
-                 "--conditions", cond["name"],
-                 "--modes", "mean_pooled", "individual", "words_only",
-                 "--splits", "pair_novel", "word_novel",
-                 "--gpu",    str(gpu),
-                 "--batch",  str(model["mlp_batch"]),
-                 "--control",
-                 "--embeddings-dir", str(emb_dir)],
-                label=f"CONTROLS  {model['flag']} step={step} / {cond['name']}",
-            )
+    # ── Corpus-freq — both conditions in parallel ──────────────────────────────
+    if not skip_corpus_freq:
+        run_parallel([([PYTHON, SCRIPTS / "by_layer_mlp.py",
+                        "--model-slug", slug,
+                        "--num-layers", str(model["n_layers"]),
+                        "--conditions", c["name"],
+                        "--modes", "mean_pooled", "individual", "words_only",
+                        "--corpus-freq",
+                        "--gpu",    str(gpu),
+                        "--embeddings-dir", str(emb_dir)],
+                       f"CORPUS-FREQ  {model['flag']} step={step} / {c['name']}")
+                      for c in CONDITIONS])
 
-        # Free disk
+    # ── Controls — both conditions in parallel ─────────────────────────────────
+    if not skip_controls:
+        run_parallel([(mlp_cmd(c["name"]) + ["--control"],
+                       f"CONTROLS  {model['flag']} step={step} / {c['name']}")
+                      for c in CONDITIONS])
+
+    # ── Free disk ──────────────────────────────────────────────────────────────
+    for cond in CONDITIONS:
         delete_dir(emb_dir / cond["novel_dir"]  / slug)
         delete_dir(emb_dir / cond["corpus_dir"] / slug)
 
