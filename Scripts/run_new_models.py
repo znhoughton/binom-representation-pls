@@ -49,20 +49,20 @@ MODELS = [
     {"group": "pythia", "id": "EleutherAI/pythia-160m",  "n_layers": 12,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
     {"group": "pythia", "id": "EleutherAI/pythia-410m",  "n_layers": 24,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
     {"group": "pythia", "id": "EleutherAI/pythia-1b",    "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
-    {"group": "pythia", "id": "EleutherAI/pythia-2.8b",  "n_layers": 32,  "large_gpu": False, "shard_pairs": 200000, "batch_size": 4096},
+    {"group": "pythia", "id": "EleutherAI/pythia-2.8b",  "n_layers": 32,  "large_gpu": False, "shard_pairs": 200000, "batch_size": 6144},
     # ── GPT-2 (OpenAI) ─────────────────────────────────────────────────────
     {"group": "gpt2",   "id": "gpt2",                    "n_layers": 12,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
     {"group": "gpt2",   "id": "gpt2-medium",             "n_layers": 24,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
-    {"group": "gpt2",   "id": "gpt2-large",              "n_layers": 36,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 4096},
-    {"group": "gpt2",   "id": "gpt2-xl",                 "n_layers": 48,  "large_gpu": False, "shard_pairs": 200000, "batch_size": 4096},
+    {"group": "gpt2",   "id": "gpt2-large",              "n_layers": 36,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
+    {"group": "gpt2",   "id": "gpt2-xl",                 "n_layers": 48,  "large_gpu": False, "shard_pairs": 200000, "batch_size": 6144},
     # ── OLMo (AI2, open data) ──────────────────────────────────────────────
     {"group": "olmo",   "id": "allenai/OLMo-1B-hf",     "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
     {"group": "olmo",   "id": "allenai/OLMo-2-1124-1B",  "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
-    {"group": "olmo",   "id": "allenai/OLMo-7B-hf",     "n_layers": 32,  "large_gpu": True,  "shard_pairs": 100000, "batch_size": 2048},
-    {"group": "olmo",   "id": "allenai/OLMo-2-1124-7B",  "n_layers": 32,  "large_gpu": True,  "shard_pairs": 100000, "batch_size": 2048},
+    {"group": "olmo",   "id": "allenai/OLMo-7B-hf",     "n_layers": 32,  "large_gpu": True,  "shard_pairs": 100000, "batch_size": 4096},
+    {"group": "olmo",   "id": "allenai/OLMo-2-1124-7B",  "n_layers": 32,  "large_gpu": True,  "shard_pairs": 100000, "batch_size": 4096},
     # ── Llama 3 (Meta, gated — requires HF token) ──────────────────────────
     {"group": "llama",  "id": "meta-llama/Llama-3.2-1B", "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
-    {"group": "llama",  "id": "meta-llama/Meta-Llama-3-8B", "n_layers": 32, "large_gpu": True, "shard_pairs": 100000, "batch_size": 2048},
+    {"group": "llama",  "id": "meta-llama/Meta-Llama-3-8B", "n_layers": 32, "large_gpu": True, "shard_pairs": 100000, "batch_size": 4096},
 ]
 
 CONDITIONS = [
@@ -91,6 +91,23 @@ def run(cmd, label="", abort_on_fail=True):
     print(f"  {status} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
     if rc != 0 and abort_on_fail:
         sys.exit(rc)
+
+
+def run_parallel(cmds_labels: list, abort_on_fail=True):
+    """Launch all (cmd, label) pairs simultaneously and wait for all to finish."""
+    procs = []
+    for cmd, label in cmds_labels:
+        banner(label)
+        procs.append(subprocess.Popen([str(c) for c in cmd]))
+    t0 = time.perf_counter()
+    failed = False
+    for p in procs:
+        if p.wait() != 0:
+            failed = True
+    elapsed = time.perf_counter() - t0
+    print(f"  {'OK' if not failed else 'FAILED'} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
+    if failed and abort_on_fail:
+        sys.exit(1)
 
 
 def delete_dir(path, label=""):
@@ -155,8 +172,8 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
         return
     banner(f"MODEL: {model['id']}  (slug={slug})")
 
+    # ── 1. Extract sequentially (GPU-heavy; one condition at a time) ───────────
     for cond in CONDITIONS:
-        # ── 1. Extract last layer only ──────────────────────────────────────
         if not mlp_complete(slug, cond["name"]):
             run(
                 [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
@@ -174,52 +191,38 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
         else:
             banner(f"EXTRACT  {slug} / {cond['name']}  (skipped — MLP already complete)")
 
-        # ── 2. MLP CV probes ────────────────────────────────────────────────
-        run(
-            [PYTHON, SCRIPTS / "by_layer_mlp.py",
-             "--model-slug", slug,
-             "--num-layers", str(model["n_layers"]),
-             "--conditions", cond["name"],
-             "--modes",      "mean_pooled", "individual", "words_only",
-             "--splits",     "pair_novel", "word_novel",
-             "--gpu",        str(gpu),
-             "--embeddings-dir", str(emb_dir)],
-            label=f"MLP CV  {slug} / {cond['name']}",
-        )
+    def mlp_cmd(cond_name, extra_flags=()):
+        return [PYTHON, SCRIPTS / "by_layer_mlp.py",
+                "--model-slug", slug,
+                "--num-layers", str(model["n_layers"]),
+                "--conditions", cond_name,
+                "--modes",      "mean_pooled", "individual", "words_only",
+                "--gpu",        str(gpu),
+                "--embeddings-dir", str(emb_dir),
+                *extra_flags]
 
-        # ── 3. Novel→corpus transfer (corpus-freq) ──────────────────────────
-        run(
-            [PYTHON, SCRIPTS / "by_layer_mlp.py",
-             "--model-slug", slug,
-             "--num-layers", str(model["n_layers"]),
-             "--conditions", cond["name"],
-             "--modes",      "mean_pooled", "individual", "words_only",
-             "--corpus-freq",
-             "--gpu",        str(gpu),
-             "--embeddings-dir", str(emb_dir)],
-            label=f"CORPUS-FREQ  {slug} / {cond['name']}",
-        )
+    # ── 2. MLP CV — both conditions in parallel ─────────────────────────────
+    run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel"]),
+                   f"MLP CV  {slug} / {c['name']}")
+                  for c in CONDITIONS])
 
-        # ── 4. Controls ─────────────────────────────────────────────────────
-        if not skip_controls:
-            run(
-                [PYTHON, SCRIPTS / "by_layer_mlp.py",
-                 "--model-slug", slug,
-                 "--num-layers", str(model["n_layers"]),
-                 "--conditions", cond["name"],
-                 "--modes",      "mean_pooled", "individual", "words_only",
-                 "--splits",     "pair_novel", "word_novel",
-                 "--gpu",        str(gpu),
-                 "--control",
-                 "--embeddings-dir", str(emb_dir)],
-                label=f"CONTROLS  {slug} / {cond['name']}",
-            )
+    # ── 3. Corpus-freq — both conditions in parallel ────────────────────────
+    run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
+                   f"CORPUS-FREQ  {slug} / {c['name']}")
+                  for c in CONDITIONS])
 
-        # ── 5. Delete embeddings ────────────────────────────────────────────
+    # ── 4. Controls — both conditions in parallel ───────────────────────────
+    if not skip_controls:
+        run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
+                       f"CONTROLS  {slug} / {c['name']}")
+                      for c in CONDITIONS])
+
+    # ── 5. Delete embeddings ─────────────────────────────────────────────────
+    for cond in CONDITIONS:
         delete_dir(emb_dir / cond["novel_dir"]  / slug)
         delete_dir(emb_dir / cond["corpus_dir"] / slug)
 
-    # ── 6. Compress corpus predictions (after both conditions done) ─────────
+    # ── 6. Compress corpus predictions ───────────────────────────────────────
     compress_corpus_pred(slug)
 
 

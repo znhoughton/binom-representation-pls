@@ -365,20 +365,24 @@ def extract_binomial_batch(model, tokenizer, rows, device,
     out = model(**enc_device, output_hidden_states=True)
 
     # --- Vectorized logprob computation on GPU ---
-    logits = out.logits.float()
+    # Gather span positions in fp16 first, then free the full (B, seq_len, vocab)
+    # logits tensor before converting to float32 for log_softmax. For large-vocab
+    # models (Llama-8B: 128K vocab) this saves ~20-30 GB at typical batch sizes.
     input_ids = enc_device["input_ids"]
     span_idx_d = span_idx.to(device)
     span_mask_d = span_mask.to(device)
     prev_idx = (span_idx_d - 1).clamp(min=0)
-    logits_at_prev = logits.gather(1, prev_idx.unsqueeze(-1).expand(-1, -1, logits.size(-1)))
-    lp_at_prev = F.log_softmax(logits_at_prev, dim=-1)
+    logits_at_prev = out.logits.gather(             # (B, n_span, vocab) still fp16
+        1, prev_idx.unsqueeze(-1).expand(-1, -1, out.logits.size(-1)))
+    del out.logits                                  # free full (B, seq_len, vocab) early
+    lp_at_prev = F.log_softmax(logits_at_prev.float(), dim=-1)
+    del logits_at_prev
     target_ids = input_ids.gather(1, span_idx_d)
     token_lps = lp_at_prev.gather(2, target_ids.unsqueeze(-1)).squeeze(-1)
     skip_mask = (span_idx_d == 0) | ~span_mask_d
     token_lps = token_lps.masked_fill(skip_mask, 0.0)
     logprobs = token_lps.sum(dim=1).cpu()
-    del logits, logits_at_prev, lp_at_prev, token_lps, span_idx_d, span_mask_d, prev_idx, target_ids
-    del out.logits
+    del lp_at_prev, token_lps, span_idx_d, span_mask_d, prev_idx, target_ids
 
     # --- Per-word vectorized hidden state extraction ---
     def _pool_word(hs, word_idx, word_mask):
@@ -609,7 +613,7 @@ def main():
     word2s        = []
     skipped       = 0
     chunk_idx     = 0
-    flush_every   = 10000
+    flush_every   = 100000
     chunk_dir     = out_dir / "_chunks"
 
     def _flush_chunks():

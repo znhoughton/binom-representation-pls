@@ -47,21 +47,21 @@ OPT_MODELS = [
         "id":   "znhoughton/opt-babylm-125m-20eps-seed964",
         "slug": "znhoughton_opt-babylm-125m-20eps-seed964",
         "n_layers":  12,
-        "mlp_batch": 32768,
+        "mlp_batch": 262144,
     },
     {
         "flag": "350m",
         "id":   "znhoughton/opt-babylm-350m-20eps-seed964",
         "slug": "znhoughton_opt-babylm-350m-20eps-seed964",
         "n_layers":  24,
-        "mlp_batch": 32768,
+        "mlp_batch": 262144,
     },
     {
         "flag": "1.3b",
         "id":   "znhoughton/opt-babylm-1.3b-20eps-seed964",
         "slug": "znhoughton_opt-babylm-1_3b-20eps-seed964",
         "n_layers":  24,
-        "mlp_batch": 32768,
+        "mlp_batch": 262144,
     },
 ]
 
@@ -89,6 +89,23 @@ def run(cmd, label="", abort_on_fail=True):
     print(f"  {status} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
     if rc != 0 and abort_on_fail:
         sys.exit(rc)
+
+
+def run_parallel(cmds_labels: list, abort_on_fail=True):
+    """Launch all (cmd, label) pairs simultaneously and wait for all to finish."""
+    procs = []
+    for cmd, label in cmds_labels:
+        banner(label)
+        procs.append(subprocess.Popen([str(c) for c in cmd]))
+    t0 = time.perf_counter()
+    failed = False
+    for p in procs:
+        if p.wait() != 0:
+            failed = True
+    elapsed = time.perf_counter() - t0
+    print(f"  {'OK' if not failed else 'FAILED'} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
+    if failed and abort_on_fail:
+        sys.exit(1)
 
 
 def delete_dir(path, label=""):
@@ -175,37 +192,30 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool):
             label=f"PHASE 1  EXTRACT+MLP  {model['flag']}",
         )
 
-        # ── Corpus-freq + controls per condition ───────────────────────────
+        def mlp_cmd(cond_name, extra_flags=()):
+            return [PYTHON, SCRIPTS / "by_layer_mlp.py",
+                    "--model-slug", slug,
+                    "--num-layers", str(model["n_layers"]),
+                    "--conditions", cond_name,
+                    "--modes",      "mean_pooled", "individual", "words_only",
+                    "--gpu",        str(gpu),
+                    "--batch",      str(model["mlp_batch"]),
+                    "--embeddings-dir", str(emb_dir),
+                    *extra_flags]
+
+        # ── Corpus-freq — both conditions in parallel ───────────────────────
+        run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
+                       f"PHASE 1  CORPUS-FREQ  {model['flag']} / {c['name']}")
+                      for c in CONDITIONS])
+
+        # ── Controls — both conditions in parallel ──────────────────────────
+        if not skip_controls:
+            run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
+                           f"PHASE 1  CONTROLS  {model['flag']} / {c['name']}")
+                          for c in CONDITIONS])
+
+        # ── Delete both conditions ───────────────────────────────────────────
         for cond in CONDITIONS:
-            run(
-                [PYTHON, SCRIPTS / "by_layer_mlp.py",
-                 "--model-slug", slug,
-                 "--num-layers", str(model["n_layers"]),
-                 "--conditions", cond["name"],
-                 "--modes",      "mean_pooled", "individual", "words_only",
-                 "--corpus-freq",
-                 "--gpu",        str(gpu),
-                 "--batch",      str(model["mlp_batch"]),
-                 "--embeddings-dir", str(emb_dir)],
-                label=f"PHASE 1  CORPUS-FREQ  {model['flag']} / {cond['name']}",
-            )
-
-            if not skip_controls:
-                run(
-                    [PYTHON, SCRIPTS / "by_layer_mlp.py",
-                     "--model-slug", slug,
-                     "--num-layers", str(model["n_layers"]),
-                     "--conditions", cond["name"],
-                     "--modes",      "mean_pooled", "individual", "words_only",
-                     "--splits",     "pair_novel", "word_novel",
-                     "--gpu",        str(gpu),
-                     "--batch",      str(model["mlp_batch"]),
-                     "--control",
-                     "--embeddings-dir", str(emb_dir)],
-                    label=f"PHASE 1  CONTROLS  {model['flag']} / {cond['name']}",
-                )
-
-            # Delete embeddings for this condition before moving to the next
             delete_dir(emb_dir / cond["novel_dir"]  / slug)
             delete_dir(emb_dir / cond["corpus_dir"] / slug)
 
