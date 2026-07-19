@@ -135,61 +135,64 @@ def extract_sharded(model, cond, data_split, gpu, emb_root, force=False,
         time.sleep(3)
 
     # Merge shards into final layer files
-    print(f"  Merging {n_shards} shards...", flush=True)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    for l in layers:
-        tag = _layer_tag(l)
-        final_path = out_path / f"{tag}.npz"
-
-        # Collect shard files for this layer
-        shard_files = []
-        for shard in range(n_shards):
-            sf = shard_dir / f"{tag}_shard{shard}.npz"
+    if n_shards == 1:
+        # Single shard — just rename, no load/save needed
+        print(f"  Moving shard to final location...", flush=True)
+        for l in layers:
+            tag = _layer_tag(l)
+            sf = shard_dir / f"{tag}_shard0.npz"
             if sf.exists():
-                shard_files.append(sf)
+                shutil.move(str(sf), str(out_path / f"{tag}.npz"))
+    else:
+        print(f"  Merging {n_shards} shards...", flush=True)
+        for l in layers:
+            tag = _layer_tag(l)
+            final_path = out_path / f"{tag}.npz"
 
-        if not shard_files:
-            continue
+            shard_files = [shard_dir / f"{tag}_shard{s}.npz"
+                           for s in range(n_shards)
+                           if (shard_dir / f"{tag}_shard{s}.npz").exists()]
+            if not shard_files:
+                continue
 
-        # Merge one key at a time
-        # First load metadata from first shard to get keys
-        first = np.load(shard_files[0], allow_pickle=True)
-        available_keys = [k for k in WORD_KEYS if k in first]
-        has_meta = "word1" in first
-        first.close()
+            first = np.load(shard_files[0], allow_pickle=True)
+            available_keys = [k for k in WORD_KEYS if k in first]
+            has_meta = "word1" in first
+            first.close()
 
-        save_dict = {}
-        if has_meta:
-            w1_parts, w2_parts, pref_parts = [], [], []
-            for sf in shard_files:
-                d = np.load(sf, allow_pickle=True)
-                w1_parts.append(d["word1"])
-                w2_parts.append(d["word2"])
-                pref_parts.append(d["preference"])
-                d.close()
-            save_dict["word1"] = np.concatenate(w1_parts)
-            save_dict["word2"] = np.concatenate(w2_parts)
-            save_dict["preference"] = np.concatenate(pref_parts)
-            del w1_parts, w2_parts, pref_parts
+            save_dict = {}
+            if has_meta:
+                w1_parts, w2_parts, pref_parts = [], [], []
+                for sf in shard_files:
+                    d = np.load(sf, allow_pickle=True)
+                    w1_parts.append(d["word1"])
+                    w2_parts.append(d["word2"])
+                    pref_parts.append(d["preference"])
+                    d.close()
+                save_dict["word1"] = np.concatenate(w1_parts)
+                save_dict["word2"] = np.concatenate(w2_parts)
+                save_dict["preference"] = np.concatenate(pref_parts)
+                del w1_parts, w2_parts, pref_parts
 
-        for k in available_keys:
-            parts = []
-            for sf in shard_files:
-                d = np.load(sf)
-                parts.append(d[k].copy())
-                d.close()
-            save_dict[k] = np.concatenate(parts)
-            del parts
+            for k in available_keys:
+                parts = []
+                for sf in shard_files:
+                    d = np.load(sf)
+                    parts.append(d[k].copy())
+                    d.close()
+                save_dict[k] = np.concatenate(parts)
+                del parts
+                gc.collect()
+
+            np.savez(final_path, **save_dict)
+            del save_dict
             gc.collect()
 
-        np.savez(final_path, **save_dict)
-        del save_dict
-        gc.collect()
+    print(f"  Done.", flush=True)
 
-    print(f"  Merge done.", flush=True)
-
-    # Clean up shard files
+    # Clean up shard directory
     shutil.rmtree(shard_dir, ignore_errors=True)
 
     elapsed = time.perf_counter() - t0
