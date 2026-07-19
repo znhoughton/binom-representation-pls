@@ -813,14 +813,15 @@ def main():
             pred_done = (not args.corpus_freq or all(
                 (condition, layer_idx, mode) in completed_pred for mode in args.modes
             ))
+            remaining = len(sorted_layers) - i - 1
             if cv_done and freq_done and pred_done:
-                print(f"\n--- {condition} / Layer {layer_idx} --- [skipped]", flush=True)
+                print(f"\n--- {condition} / Layer {layer_idx}  ({i+1}/{len(sorted_layers)}, {remaining} remaining) --- [skipped]", flush=True)
                 del raw_nov
                 if raw_cor is not None:
                     del raw_cor
                 continue
 
-            print(f"\n--- {condition} / Layer {layer_idx} ---", flush=True)
+            print(f"\n--- {condition} / Layer {layer_idx}  ({i+1}/{len(sorted_layers)}, {remaining} remaining) ---", flush=True)
 
             if args.corpus_freq and corpus_npz_cf is None:
                 print(f"  Skipping corpus_freq for layer {layer_idx}: corpus embeddings not found")
