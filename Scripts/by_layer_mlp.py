@@ -112,7 +112,7 @@ def _incremental_mean_std(X, global_idx, chunk=4096):
     return mean_, std_
 
 
-def train_all_folds(X, y, fold_data, device, mode):
+def train_all_folds(X, y, fold_data, device, mode, batch_size=None):
     """Train all folds simultaneously with batched matrix multiply (torch.bmm).
 
     fold_data: list of (tr_idx_np, te_idx_np, fold_id)
@@ -123,6 +123,8 @@ def train_all_folds(X, y, fold_data, device, mode):
     if F == 0:
         return []
     D = X.shape[1]
+    if batch_size is None:
+        batch_size = BATCH
 
     # ── Precompute inner train/val splits and per-fold normalization ────────
     inner_tr_gpu, inner_val_gpu, inner_te_gpu = [], [], []
@@ -143,7 +145,7 @@ def train_all_folds(X, y, fold_data, device, mode):
         ival_d = torch.from_numpy(ival_np).to(device)
         ite_d  = torch.from_numpy(te_np).to(device)
 
-        X_tr_k = X[itr_d].float()
+        X_tr_k = X[itr_d]
         fold_mean[k] = X_tr_k.mean(0)
         fold_std[k]  = X_tr_k.std(0, unbiased=True).clamp(min=1e-8)
         del X_tr_k
@@ -155,7 +157,7 @@ def train_all_folds(X, y, fold_data, device, mode):
         n_tr_sizes.append(len(itr_d))
 
     # Precompute normalized val sets (kept on GPU for fast per-epoch check)
-    X_val_list = [(X[inner_val_gpu[k]].float() - fold_mean[k]) / fold_std[k] for k in range(F)]
+    X_val_list = [(X[inner_val_gpu[k]] - fold_mean[k]) / fold_std[k] for k in range(F)]
     y_val_list = [y[inner_val_gpu[k]] for k in range(F)]
 
     n_tr_min = min(n_tr_sizes)
@@ -203,8 +205,8 @@ def train_all_folds(X, y, fold_data, device, mode):
         ]
         act_f = torch.tensor(active, dtype=torch.float32, device=device)  # [F]
 
-        for start in range(0, n_tr_min, BATCH):
-            b_end = min(start + BATCH, n_tr_min)  # cap at n_tr_min so all folds give same slice size
+        for start in range(0, n_tr_min, batch_size):
+            b_end = min(start + batch_size, n_tr_min)  # cap at n_tr_min so all folds give same slice size
             # Gather per-fold batch indices → [F, b]
             batch_global = torch.stack([
                 inner_tr_gpu[k][perms[k][start:b_end]]
@@ -212,7 +214,7 @@ def train_all_folds(X, y, fold_data, device, mode):
             ])
             b_size = batch_global.shape[1]
 
-            X_batch = X[batch_global].float()  # [F, b, D]
+            X_batch = X[batch_global]  # [F, b, D]
             y_batch = y[batch_global]  # [F, b]
 
             # Per-fold normalization
@@ -284,7 +286,7 @@ def train_all_folds(X, y, fold_data, device, mode):
     results = []
     with torch.no_grad():
         for k in range(F):
-            X_te_k = (X[inner_te_gpu[k]].float() - fold_mean[k]) / fold_std[k]
+            X_te_k = (X[inner_te_gpu[k]] - fold_mean[k]) / fold_std[k]
             h_te   = torch.relu(X_te_k @ best_W1[k] + best_b1[k].squeeze(0))
             y_pred = (h_te @ best_W2[k] + best_b2[k].squeeze(0)).squeeze(-1).cpu()
             y_te   = y_te_cpu[k]
@@ -314,9 +316,9 @@ def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_n
     tr_idx_d  = torch.from_numpy(tr_idx).to(device)
     val_idx_d = torch.from_numpy(val_idx).to(device)
 
-    X_tr  = X_nov[tr_idx_d].float()
+    X_tr  = X_nov[tr_idx_d]
     y_tr  = y_nov[tr_idx_d]
-    X_val = X_nov[val_idx_d].float()
+    X_val = X_nov[val_idx_d]
     y_val = y_nov[val_idx_d]
 
     X_tr_sc, mean_, std_ = compute_scale(X_tr)
@@ -525,7 +527,17 @@ def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name,
             te_idx = np.where(te_mask)[0]
         fold_data.append((tr_idx, te_idx, fold))
 
-    all_results = train_all_folds(X, y, fold_data, device, mode)
+    batch_size = BATCH
+    while True:
+        try:
+            all_results = train_all_folds(X, y, fold_data, device, mode, batch_size=batch_size)
+            break
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            batch_size //= 2
+            if batch_size < 64:
+                raise
+            print(f"  [OOM] {layer_name} {mode}: halving MLP batch to {batch_size}", flush=True)
 
     r2s, best_eps, n_eps = [], [], []
     for (r2, y_te_np, y_pred_np, best_ep, n_ep), (_tr, te_idx, fold) in zip(all_results, fold_data):
@@ -822,14 +834,7 @@ def main():
                     X_nov = y_nov = w1_nov = w2_nov = None
                 else:
                     X_nov, y_nov, w1_nov, w2_nov = x_from_raw(raw_nov, mode)
-                    try:
-                        X_nov = X_nov.to(device)
-                    except torch.cuda.OutOfMemoryError:
-                        torch.cuda.empty_cache()
-                        X_nov = X_nov.half().to(device)  # fp16 storage: halves VRAM for large models
-                        print(f"  [OOM] {layer_tag} {mode}: using fp16 storage for X_nov "
-                              f"({X_nov.shape[0]}×{X_nov.shape[1]}×2B = "
-                              f"{X_nov.numel()*2/1e9:.1f} GB)", flush=True)
+                    X_nov = X_nov.to(device)
                     y_nov = y_nov.to(device)
                     if args.control and y_nov is not None:
                         ctrl_perm = np.random.default_rng(SEED + layer_idx * 1000).permutation(len(y_nov))
