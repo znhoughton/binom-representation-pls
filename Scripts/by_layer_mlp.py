@@ -12,6 +12,7 @@ Usage:
 import argparse
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -112,12 +113,9 @@ def _incremental_mean_std(X, global_idx, chunk=4096):
 
 
 def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
-    """Train one CV fold.
+    """Train one CV fold. X and y must already be on device.
 
-    Assumes sufficient GPU memory to hold all training/val/test data at once
-    (true for 128 GB unified memory; original incremental/CPU-fallback path removed).
-    Mean and std are computed on the GPU after loading X_tr, which is much faster
-    than the old 2-pass CPU loop.
+    All fold indexing happens on GPU, eliminating per-fold CPU→GPU transfers.
     """
     n_all = len(tr_idx)
     n_val = max(1, int(n_all * VAL_FRAC))
@@ -126,17 +124,21 @@ def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
     inner_tr_idx = tr_idx[np.setdiff1d(np.arange(n_all), val_local)]
     inner_val_idx = tr_idx[val_local]
 
-    # Load training data to GPU and compute mean/std there
-    X_tr  = X[torch.from_numpy(inner_tr_idx)].to(device)
+    # Index directly on GPU — no per-fold CPU→GPU transfer
+    tr_idx_d  = torch.from_numpy(inner_tr_idx).to(device)
+    val_idx_d = torch.from_numpy(inner_val_idx).to(device)
+    te_idx_d  = torch.from_numpy(te_idx).to(device)
+
+    X_tr  = X[tr_idx_d]
     mean_ = X_tr.mean(0)
     std_  = X_tr.std(0, unbiased=True); std_[std_ < 1e-8] = 1.0
     X_tr  = (X_tr - mean_).div_(std_)
-    y_tr  = y[torch.from_numpy(inner_tr_idx)].to(device)
+    y_tr  = y[tr_idx_d]
 
-    X_val = (X[torch.from_numpy(inner_val_idx)].to(device) - mean_).div_(std_)
-    y_val = y[torch.from_numpy(inner_val_idx)].to(device)
-    X_te  = (X[torch.from_numpy(te_idx)].to(device) - mean_).div_(std_)
-    y_te  = y[torch.from_numpy(te_idx)]
+    X_val = (X[val_idx_d] - mean_).div_(std_)
+    y_val = y[val_idx_d]
+    X_te  = (X[te_idx_d] - mean_).div_(std_)
+    y_te  = y[te_idx_d].cpu()
 
     n_tr, input_dim = X_tr.shape
 
@@ -196,7 +198,9 @@ def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
 
 
 def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_name):
-    """Train MLP on all novel pairs, predict on corpus pairs. Returns (y_pred, r²)."""
+    """Train MLP on all novel pairs, predict on corpus pairs. Returns (y_pred, r²).
+    X_nov, y_nov, X_cor must already be on device.
+    """
     n_all = len(y_nov)
     n_val = max(1, int(n_all * VAL_FRAC))
     rng_val = np.random.default_rng(SEED + 99999)
@@ -204,10 +208,13 @@ def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_n
     tr_mask = np.ones(n_all, dtype=bool); tr_mask[val_idx] = False
     tr_idx = np.where(tr_mask)[0]
 
-    X_tr = X_nov[torch.from_numpy(tr_idx)]
-    y_tr = y_nov[torch.from_numpy(tr_idx)]
-    X_val = X_nov[torch.from_numpy(val_idx)]
-    y_val = y_nov[torch.from_numpy(val_idx)]
+    tr_idx_d  = torch.from_numpy(tr_idx).to(device)
+    val_idx_d = torch.from_numpy(val_idx).to(device)
+
+    X_tr  = X_nov[tr_idx_d]
+    y_tr  = y_nov[tr_idx_d]
+    X_val = X_nov[val_idx_d]
+    y_val = y_nov[val_idx_d]
 
     X_tr_sc, mean_, std_ = compute_scale(X_tr)
     X_val_sc = apply_scale(X_val, mean_, std_)
@@ -215,9 +222,6 @@ def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_n
 
     input_dim = X_tr.shape[1]
     n_tr = len(y_tr)
-    on_gpu = device.type == "cuda"
-    X_tr_d = X_tr_sc.to(device) if on_gpu else X_tr_sc
-    y_tr_d = y_tr.to(device) if on_gpu else y_tr
 
     mlp = OrderingMLP(input_dim, HIDDEN).to(device)
     opt = torch.optim.Adam(mlp.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
@@ -234,10 +238,8 @@ def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_n
         perm = torch.randperm(n_tr, generator=g)
         for start in range(0, n_tr, BATCH):
             idx = perm[start:start + BATCH]
-            xb = X_tr_d[idx]; yb = y_tr_d[idx]
-            if not on_gpu:
-                xb, yb = xb.to(device), yb.to(device)
-            flip = (torch.rand(len(xb), generator=g_flip) < 0.5).to(xb.device)
+            xb = X_tr_sc[idx]; yb = y_tr[idx]
+            flip = (torch.rand(len(xb), generator=g_flip) < 0.5).to(device)
             if flip.any():
                 if mode in ("mean_pooled", "words_only"):
                     half = xb.shape[1] // 2
@@ -250,7 +252,7 @@ def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_n
 
         mlp.eval()
         with torch.no_grad():
-            val_loss = loss_fn(mlp(X_val_sc.to(device)).cpu(), y_val).item()
+            val_loss = loss_fn(mlp(X_val_sc), y_val).item()
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_state = {k: v.clone() for k, v in mlp.state_dict().items()}
@@ -261,13 +263,13 @@ def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_n
                 break
 
     mlp.load_state_dict(best_state)
-    del X_tr_d, y_tr_d
+    del X_tr, X_val, y_tr, y_val, X_tr_sc, X_val_sc
     if device.type == "cuda":
         torch.cuda.empty_cache()
 
     mlp.eval()
     with torch.no_grad():
-        y_pred = mlp(X_cor_sc.to(device)).cpu()
+        y_pred = mlp(X_cor_sc).cpu()
 
     r2 = pearsonr(y_cor, y_pred) ** 2
     print(f"  {layer_name:>10s}  corpus_pred   {mode:<14s}  r²={r2:.4f}", flush=True)
@@ -328,6 +330,65 @@ def load_layer(embed_dir, layer_tag, mode="mean_pooled"):
         raise ValueError(f"Unknown npz format in {path}")
 
     return X, y, w1, w2
+
+
+def load_raw_layer(embed_dir, layer_tag):
+    """Load all raw embedding arrays from an NPZ (format-agnostic).
+    Avoids repeated disk reads when the same layer is needed across multiple modes.
+    Returns None if the file does not exist.
+    """
+    path = embed_dir / f"{layer_tag}.npz"
+    if not path.exists():
+        return None
+    npz = np.load(path, allow_pickle=True)
+    out = {
+        "y":  torch.from_numpy(npz["preference"].astype(np.float32, copy=False)),
+        "w1": npz["word1"].astype(str),
+        "w2": npz["word2"].astype(str),
+    }
+    if "alpha_w1" in npz:
+        out["fmt"] = "per_word"
+        for k in ("alpha_w1", "alpha_and", "alpha_w2",
+                   "non_alpha_w1", "non_alpha_and", "non_alpha_w2"):
+            out[k] = torch.from_numpy(npz[k].astype(np.float32, copy=False))
+    elif "vec_alpha" in npz:
+        out["fmt"] = "legacy"
+        out["va"]  = torch.from_numpy(npz["vec_alpha"].astype(np.float32, copy=False))
+        out["vna"] = torch.from_numpy(npz["vec_non_alpha"].astype(np.float32, copy=False))
+    else:
+        raise ValueError(f"Unknown npz format in {path}")
+    return out
+
+
+def x_from_raw(raw, mode):
+    """Compute mode-specific X tensor from pre-loaded raw data (no disk I/O)."""
+    y, w1, w2 = raw["y"], raw["w1"], raw["w2"]
+    if raw["fmt"] == "per_word":
+        if mode == "mean_pooled":
+            va  = (raw["alpha_w1"] + raw["alpha_and"] + raw["alpha_w2"]) / 3.0
+            vna = (raw["non_alpha_w1"] + raw["non_alpha_and"] + raw["non_alpha_w2"]) / 3.0
+            X   = torch.cat([va, vna], dim=1)
+        elif mode == "individual":
+            X = torch.cat([raw["alpha_w1"], raw["alpha_and"], raw["alpha_w2"]], dim=1)
+        elif mode == "words_only":
+            X = torch.cat([raw["alpha_w1"], raw["non_alpha_w1"]], dim=1)
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
+    else:
+        X = torch.cat([raw["va"], raw["vna"]], dim=1)
+    return X, y, w1, w2
+
+
+def _load_layer_pair(novel_dir, corpus_dir, layer_tag, num_layers, do_corpus_freq):
+    """Load novel + corpus NPZs for one layer tag. Designed to run in a background thread."""
+    nov_npz = resolve_npz(novel_dir, layer_tag, num_layers)
+    if nov_npz is None:
+        return layer_tag, None, None, None, None
+    raw_nov = load_raw_layer(nov_npz.parent, nov_npz.stem)
+    cor_npz = resolve_npz(corpus_dir, layer_tag, num_layers) if do_corpus_freq else None
+    raw_cor = (load_raw_layer(cor_npz.parent, cor_npz.stem)
+               if cor_npz is not None else None)
+    return layer_tag, nov_npz, raw_nov, cor_npz, raw_cor
 
 
 def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name, pred_path=None):
@@ -572,9 +633,22 @@ def main():
 
         del ref
 
-        for layer_tag in sorted(available, key=lambda t: int(t.split("_")[1])):
+        sorted_layers = sorted(available, key=lambda t: int(t.split("_")[1]))
+        _pool = ThreadPoolExecutor(max_workers=1)
+
+        def _prefetch(tag):
+            return _load_layer_pair(novel_dir, corpus_dir, tag, args.num_layers, args.corpus_freq)
+
+        _future = _pool.submit(_prefetch, sorted_layers[0]) if sorted_layers else None
+
+        for i, layer_tag in enumerate(sorted_layers):
             layer_idx = int(layer_tag.split("_")[1])
-            novel_npz = resolve_npz(novel_dir, layer_tag, args.num_layers)
+
+            # Retrieve pre-loaded data; immediately kick off the next layer's disk read
+            _, novel_npz, raw_nov, corpus_npz_cf, raw_cor = _future.result()
+            _future = (_pool.submit(_prefetch, sorted_layers[i + 1])
+                       if i + 1 < len(sorted_layers) else None)
+
             if novel_npz is None:
                 continue
 
@@ -594,9 +668,15 @@ def main():
             ))
             if cv_done and freq_done and pred_done:
                 print(f"\n--- {condition} / Layer {layer_idx} --- [skipped]", flush=True)
+                del raw_nov
+                if raw_cor is not None:
+                    del raw_cor
                 continue
 
             print(f"\n--- {condition} / Layer {layer_idx} ---", flush=True)
+
+            if args.corpus_freq and corpus_npz_cf is None:
+                print(f"  Skipping corpus_freq for layer {layer_idx}: corpus embeddings not found")
 
             for mode in args.modes:
                 # Determine which splits need work: need CSV row AND pred file
@@ -607,16 +687,22 @@ def main():
                     return not (has_csv and (cv_preds_dir is None or has_pred))
 
                 splits_todo = [sp for sp in (args.splits or []) if _needs_work(sp)]
+                corpus_needed = (args.corpus_freq and raw_cor is not None and
+                                 (condition, layer_idx, mode) not in completed_pred)
 
-                if not splits_todo:
+                if not splits_todo and not corpus_needed:
                     for split in (args.splits or []):
                         print(f"  {layer_tag:>10s}  {split:<12s}  {mode:<14s}  [skipped]", flush=True)
+                    if args.corpus_freq:
+                        print(f"  {layer_tag:>10s}  corpus_pred   {mode:<14s}  [skipped]", flush=True)
                     X_nov = y_nov = w1_nov = w2_nov = None
                 else:
-                    X_nov, y_nov, w1_nov, w2_nov = load_layer(novel_npz.parent, novel_npz.stem, mode)
+                    X_nov, y_nov, w1_nov, w2_nov = x_from_raw(raw_nov, mode)
+                    X_nov = X_nov.to(device)
+                    y_nov = y_nov.to(device)
                     if args.control and y_nov is not None:
                         ctrl_perm = np.random.default_rng(SEED + layer_idx * 1000).permutation(len(y_nov))
-                        y_nov = y_nov[torch.from_numpy(ctrl_perm)]
+                        y_nov = y_nov[torch.from_numpy(ctrl_perm).to(device)]
 
                 for split in (args.splits or []):
                     has_csv  = (condition, layer_idx, mode, split) in completed
@@ -648,45 +734,38 @@ def main():
                         if _csv_writer:
                             _csv_writer.writerow(row); _csv_f.flush()
 
-                if X_nov is not None:
-                    del X_nov
-
-            # Novel → corpus prediction for frequency regression
-            if args.corpus_freq:
-                corpus_npz_cf = resolve_npz(corpus_dir, layer_tag, args.num_layers)
-                if corpus_npz_cf is None:
-                    print(f"  Skipping corpus_freq: corpus embeddings not found")
-                else:
-                    for mode in args.modes:
-                        if (condition, layer_idx, mode) in completed_pred:
-                            print(f"  {layer_tag:>10s}  corpus_pred   {mode:<14s}  [skipped]", flush=True)
-                            continue
-                        X_nov_cf, y_nov_cf, _, _ = load_layer(novel_npz.parent, novel_npz.stem, mode)
-                        X_cor_cf, y_cor_cf, w1_cor, w2_cor = load_layer(
-                            corpus_npz_cf.parent, corpus_npz_cf.stem, mode)
-                        y_pred_cf, r2_cf = train_novel_predict_corpus(
-                            X_nov_cf, y_nov_cf, X_cor_cf, y_cor_cf, mode, device, layer_tag)
-                        # Write summary row
-                        row = {
+                # Corpus-freq merged here: X_nov already on GPU, no re-read from disk
+                if corpus_needed:
+                    X_cor, y_cor, w1_cor, w2_cor = x_from_raw(raw_cor, mode)
+                    X_cor = X_cor.to(device)
+                    y_pred_cf, r2_cf = train_novel_predict_corpus(
+                        X_nov, y_nov, X_cor, y_cor, mode, device, layer_tag)
+                    row = {
+                        "condition": condition, "layer": layer_idx, "mode": mode,
+                        "split": "corpus_pred", "mean_r2": round(r2_cf, 6),
+                        "sd_r2": 0.0, "n_folds": 1,
+                    }
+                    results.append(row)
+                    if _csv_writer:
+                        _csv_writer.writerow(row); _csv_f.flush()
+                    y_pred_np = y_pred_cf.numpy()
+                    y_true_np = y_cor.numpy()
+                    for idx in range(len(w1_cor)):
+                        _pred_writer.writerow({
                             "condition": condition, "layer": layer_idx, "mode": mode,
-                            "split": "corpus_pred", "mean_r2": round(r2_cf, 6),
-                            "sd_r2": 0.0, "n_folds": 1,
-                        }
-                        results.append(row)
-                        if _csv_writer:
-                            _csv_writer.writerow(row); _csv_f.flush()
-                        # Write per-pair predictions
-                        y_pred_np = y_pred_cf.numpy()
-                        y_true_np = y_cor_cf.numpy()
-                        for i in range(len(w1_cor)):
-                            _pred_writer.writerow({
-                                "condition": condition, "layer": layer_idx, "mode": mode,
-                                "word1": w1_cor[i], "word2": w2_cor[i],
-                                "y_true": round(float(y_true_np[i]), 6),
-                                "y_pred": round(float(y_pred_np[i]), 6),
-                            })
-                        _pred_f.flush()
-                        del X_nov_cf, X_cor_cf, y_pred_cf
+                            "word1": w1_cor[idx], "word2": w2_cor[idx],
+                            "y_true": round(float(y_true_np[idx]), 6),
+                            "y_pred": round(float(y_pred_np[idx]), 6),
+                        })
+                    _pred_f.flush()
+                    del X_cor, y_cor, y_pred_cf
+
+                if X_nov is not None:
+                    del X_nov, y_nov
+
+            del raw_nov
+            if raw_cor is not None:
+                del raw_cor
 
             # Frequency strata (default condition only - corpus freq bins don't apply to isolated)
             if args.freq_strata and condition == "default":
@@ -756,6 +835,8 @@ def main():
 
             if device.type == "cuda":
                 torch.cuda.empty_cache()
+
+        _pool.shutdown(wait=True)
 
     elapsed = time.perf_counter() - t_start
     print(f"\nTotal time: {elapsed:.0f}s ({elapsed/60:.1f}m)")
