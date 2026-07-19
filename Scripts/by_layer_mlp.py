@@ -379,6 +379,18 @@ def x_from_raw(raw, mode):
     return X, y, w1, w2
 
 
+def resolve_npz(directory, layer_tag, num_layers):
+    layer_idx = int(layer_tag.split("_")[1])
+    p = directory / f"{layer_tag}.npz"
+    if p.exists():
+        return p
+    if layer_idx == num_layers:
+        p = directory / "layer_last.npz"
+    elif layer_idx == num_layers - 1:
+        p = directory / "layer_second_to_last.npz"
+    return p if p.exists() else None
+
+
 def _load_layer_pair(novel_dir, corpus_dir, layer_tag, num_layers, do_corpus_freq):
     """Load novel + corpus NPZs for one layer tag. Designed to run in a background thread."""
     nov_npz = resolve_npz(novel_dir, layer_tag, num_layers)
@@ -484,17 +496,6 @@ def main():
     print(f"Hidden: {HIDDEN}")
     if args.control:
         print("CONTROL RUN: labels shuffled per layer (writes to by_layer_mlp_control.csv)")
-
-    def resolve_npz(directory, layer_tag, num_layers):
-        layer_idx = int(layer_tag.split("_")[1])
-        p = directory / f"{layer_tag}.npz"
-        if p.exists():
-            return p
-        if layer_idx == num_layers:
-            p = directory / "layer_last.npz"
-        elif layer_idx == num_layers - 1:
-            p = directory / "layer_second_to_last.npz"
-        return p if p.exists() else None
 
     # Set up frequency strata if requested (shared across conditions)
     freq_strata = {}
