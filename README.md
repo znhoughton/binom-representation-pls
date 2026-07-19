@@ -49,7 +49,7 @@ binom-corpus-pls/
 │           # Keys: word1, word2, preference, vec_alpha, vec_non_alpha
 │
 ├── Scripts/
-│   ├── replicate.py                       # Main entry point — runs all three phases
+│   ├── run_pipeline.py                       # Main entry point — runs all three phases
 │   ├── run_by_layer_pipeline.py           # Extract embeddings layer-by-layer
 │   ├── by_layer_mlp.py                    # MLP CV probes and corpus-freq predictions
 │   ├── run_checkpoint_pipeline.py         # Phase 2: training-dynamics sweep
@@ -115,26 +115,26 @@ All modes use antisymmetric data augmentation (label-flip with word-order swap).
 Requires the `PRenv` conda environment (CUDA-enabled PyTorch).
 
 ```bash
-python Scripts/replicate.py --embeddings-dir /path/to/embeddings --gpu 0
+python Scripts/run_pipeline.py --embeddings-dir /path/to/embeddings --gpu 0
 ```
 
 ### Phase options
 
 ```bash
 # Run all three phases (default)
-python Scripts/replicate.py --embeddings-dir /path/to/embeddings
+python Scripts/run_pipeline.py --embeddings-dir /path/to/embeddings
 
 # Run specific phases
-python Scripts/replicate.py --phases 1 2
+python Scripts/run_pipeline.py --phases 1 2
 
 # Phase 3 — skip large models (OLMo-7B, Llama-8B)
-python Scripts/replicate.py --phases 3 --skip-large
+python Scripts/run_pipeline.py --phases 3 --skip-large
 
 # Re-run everything from scratch
-python Scripts/replicate.py --force
+python Scripts/run_pipeline.py --force
 ```
 
-### `replicate.py` arguments
+### `run_pipeline.py` arguments
 
 | Argument | Default | Description |
 |----------|---------|-------------|

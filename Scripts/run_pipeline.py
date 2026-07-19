@@ -20,11 +20,11 @@ Phases:
        - Delegates entirely to run_new_models.py
 
 Usage:
-    python Scripts/replicate.py --embeddings-dir /path/to/embeddings --gpu 0
-    python Scripts/replicate.py --phases 1 2 --embeddings-dir /path/to/embeddings
-    python Scripts/replicate.py --phases 3 --models pythia gpt2
-    python Scripts/replicate.py --phases 3 --skip-large  # skip 7B/8B models
-    python Scripts/replicate.py --force                  # re-run all phases
+    python Scripts/run_pipeline.py --embeddings-dir /path/to/embeddings --gpu 0
+    python Scripts/run_pipeline.py --phases 1 2 --embeddings-dir /path/to/embeddings
+    python Scripts/run_pipeline.py --phases 3 --models pythia gpt2
+    python Scripts/run_pipeline.py --phases 3 --skip-large  # skip 7B/8B models
+    python Scripts/run_pipeline.py --force                  # re-run all phases
 """
 
 import argparse
