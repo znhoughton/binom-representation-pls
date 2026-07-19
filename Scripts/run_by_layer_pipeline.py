@@ -274,6 +274,7 @@ def main():
                 "--model-slug", model["slug"],
                 "--num-layers", str(model["num_layers"]),
                 "--gpu", str(args.gpu),
+                "--embeddings-dir", str(emb_root),
                 "--conditions", "default", "attn_zeroed",
                 # modes run for both conditions:
                 # words_only: cat(w1, w2) from full sentence — no "and", uses original sentence contexts
