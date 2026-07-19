@@ -1,26 +1,34 @@
 # binom-corpus-pls
 
-Probing OPT-BabyLM models for binomial ordering preferences.
+MLP probing of transformer layers for binomial ordering preferences, across
+model scale and training dynamics.
 
-Attested binomials from the BabyLM training corpus (~49k pairs) are used to
-train probes (PLS and MLP); predictions are evaluated on novel binomials from
-Wikipedia (~340k pairs) across several generalization conditions. Three
-embedding extraction conditions and a Hewitt & Liang (2019) label-shuffle
-control are supported throughout.
+Attested binomials from the BabyLM training corpus (~49k pairs) are used as
+transfer-training data; predictions are evaluated on novel binomials from
+Wikipedia (~340k pairs) via 10-fold cross-validation. Three embedding modes,
+two experimental conditions, and a Hewitt & Liang (2019) label-shuffle control
+are supported throughout.
 
-Pilot results: [`pilot_results.md`](pilot_results.md)
+Results: [`pilot_results_2.md`](pilot_results_2.md)
 
 ---
 
 ## Models
 
+### OPT-BabyLM (Phase 1 & 2)
+
 Three OPT models fine-tuned on the BabyLM 150M-token corpus (20 epochs, seed 964):
 
-| Key | HuggingFace ID | Size | Hidden dim |
-|-----|---------------|------|-----------|
-| `125m` | `znhoughton/opt-babylm-125m-20eps-seed964` | 125M | 768 |
-| `350m` | `znhoughton/opt-babylm-350m-20eps-seed964` | 350M | 1,024 |
-| `1.3b` | `znhoughton/opt-babylm-1.3b-20eps-seed964` | 1.3B | 2,048 |
+| Key | HuggingFace ID | Size | Layers | Hidden dim |
+|-----|---------------|------|--------|-----------|
+| `125m` | `znhoughton/opt-babylm-125m-20eps-seed964` | 125M | 12 | 768 |
+| `350m` | `znhoughton/opt-babylm-350m-20eps-seed964` | 350M | 24 | 1,024 |
+| `1.3b` | `znhoughton/opt-babylm-1.3b-20eps-seed964` | 1.3B | 24 | 2,048 |
+
+### New model families (Phase 3)
+
+Final-layer probes only: Pythia (160M–2.8B), GPT-2 (117M–1.5B),
+OLMo 1B / OLMo-2 1B / OLMo-7B / OLMo-2 7B, Llama 3.2-1B / Llama-3-8B.
 
 ---
 
@@ -33,176 +41,143 @@ binom-corpus-pls/
 │   ├── corpus_binomials.csv               # ~49k attested binomials with frequencies
 │   ├── wikipedia_novel_binomials.csv      # ~340k novel Wikipedia binomials
 │   ├── babylm_vocab.txt                   # BabyLM tokenizer vocab
-│   ├── babylm_word_freqs.csv              # Unigram frequencies
-│   ├── embeddings/{slug}/                 # Corpus embeddings (binomial context, span mean-pool)
-│   ├── novel_embeddings/{slug}/           # Novel embeddings (same condition)
-│   ├── embeddings_last/{slug}/            # Corpus embeddings (binomial context, last token)
-│   ├── novel_embeddings_last/{slug}/      # Novel embeddings (same condition)
-│   ├── embeddings_isolated/{slug}/        # Corpus embeddings (isolated "the {word}" context)
-│   └── novel_embeddings_isolated/{slug}/  # Novel embeddings (same condition)
-│       └── layer_{last,second_to_last}.npz
-│           # Contains: word1, word2, preference, vec_alpha, vec_non_alpha, diff_vecs
+│   ├── embeddings/{slug}/                 # Corpus embeddings — default condition
+│   ├── novel_embeddings/{slug}/           # Novel embeddings — default condition
+│   ├── embeddings_attn_zeroed/{slug}/     # Corpus embeddings — attn_zeroed condition
+│   └── novel_embeddings_attn_zeroed/{slug}/
+│       └── layer_{N}.npz
+│           # Keys: word1, word2, preference, vec_alpha, vec_non_alpha
 │
 ├── Scripts/
-│   ├── extract_embeddings.py              # Unified embedding extraction (all conditions)
-│   ├── run_pipeline.py                    # Main entry point: extract + analyze
+│   ├── replicate.py                       # Main entry point — runs all three phases
+│   ├── run_by_layer_pipeline.py           # Extract embeddings layer-by-layer
+│   ├── by_layer_mlp.py                    # MLP CV probes and corpus-freq predictions
+│   ├── run_checkpoint_pipeline.py         # Phase 2: training-dynamics sweep
+│   ├── run_new_models.py                  # Phase 3: new model families
 │   │
-│   ├── lib/
-│   │   ├── pls_analysis.py                # PLS (K=15): corpus fit → novel transfer
-│   │   ├── cross_validation.py            # 10-fold CV (pair-level and word-level)
-│   │   ├── mlp_comparison.py              # MLP probe (diff and concat inputs)
-│   │   ├── permutation_test.py            # Permutation test for transfer significance
-│   │   ├── compute_delta_features.py      # Frequency, length, syllable, animacy features
-│   │   ├── frequency_analysis.py          # Per-stratum and holdout frequency analyses
-│   │   ├── semantic_analysis.py           # Semantic direction + clustering per PLS component
-│   │   └── pls_utils.py                   # Shared: NIPALS PLS, Pearson/Spearman, scaling
+│   ├── corpus_creation/                   # Scripts used to build Data/ files
+│   │   ├── extract_corpus_binomials.py
+│   │   ├── extract_wikipedia_binomials.py
+│   │   └── ...
+│   ├── query_infinigram.py                # Queried infinigram for corpus frequencies
+│   ├── run_all_infinigram.py
 │   │
-│   └── preprocessing/
-│       ├── extract_corpus_binomials.py    # Extract binomials from BabyLM corpus
-│       ├── extract_wikipedia_binomials.py # Extract novel candidates from Wikipedia
-│       ├── merge_extraction_shards.py     # Merge parallel extraction shards
-│       ├── run_parallel_extraction.py     # Orchestrate parallel binomial extraction
-│       └── filter_strict_nouns_v3.py      # Post-hoc noun filter (WordNet morphy)
+│   └── (R scripts)
+│       ├── plot_by_layer_results.R        # r²-by-layer plots and scatter plots
+│       ├── corpus_freq_regression.R       # Per-model frequency regression
+│       ├── corpus_freq_regression_by_model_size.R
+│       ├── plot_freq_regression.R
+│       └── plot_freq_regression_model_size.R
 │
-├── Results/
-│   └── {slug}/
-│       └── layer_{last,second_to_last}[_{condition}]/
-│           # condition tag: empty = default, _isolated, _last_token
-│           # Real results: corpus_pls_scores.csv, novel_pls_scores.csv,
-│           #   novel_cv_*.csv, novel_wordcv_*.csv, corpus_wordcv_*.csv,
-│           #   mlp_{diff,concat}_{transfer,pair_novel,word_novel,word_strict}.csv, ...
-│           # Control results: same files prefixed with control_
-│
-├── Plots/
-│   └── pred_vs_obs_{pls,mlp_concat}.png, pls_vs_mlp_pair_novel.png
-│
-└── logs/
+└── Results/
+    └── {slug}/
+        ├── by_layer_mlp.csv               # Main results: r² by layer/mode/split
+        ├── by_layer_mlp_control.csv       # Label-shuffle control
+        ├── by_layer_corpus_pred.csv.xz    # Corpus-freq predictions (compressed)
+        ├── corpus_freq_regression.csv     # Frequency-regression β estimates (from R)
+        └── Plots/                         # Plots generated by R scripts
 ```
 
 ---
 
-## Embedding Extraction Conditions
+## Experimental conditions
 
-Three conditions are supported, each producing identically structured `.npz` files:
-
-| Condition | `--context` | `--extract` | What it captures |
-|-----------|------------|------------|-----------------|
-| `default` | `binomial` | `word` | Mean-pooled span [w1, and, w2] in binomial sentence |
-| `last_token` | `binomial` | `last` | Final token of span in binomial sentence |
-| `isolated` | `isolated` | `word` | Each word separately in "the {word}" context |
-
-Each `.npz` contains: `word1`, `word2`, `preference` (log-prob ratio from binomial context),
-`vec_alpha`, `vec_non_alpha`, `diff_vecs` (= `vec_alpha - vec_non_alpha`).
+| Condition | Embedding context | What it tests |
+|-----------|------------------|---------------|
+| `default` | Binomial sentence, span mean-pool | Full contextualized representation |
+| `attn_zeroed` | Attention zeroed during extraction | Residual-stream (FFN-only) contribution |
 
 ---
 
-## Evaluation Conditions
+## Embedding modes (MLP input)
 
-| Condition | Train | Test | What it tests |
-|-----------|-------|------|--------------|
-| Transfer | Corpus (~49k) | All novel (340k) | Frozen generalization across datasets |
-| Pair-novel CV | Novel (10-fold) | Novel held-out fold | Within-novel generalization, pairs as units |
-| Word-novel CV | Novel (10-fold, word-split) | Novel, both words held out | Generalization to unseen word pairs |
-| Word-strict | Corpus (~49k) | Novel, neither word in corpus | Transfer to words with no ordering signal |
+| Mode | Input to MLP | Dimension |
+|------|-------------|-----------|
+| `mean_pooled` | Mean of `vec_alpha` and `vec_non_alpha` | `d` |
+| `individual` | `vec_alpha` and `vec_non_alpha` separately | `2d` |
+| `words_only` | Word embeddings only (no positional context) | `2d` |
+
+All modes use antisymmetric data augmentation (label-flip with word-order swap).
 
 ---
 
-## Running the Pipeline
+## Generalization splits
 
-Requires the `PRenv` conda environment (CUDA-enabled PyTorch, RTX 3060 Ti).
+| Split | Train | Test |
+|-------|-------|------|
+| `pair_novel` | 9 folds of novel pairs | Held-out fold |
+| `word_novel` | 9 folds, word-stratified | Held-out fold, both words unseen |
 
-```powershell
-$py = "C:\Users\zacha\anaconda3\envs\PRenv\python.exe"
+---
 
-# Full default pipeline — extract embeddings + run all analysis (all models, both layers):
-& $py Scripts\run_pipeline.py
+## Running the pipeline
 
-# Run a specific subset:
-& $py Scripts\run_pipeline.py --models 350m --layers last --steps pls cv_pair
+Requires the `PRenv` conda environment (CUDA-enabled PyTorch).
 
-# Extract new embedding conditions + analyze:
-& $py Scripts\run_pipeline.py --conditions last_token isolated
-
-# Run Hewitt & Liang control for default condition (embeddings already exist):
-& $py Scripts\run_pipeline.py --conditions default --skip-extraction --control-only
-
-# Everything — all conditions, real + control:
-& $py Scripts\run_pipeline.py --conditions default last_token isolated --run-control
+```bash
+python Scripts/replicate.py --embeddings-dir /path/to/embeddings --gpu 0
 ```
 
-### `run_pipeline.py` arguments
+### Phase options
+
+```bash
+# Run all three phases (default)
+python Scripts/replicate.py --embeddings-dir /path/to/embeddings
+
+# Run specific phases
+python Scripts/replicate.py --phases 1 2
+
+# Phase 3 — skip large models (OLMo-7B, Llama-8B)
+python Scripts/replicate.py --phases 3 --skip-large
+
+# Re-run everything from scratch
+python Scripts/replicate.py --force
+```
+
+### `replicate.py` arguments
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--models` | all three | `125m`, `350m`, `1.3b` |
-| `--layers` | `last second_to_last` | Layer(s) to extract/analyze |
-| `--conditions` | `default` | `default`, `last_token`, `isolated` |
-| `--steps` | all | Subset of step names (see `--help`) |
-| `--skip-extraction` | off | Skip embedding extraction |
-| `--skip-analysis` | off | Skip analysis |
-| `--run-control` | off | Run H&L control pass after each analysis step |
-| `--control-only` | off | Run control pass only (skip real analysis) |
-| `--gpu` | 0 | GPU index |
-| `--force` | off | Re-extract even if `.npz` already exists |
+| `--phases` | `1 2 3` | Phases to run |
+| `--gpu` | `0` | GPU index |
+| `--embeddings-dir` | `Data/` | Root for embedding subdirs (can be external drive) |
+| `--opt-models` | all | `125m`, `350m`, `1.3b` — filter for phases 1 & 2 |
+| `--models` | all | `pythia gpt2 olmo llama` — filter for phase 3 |
+| `--skip-large` | off | Skip 7B/8B models in phase 3 |
+| `--skip-controls` | off | Skip label-shuffle control runs |
+| `--force` | off | Re-run all steps even if output already exists |
 
-### Running extraction directly
+### Running individual components
 
-```powershell
-# Default condition (both layers in one forward pass):
-& $py Scripts\extract_embeddings.py `
-    --model znhoughton/opt-babylm-350m-20eps-seed964 `
-    --data corpus --layer last second_to_last `
-    --out Data/embeddings/znhoughton_opt-babylm-350m-20eps-seed964
+```bash
+# By-layer MLP probes for a specific model
+python Scripts/by_layer_mlp.py \
+    --model-slug znhoughton_opt-babylm-350m-20eps-seed964 \
+    --num-layers 24 \
+    --conditions default attn_zeroed \
+    --modes mean_pooled individual words_only \
+    --splits pair_novel word_novel \
+    --gpu 0
 
-# Isolated context (both layers):
-& $py Scripts\extract_embeddings.py `
-    --model znhoughton/opt-babylm-350m-20eps-seed964 `
-    --data corpus --layer last second_to_last --context isolated `
-    --out Data/embeddings_isolated/znhoughton_opt-babylm-350m-20eps-seed964
-```
+# Training-dynamics sweep for 125m and 350m
+python Scripts/run_checkpoint_pipeline.py --models 125m 350m --gpu 0
 
-### Running analysis scripts directly
-
-All three core analysis scripts share the same new arguments:
-
-```powershell
-& $py Scripts\lib\pls_analysis.py `
-    --slug znhoughton_opt-babylm-350m-20eps-seed964 --layer last `
-    --embed-dir-corpus Data/embeddings_isolated/znhoughton_opt-babylm-350m-20eps-seed964 `
-    --embed-dir-novel  Data/novel_embeddings_isolated/znhoughton_opt-babylm-350m-20eps-seed964 `
-    --out-dir          Results/znhoughton_opt-babylm-350m-20eps-seed964/layer_last_isolated `
-    --control   # add for Hewitt & Liang label-shuffle control
+# New model families (Pythia + GPT-2 only)
+python Scripts/run_new_models.py --models pythia gpt2 --gpu 0
 ```
 
 ---
 
-## Probes
+## MLP probe
 
-**PLS** (`lib/pls_analysis.py`, `lib/cross_validation.py`)
-- NIPALS PLS, K=15 components, fit on `diff_vecs` (= `vec_alpha - vec_non_alpha`)
-- Corpus fit frozen; components applied to novel via the same W\*, β
+- Architecture: `Linear(d, 64) → ReLU → Linear(64, 1)`
+- Training: AdamW, 10-fold cross-validation with batched GPU training (all folds
+  in parallel via `torch.bmm`)
+- Early stopping: patience = 5 epochs on held-out validation loss
+- Antisymmetric augmentation: word order flipped with label negated (p=0.5 per item)
+- Convergence statistics: `mean_best_epoch` and `mean_n_epochs` recorded per row
 
-**MLP** (`lib/mlp_comparison.py`)
-- Architecture: `Linear(dim, 15) → ReLU → Linear(15, 1)` (hidden dim matches PLS K)
-- Two input modes: `diff` (p-dim) and `concat` (2p-dim with antisymmetric augmentation)
-- L2 weight decay (1e-4), early stopping on validation loss (patience=20)
-- Seed: 964 throughout
+## Hewitt & Liang control
 
-**Hewitt & Liang control** (`--control` flag)
-- Preference labels globally shuffled (seed 964 for corpus, 965 for novel) before fitting
-- Same CV/transfer splits applied to shuffled labels
-- Output files prefixed `control_`; selectivity = real r² − control r²
-
----
-
-## Key Results (last layer, default condition)
-
-| Model | PLS transfer r² | MLP-concat pair-CV r² | MLP-concat word-CV r² |
-|-------|----------------|-----------------------|-----------------------|
-| 125m  | 0.095          | 0.321                 | 0.186                 |
-| 350m  | 0.104          | 0.348                 | 0.217                 |
-| 1.3b  | 0.060          | 0.238                 | 0.127                 |
-
-MLP-diff ≈ PLS; MLP-concat substantially outperforms both, indicating nonlinear
-structure in the joint embedding space. Word-strict r² (0.02–0.05) is low across
-all models. Full tables and plots: [`pilot_results.md`](pilot_results.md).
+Preference labels globally shuffled before fitting; same CV splits applied.
+Results in `by_layer_mlp_control.csv`. Selectivity = real r² − control r².

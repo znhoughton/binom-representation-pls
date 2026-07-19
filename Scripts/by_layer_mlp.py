@@ -72,7 +72,7 @@ BASE = Path(__file__).resolve().parents[1]
 SEED         = 964
 HIDDEN       = 128
 MAX_EPOCHS   = 500
-PATIENCE     = 20
+PATIENCE     = 5
 VAL_FRAC     = 0.1
 FOLDS        = 10
 LR           = 1e-3
@@ -112,89 +112,191 @@ def _incremental_mean_std(X, global_idx, chunk=4096):
     return mean_, std_
 
 
-def train_fold(X, y, tr_idx, te_idx, fold, device, mode="mean_pooled"):
-    """Train one CV fold. X and y must already be on device.
+def train_all_folds(X, y, fold_data, device, mode):
+    """Train all folds simultaneously with batched matrix multiply (torch.bmm).
 
-    All fold indexing happens on GPU, eliminating per-fold CPU→GPU transfers.
+    fold_data: list of (tr_idx_np, te_idx_np, fold_id)
+    X, y: already on device, shape [N, D] and [N]
+    Returns: list of (r2, y_te_np, y_pred_np, best_epoch, n_epochs) per fold.
     """
-    n_all = len(tr_idx)
-    n_val = max(1, int(n_all * VAL_FRAC))
-    rng_val = np.random.default_rng(SEED + fold + 20000)
-    val_local = rng_val.choice(n_all, size=n_val, replace=False)
-    inner_tr_idx = tr_idx[np.setdiff1d(np.arange(n_all), val_local)]
-    inner_val_idx = tr_idx[val_local]
+    F = len(fold_data)
+    if F == 0:
+        return []
+    D = X.shape[1]
 
-    # Index directly on GPU — no per-fold CPU→GPU transfer
-    tr_idx_d  = torch.from_numpy(inner_tr_idx).to(device)
-    val_idx_d = torch.from_numpy(inner_val_idx).to(device)
-    te_idx_d  = torch.from_numpy(te_idx).to(device)
+    # ── Precompute inner train/val splits and per-fold normalization ────────
+    inner_tr_gpu, inner_val_gpu, inner_te_gpu = [], [], []
+    y_te_cpu = []
+    fold_mean = torch.zeros(F, D, device=device)
+    fold_std  = torch.ones(F,  D, device=device)
+    n_tr_sizes = []
 
-    X_tr  = X[tr_idx_d]
-    mean_ = X_tr.mean(0)
-    std_  = X_tr.std(0, unbiased=True); std_[std_ < 1e-8] = 1.0
-    X_tr  = (X_tr - mean_).div_(std_)
-    y_tr  = y[tr_idx_d]
+    for k, (tr_np, te_np, fold_id) in enumerate(fold_data):
+        n_all = len(tr_np)
+        n_val = max(1, int(n_all * VAL_FRAC))
+        rng_val = np.random.default_rng(SEED + fold_id + 20000)
+        val_local = rng_val.choice(n_all, size=n_val, replace=False)
+        itr_np  = tr_np[np.setdiff1d(np.arange(n_all), val_local)]
+        ival_np = tr_np[val_local]
 
-    X_val = (X[val_idx_d] - mean_).div_(std_)
-    y_val = y[val_idx_d]
-    X_te  = (X[te_idx_d] - mean_).div_(std_)
-    y_te  = y[te_idx_d].cpu()
+        itr_d  = torch.from_numpy(itr_np).to(device)
+        ival_d = torch.from_numpy(ival_np).to(device)
+        ite_d  = torch.from_numpy(te_np).to(device)
 
-    n_tr, input_dim = X_tr.shape
+        X_tr_k = X[itr_d]
+        fold_mean[k] = X_tr_k.mean(0)
+        fold_std[k]  = X_tr_k.std(0, unbiased=True).clamp(min=1e-8)
+        del X_tr_k
 
-    mlp = OrderingMLP(input_dim, HIDDEN).to(device)
-    opt = torch.optim.Adam(mlp.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
-    loss_fn = nn.MSELoss()
-    g      = torch.Generator(); g.manual_seed(SEED + fold)
-    g_flip = torch.Generator(); g_flip.manual_seed(SEED + fold + 10000)
+        inner_tr_gpu.append(itr_d)
+        inner_val_gpu.append(ival_d)
+        inner_te_gpu.append(ite_d)
+        y_te_cpu.append(y[ite_d].cpu())
+        n_tr_sizes.append(len(itr_d))
 
-    best_val_loss  = float("inf")
-    best_state     = {k: v.clone() for k, v in mlp.state_dict().items()}
-    patience_count = 0
+    # Precompute normalized val sets (kept on GPU for fast per-epoch check)
+    X_val_list = [(X[inner_val_gpu[k]] - fold_mean[k]) / fold_std[k] for k in range(F)]
+    y_val_list = [y[inner_val_gpu[k]] for k in range(F)]
 
+    n_tr_min = min(n_tr_sizes)
+
+    # ── Initialize batched weights [F, ...] ────────────────────────────────
+    torch.manual_seed(SEED)
+    W1 = torch.randn(F, D,      HIDDEN, device=device) * (2.0 / D)      ** 0.5
+    b1 = torch.zeros(F, 1,      HIDDEN, device=device)
+    W2 = torch.randn(F, HIDDEN, 1,      device=device) * (2.0 / HIDDEN) ** 0.5
+    b2 = torch.zeros(F, 1,      1,      device=device)
+    params = [W1, b1, W2, b2]
+    for p in params:
+        p.requires_grad_(True)
+
+    # Manual Adam state (same hyper-params as before)
+    beta1, beta2, eps_a = 0.9, 0.999, 1e-8
+    ms = [torch.zeros_like(p) for p in params]
+    vs = [torch.zeros_like(p) for p in params]
+    adam_t = 0
+
+    # Best checkpoint per fold
+    best_W1, best_b1 = W1.detach().clone(), b1.detach().clone()
+    best_W2, best_b2 = W2.detach().clone(), b2.detach().clone()
+    best_val_loss  = [float("inf")] * F
+    best_epoch_arr = [0]           * F
+    patience_count = [0]           * F
+    active         = [True]        * F
+    stopped_epoch  = [MAX_EPOCHS]  * F
+
+    # Per-fold random generators (same seeds as sequential version)
+    g_perms = [torch.Generator(device=device) for _ in range(F)]
+    g_flips = [torch.Generator(device=device) for _ in range(F)]
+    for k, (_tr, _te, fold_id) in enumerate(fold_data):
+        g_perms[k].manual_seed(SEED + fold_id)
+        g_flips[k].manual_seed(SEED + fold_id + 10000)
+
+    # ── Training loop ───────────────────────────────────────────────────────
     for epoch in range(MAX_EPOCHS):
-        mlp.train()
-        perm = torch.randperm(n_tr, generator=g)
-        for start in range(0, n_tr, BATCH):
-            idx = perm[start:start + BATCH]
-            xb  = X_tr[idx]
-            yb  = y_tr[idx]
-            flip = (torch.rand(len(xb), generator=g_flip) < 0.5).to(device)
-            if flip.any():
-                if mode in ("mean_pooled", "words_only"):
-                    half = xb.shape[1] // 2
-                    xb[flip] = torch.cat([xb[flip, half:], xb[flip, :half]], dim=1)
-                elif mode == "individual":
-                    third = xb.shape[1] // 3
-                    xb[flip] = torch.cat([xb[flip, 2*third:], xb[flip, third:2*third], xb[flip, :third]], dim=1)
-                yb[flip] = -yb[flip]
-            opt.zero_grad()
-            loss_fn(mlp(xb), yb).backward()
-            opt.step()
+        if not any(active):
+            break
 
-        mlp.eval()
+        perms = [
+            torch.randperm(n_tr_sizes[k], generator=g_perms[k], device=device)
+            for k in range(F)
+        ]
+        act_f = torch.tensor(active, dtype=torch.float32, device=device)  # [F]
+
+        for start in range(0, n_tr_min, BATCH):
+            # Gather per-fold batch indices → [F, b]
+            batch_global = torch.stack([
+                inner_tr_gpu[k][perms[k][start:start + BATCH]]
+                for k in range(F)
+            ])
+            b_size = batch_global.shape[1]
+
+            X_batch = X[batch_global]  # [F, b, D]
+            y_batch = y[batch_global]  # [F, b]
+
+            # Per-fold normalization
+            X_batch = (X_batch - fold_mean.unsqueeze(1)) / fold_std.unsqueeze(1)
+
+            # Augmentation: symmetry-flip per sample per fold
+            flip = torch.stack([
+                torch.rand(b_size, generator=g_flips[k], device=device) < 0.5
+                for k in range(F)
+            ])  # [F, b]
+            if mode in ("mean_pooled", "words_only"):
+                half = D // 2
+                X_flip = torch.cat([X_batch[:, :, half:], X_batch[:, :, :half]], dim=2)
+            else:  # individual
+                t = D // 3
+                X_flip = torch.cat([X_batch[:, :, 2*t:],
+                                    X_batch[:, :,   t:2*t],
+                                    X_batch[:, :,   :t  ]], dim=2)
+            X_batch = torch.where(flip.unsqueeze(-1), X_flip, X_batch)
+            y_batch = torch.where(flip, -y_batch, y_batch)
+
+            # Forward: [F, b, D] × [F, D, H] → [F, b, H] → [F, b, 1] → [F, b]
+            h    = torch.relu(torch.bmm(X_batch, W1) + b1)
+            pred = (torch.bmm(h, W2) + b2).squeeze(-1)
+
+            # MSE loss per fold; inactive folds contribute zero
+            loss = ((pred - y_batch).pow(2).mean(dim=1) * act_f).sum()
+            loss.backward()
+
+            # Manual AdamW step (L2 weight decay matches PyTorch Adam default)
+            adam_t += 1
+            bc1 = 1.0 - beta1 ** adam_t
+            bc2 = 1.0 - beta2 ** adam_t
+            with torch.no_grad():
+                for p, m, v in zip(params, ms, vs):
+                    # mask inactive folds in the gradient
+                    view = [-1] + [1] * (p.dim() - 1)
+                    g = p.grad * act_f.view(*view) + WEIGHT_DECAY * p.detach()
+                    m.mul_(beta1).add_(g, alpha=1.0 - beta1)
+                    v.mul_(beta2).addcmul_(g, g, value=1.0 - beta2)
+                    step = (m / bc1) / ((v / bc2).sqrt_() + eps_a)
+                    p.data.add_(step, alpha=-LR)
+                    p.grad.zero_()
+
+        # Val check every epoch — sequential over F folds (small overhead)
         with torch.no_grad():
-            val_loss = loss_fn(mlp(X_val), y_val).item()
-        if val_loss < best_val_loss:
-            best_val_loss  = val_loss
-            best_state     = {k: v.clone() for k, v in mlp.state_dict().items()}
-            patience_count = 0
-        else:
-            patience_count += 1
-            if patience_count >= PATIENCE:
-                break
+            for k in range(F):
+                if not active[k]:
+                    continue
+                h_v = torch.relu(X_val_list[k] @ W1[k] + b1[k].squeeze(0))
+                p_v = (h_v @ W2[k] + b2[k].squeeze(0)).squeeze(-1)
+                v_loss = (p_v - y_val_list[k]).pow(2).mean().item()
 
-    mlp.load_state_dict(best_state)
-    del X_tr, y_tr, X_val, y_val
+                if v_loss < best_val_loss[k]:
+                    best_val_loss[k]  = v_loss
+                    best_W1[k] = W1[k].clone()
+                    best_b1[k] = b1[k].clone()
+                    best_W2[k] = W2[k].clone()
+                    best_b2[k] = b2[k].clone()
+                    best_epoch_arr[k] = epoch
+                    patience_count[k] = 0
+                else:
+                    patience_count[k] += 1
+                    if patience_count[k] >= PATIENCE:
+                        active[k] = False
+                        stopped_epoch[k] = epoch + 1
+
+    # ── Final predictions from best checkpoints ─────────────────────────────
+    results = []
+    with torch.no_grad():
+        for k in range(F):
+            X_te_k = (X[inner_te_gpu[k]] - fold_mean[k]) / fold_std[k]
+            h_te   = torch.relu(X_te_k @ best_W1[k] + best_b1[k].squeeze(0))
+            y_pred = (h_te @ best_W2[k] + best_b2[k].squeeze(0)).squeeze(-1).cpu()
+            y_te   = y_te_cpu[k]
+            r2     = float(pearsonr(y_te, y_pred) ** 2)
+            results.append((r2, y_te.numpy(), y_pred.numpy(),
+                            best_epoch_arr[k], stopped_epoch[k]))
+
+    del X_val_list, y_val_list, fold_mean, fold_std
+    del W1, b1, W2, b2, best_W1, best_b1, best_W2, best_b2, ms, vs
     if device.type == "cuda":
         torch.cuda.empty_cache()
 
-    mlp.eval()
-    with torch.no_grad():
-        y_pred = mlp(X_te).cpu()
-
-    r = pearsonr(y_te, y_pred)
-    return float(r ** 2), y_te.numpy(), y_pred.numpy()
+    return results
 
 
 def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_name):
@@ -404,13 +506,13 @@ def _load_layer_pair(novel_dir, corpus_dir, layer_tag, num_layers, do_corpus_fre
 
 
 def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name, pred_path=None):
-    r2s = []
     n = len(w1)
     if pred_path is not None:
         y_true_out = np.full(n, np.nan, dtype=np.float32)
         y_pred_out = np.full(n, np.nan, dtype=np.float32)
         fold_out   = np.full(n, -1,    dtype=np.int8)
 
+    fold_data = []
     for fold in range(FOLDS):
         if split_name == "pair_novel":
             tr_idx, te_idx = fold_assignments[fold]
@@ -420,9 +522,15 @@ def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name,
                 continue
             tr_idx = np.where(tr_mask)[0]
             te_idx = np.where(te_mask)[0]
+        fold_data.append((tr_idx, te_idx, fold))
 
-        r2, y_te_np, y_pred_np = train_fold(X, y, tr_idx, te_idx, fold, device, mode)
+    all_results = train_all_folds(X, y, fold_data, device, mode)
+
+    r2s, best_eps, n_eps = [], [], []
+    for (r2, y_te_np, y_pred_np, best_ep, n_ep), (_tr, te_idx, fold) in zip(all_results, fold_data):
         r2s.append(r2)
+        best_eps.append(best_ep)
+        n_eps.append(n_ep)
         if pred_path is not None:
             y_true_out[te_idx] = y_te_np
             y_pred_out[te_idx] = y_pred_np
@@ -434,11 +542,14 @@ def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name,
                             y_true=y_true_out, y_pred=y_pred_out,
                             fold=fold_out)
 
-    mean_r2 = np.mean(r2s)
-    sd_r2   = np.std(r2s, ddof=1) if len(r2s) > 1 else 0.0
+    mean_r2      = np.mean(r2s)
+    sd_r2        = np.std(r2s, ddof=1) if len(r2s) > 1 else 0.0
+    mean_best_ep = float(np.mean(best_eps))
+    mean_n_ep    = float(np.mean(n_eps))
     print(f"  {layer_name:>10s}  {split_name:<12s}  {mode:<14s}  "
-          f"r²={mean_r2:.4f} ± {sd_r2:.4f}  (n_folds={len(r2s)})", flush=True)
-    return mean_r2, sd_r2, len(r2s)
+          f"r²={mean_r2:.4f} ± {sd_r2:.4f}  "
+          f"conv={mean_best_ep:.0f}ep  (n_folds={len(r2s)})", flush=True)
+    return mean_r2, sd_r2, len(r2s), mean_best_ep, mean_n_ep
 
 
 def main():
@@ -468,6 +579,8 @@ def main():
                    help=f"Training mini-batch size (default: {BATCH}; increase for high-VRAM GPUs)")
     p.add_argument("--embeddings-dir", default=None, dest="embeddings_dir",
                    help="Root directory for embedding subdirs (default: <project>/Data)")
+    p.add_argument("--force", action="store_true",
+                   help="Re-run all computations, ignoring any existing output files")
     args = p.parse_args()
 
     emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
@@ -530,19 +643,28 @@ def main():
     t_start = time.perf_counter()
 
     import csv as _csv
-    fieldnames = ["condition", "layer", "mode", "split", "mean_r2", "sd_r2", "n_folds"]
+    fieldnames = ["condition", "layer", "mode", "split", "mean_r2", "sd_r2", "n_folds",
+                  "mean_best_epoch", "mean_n_epochs"]
 
-    # Load already-completed rows from existing CSV (enables resume after crash)
+    # Load already-completed rows from existing CSV (enables resume after crash).
+    # Old CSVs (without mean_best_epoch column) are not resumable — start fresh.
     completed = set()
-    if args.splits and out_path.exists():
+    if not args.force and args.splits and out_path.exists():
         try:
             with open(out_path, "r", newline="") as _f:
-                for row in _csv.DictReader(_f):
-                    completed.add((row["condition"], int(row["layer"]), row["mode"], row["split"]))
+                reader = _csv.DictReader(_f)
+                has_new_cols = "mean_best_epoch" in (reader.fieldnames or [])
+                for row in reader:
+                    if has_new_cols:
+                        completed.add((row["condition"], int(row["layer"]), row["mode"], row["split"]))
             if completed:
                 print(f"Resuming: {len(completed)} rows already saved, skipping those.")
+            elif not has_new_cols:
+                print("Old CSV format detected — starting fresh (new columns added).")
         except Exception:
             pass
+    elif args.force:
+        print("--force: ignoring any existing output files.")
 
     # Only open the main summary CSV if we're running CV splits
     if args.splits:
@@ -567,7 +689,7 @@ def main():
     completed_pred = set()
     if args.corpus_freq:
         pred_path = out_path.parent / "by_layer_corpus_pred.csv"
-        if pred_path.exists():
+        if not args.force and pred_path.exists():
             try:
                 with open(pred_path, "r", newline="") as _f:
                     for row in _csv.DictReader(_f):
@@ -715,7 +837,7 @@ def main():
                         print(f"  {layer_tag:>10s}  {split:<12s}  {mode:<14s}  [skipped]", flush=True)
                         continue
 
-                    mean_r2, sd_r2, n_folds = run_cv(
+                    mean_r2, sd_r2, n_folds, mean_best_ep, mean_n_ep = run_cv(
                         X_nov, y_nov, w1_nov, w2_nov, fold_assignments[split],
                         split, mode, device, layer_tag,
                         pred_path=None if has_pred else pred_path,
@@ -723,13 +845,15 @@ def main():
 
                     if not has_csv:
                         row = {
-                            "condition": condition,
-                            "layer": layer_idx,
-                            "mode": mode,
-                            "split": split,
-                            "mean_r2": round(mean_r2, 6),
-                            "sd_r2": round(sd_r2, 6),
-                            "n_folds": n_folds,
+                            "condition":        condition,
+                            "layer":            layer_idx,
+                            "mode":             mode,
+                            "split":            split,
+                            "mean_r2":          round(mean_r2, 6),
+                            "sd_r2":            round(sd_r2, 6),
+                            "n_folds":          n_folds,
+                            "mean_best_epoch":  round(mean_best_ep, 1),
+                            "mean_n_epochs":    round(mean_n_ep, 1),
                         }
                         results.append(row)
                         if _csv_writer:

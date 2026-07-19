@@ -1,15 +1,14 @@
 """
-Grand unified replication pipeline.
+Main analysis pipeline.
 
-Designed for a fresh git clone: runs everything needed to reproduce all results,
-skipping steps whose output already exists. R scripts are excluded (they read the
-.csv outputs and do not need to be chained).
+Runs all computations needed to produce the paper results, skipping steps
+whose output already exists. R scripts are run separately afterward.
 
 Phases:
   1  OPT-BabyLM full by-layer (125M / 350M / 1.3B)
        - All layers, both conditions (default + attn_zeroed)
        - MLP CV, corpus-freq, controls
-       - Compress by_layer_corpus_pred.csv → .gz
+       - Compress by_layer_corpus_pred.csv → .xz
        - Delete embeddings
 
   2  Training dynamics (OPT-BabyLM, log-spaced checkpoints)
@@ -21,10 +20,11 @@ Phases:
        - Delegates entirely to run_new_models.py
 
 Usage:
-    python Scripts/replicate.py --embeddings-dir /dpluth-data --gpu 0
-    python Scripts/replicate.py --phases 1 2 --embeddings-dir /dpluth-data
+    python Scripts/replicate.py --embeddings-dir /path/to/embeddings --gpu 0
+    python Scripts/replicate.py --phases 1 2 --embeddings-dir /path/to/embeddings
     python Scripts/replicate.py --phases 3 --models pythia gpt2
     python Scripts/replicate.py --phases 3 --skip-large  # skip 7B/8B models
+    python Scripts/replicate.py --force                  # re-run all phases
 """
 
 import argparse
@@ -170,13 +170,13 @@ def phase1_complete(model: dict) -> bool:
 
 # ── Phase 1: OPT-BabyLM full by-layer ─────────────────────────────────────────
 
-def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool):
+def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
     banner("PHASE 1: OPT-BabyLM full by-layer")
 
     for model in models:
         slug = model["slug"]
 
-        if phase1_complete(model):
+        if not force and phase1_complete(model):
             banner(f"PHASE 1  {model['flag']}  ALREADY COMPLETE — skipping")
             continue
 
@@ -192,6 +192,8 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool):
             label=f"PHASE 1  EXTRACT+MLP  {model['flag']}",
         )
 
+        force_flag = ["--force"] if force else []
+
         def mlp_cmd(cond_name, extra_flags=()):
             return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                     "--model-slug", slug,
@@ -201,7 +203,7 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool):
                     "--gpu",        str(gpu),
                     "--batch",      str(model["mlp_batch"]),
                     "--embeddings-dir", str(emb_dir),
-                    *extra_flags]
+                    *force_flag, *extra_flags]
 
         # ── Corpus-freq — both conditions in parallel ───────────────────────
         run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
@@ -225,7 +227,7 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool):
 
 # ── Phase 2: Training dynamics ─────────────────────────────────────────────────
 
-def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool):
+def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
     banner("PHASE 2: Training dynamics (OPT-BabyLM checkpoints)")
     flags = [m["flag"] for m in models]
     run(
@@ -233,7 +235,8 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool):
          "--models",       *flags,
          "--gpu",          str(gpu),
          "--embeddings-dir", str(emb_dir)]
-        + (["--skip-controls"] if skip_controls else []),
+        + (["--skip-controls"] if skip_controls else [])
+        + (["--force"]         if force         else []),
         label="PHASE 2  run_checkpoint_pipeline.py",
     )
 
@@ -241,7 +244,7 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool):
 # ── Phase 3: New model families ────────────────────────────────────────────────
 
 def run_phase3(model_groups, gpu: int, emb_dir: Path,
-               skip_large: bool, skip_controls: bool):
+               skip_large: bool, skip_controls: bool, force: bool = False):
     banner("PHASE 3: New model families (Pythia / GPT-2 / OLMo / Llama)")
     cmd = [
         PYTHON, SCRIPTS / "run_new_models.py",
@@ -254,6 +257,8 @@ def run_phase3(model_groups, gpu: int, emb_dir: Path,
         cmd.append("--skip-large")
     if skip_controls:
         cmd.append("--skip-controls")
+    if force:
+        cmd.append("--force")
     run(cmd, label="PHASE 3  run_new_models.py")
 
 
@@ -283,13 +288,15 @@ def main():
                    help="Phase 3: skip models that need a large GPU (OLMo-7B, Llama-8B)")
     p.add_argument("--skip-controls", action="store_true", dest="skip_controls",
                    help="Skip shuffled-label control runs in all phases")
+    p.add_argument("--force", action="store_true",
+                   help="Re-run all computations even if output already exists")
     args = p.parse_args()
 
     emb_dir    = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
     opt_models = [m for m in OPT_MODELS
                   if args.opt_models is None or m["flag"] in args.opt_models]
 
-    print("Replication pipeline", flush=True)
+    print("Analysis pipeline", flush=True)
     print(f"  Phases:        {args.phases}", flush=True)
     print(f"  GPU:           {args.gpu}", flush=True)
     print(f"  Embeddings:    {emb_dir}", flush=True)
@@ -299,13 +306,13 @@ def main():
     t0 = time.perf_counter()
 
     if 1 in args.phases:
-        run_phase1(opt_models, args.gpu, emb_dir, args.skip_controls)
+        run_phase1(opt_models, args.gpu, emb_dir, args.skip_controls, args.force)
 
     if 2 in args.phases:
-        run_phase2(opt_models, args.gpu, emb_dir, args.skip_controls)
+        run_phase2(opt_models, args.gpu, emb_dir, args.skip_controls, args.force)
 
     if 3 in args.phases:
-        run_phase3(args.models, args.gpu, emb_dir, args.skip_large, args.skip_controls)
+        run_phase3(args.models, args.gpu, emb_dir, args.skip_large, args.skip_controls, args.force)
 
     elapsed = time.perf_counter() - t0
     banner(f"REPLICATION COMPLETE  ({elapsed/3600:.1f}h total)")
