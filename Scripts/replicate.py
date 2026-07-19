@@ -188,7 +188,8 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
             [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
              "--models",    model["flag"],
              "--gpu",       str(gpu),
-             "--embeddings-dir", str(emb_dir)]
+             "--embeddings-dir", str(emb_dir),
+             "--mlp-batch", str(model["mlp_batch"])]
             + (["--force"] if force else []),
             label=f"PHASE 1  EXTRACT+MLP  {model['flag']}",
         )

@@ -185,7 +185,7 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
 
     # ── Extract sequentially (GPU-heavy; one condition at a time) ─────────────
     for cond in CONDITIONS:
-        if not mlp_complete(slug, model["n_layers"], cond["name"]):
+        if force or not mlp_complete(slug, model["n_layers"], cond["name"]):
             run(
                 [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
                  "--models",    model["flag"],
@@ -195,7 +195,8 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
                  "--embeddings-dir", str(emb_dir),
                  "--model-id",  model["id"],
                  "--checkpoint", str(step),
-                 "--slug",      slug],
+                 "--slug",      slug]
+                + (["--force"] if force else []),
                 label=f"EXTRACT  {model['flag']} step={step} / {cond['name']}",
             )
         else:

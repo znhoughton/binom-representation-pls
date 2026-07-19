@@ -223,6 +223,8 @@ def main():
                    help="Override output slug (directory name) for the selected model")
     p.add_argument("--extract-batch-size", type=int, default=None, dest="extract_batch_size",
                    help="Override the model's default batch size for embedding extraction")
+    p.add_argument("--mlp-batch", type=int, default=None, dest="mlp_batch",
+                   help="Mini-batch size for MLP training (default: BATCH constant in by_layer_mlp.py)")
     args = p.parse_args()
 
     emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
@@ -283,6 +285,10 @@ def main():
                 "--freq-strata",
                 "--freq-bootstrap", "50",
             ]
+            if args.mlp_batch:
+                cmd += ["--batch", str(args.mlp_batch)]
+            if args.force:
+                cmd.append("--force")
             run_label(f"MLP analysis: {model['flag']}")
             t0 = time.perf_counter()
             rc = subprocess.call(cmd)
