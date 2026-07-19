@@ -36,7 +36,7 @@ SCRIPTS = BASE / "Scripts"
 
 # Fractions of total training at which to sample (log-spaced, ~8 points)
 # Covers: ~0.6%, 1.5%, 3.8%, 9.4%, 23%, 57%, 100%
-LOG_FRACTIONS = [0.006, 0.015, 0.038, 0.094, 0.23, 0.57]
+LOG_FRACTIONS = [0.006, 0.015, 0.038, 0.094, 0.23, 0.57, 1.0]
 
 MODELS = [
     {
@@ -176,9 +176,9 @@ def mlp_complete(slug: str, n_layers: int, cond_name: str) -> bool:
 
 
 def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
-             skip_controls: bool, skip_corpus_freq: bool):
+             skip_controls: bool, skip_corpus_freq: bool, force: bool = False):
     slug = slug_for(model["flag"], step)
-    if step_complete(slug, model["n_layers"]):
+    if not force and step_complete(slug, model["n_layers"]):
         banner(f"MODEL {model['flag'].upper()}  step={step}  ALREADY COMPLETE — skipping")
         return
     banner(f"MODEL {model['flag'].upper()}  step={step}  ({step/model['total_steps']*100:.1f}% of training)")
@@ -201,6 +201,8 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
         else:
             banner(f"EXTRACT  {model['flag']} step={step} / {cond['name']}  (skipped — MLP complete)")
 
+    force_flag = ["--force"] if force else []
+
     def mlp_cmd(cond_name):
         return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                 "--model-slug", slug,
@@ -210,7 +212,8 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
                 "--splits", "pair_novel", "word_novel",
                 "--gpu",    str(gpu),
                 "--batch",  str(model["mlp_batch"]),
-                "--embeddings-dir", str(emb_dir)]
+                "--embeddings-dir", str(emb_dir),
+                *force_flag]
 
     # ── MLP CV — both conditions in parallel ───────────────────────────────────
     run_parallel([(mlp_cmd(c["name"]),
@@ -226,7 +229,8 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
                         "--modes", "mean_pooled", "individual", "words_only",
                         "--corpus-freq",
                         "--gpu",    str(gpu),
-                        "--embeddings-dir", str(emb_dir)],
+                        "--embeddings-dir", str(emb_dir),
+                        *force_flag],
                        f"CORPUS-FREQ  {model['flag']} step={step} / {c['name']}")
                       for c in CONDITIONS])
 
@@ -252,6 +256,8 @@ def main():
     p.add_argument("--skip-controls",    action="store_true", dest="skip_controls")
     p.add_argument("--skip-corpus-freq", action="store_true", dest="skip_corpus_freq")
     p.add_argument("--embeddings-dir",   default=None,        dest="embeddings_dir")
+    p.add_argument("--force",            action="store_true",
+                   help="Re-run all steps even if output already exists")
     args = p.parse_args()
 
     emb_dir    = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
@@ -272,7 +278,7 @@ def main():
         steps = log_spaced_steps(model["total_steps"], model["step_interval"])
         for step in steps:
             run_step(model, step, args.gpu, emb_dir,
-                     args.skip_controls, args.skip_corpus_freq)
+                     args.skip_controls, args.skip_corpus_freq, args.force)
 
         elapsed = time.perf_counter() - t_chain
         banner(f"MODEL {model['flag'].upper()} ALL STEPS DONE  ({elapsed/3600:.1f}h total)")

@@ -165,9 +165,9 @@ def model_complete(slug: str) -> bool:
 
 
 def run_model(model: dict, gpu: int, emb_dir: Path,
-              skip_controls: bool):
+              skip_controls: bool, force: bool = False):
     slug = model_slug(model["id"])
-    if model_complete(slug):
+    if not force and model_complete(slug):
         banner(f"MODEL: {model['id']}  ALREADY COMPLETE — skipping")
         return
     banner(f"MODEL: {model['id']}  (slug={slug})")
@@ -191,6 +191,8 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
         else:
             banner(f"EXTRACT  {slug} / {cond['name']}  (skipped — MLP already complete)")
 
+    force_flag = ["--force"] if force else []
+
     def mlp_cmd(cond_name, extra_flags=()):
         return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                 "--model-slug", slug,
@@ -199,7 +201,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                 "--modes",      "mean_pooled", "individual", "words_only",
                 "--gpu",        str(gpu),
                 "--embeddings-dir", str(emb_dir),
-                *extra_flags]
+                *force_flag, *extra_flags]
 
     # ── 2. MLP CV — both conditions in parallel ─────────────────────────────
     run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel"]),
@@ -236,6 +238,8 @@ def main():
     p.add_argument("--skip-large",   action="store_true", dest="skip_large",
                    help="Skip models requiring a large GPU (OLMo-7B, Llama-3-8B)")
     p.add_argument("--skip-controls", action="store_true", dest="skip_controls")
+    p.add_argument("--force",         action="store_true",
+                   help="Re-run all computations even if output already exists")
     args = p.parse_args()
 
     emb_dir = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
@@ -252,7 +256,7 @@ def main():
 
     t0 = time.perf_counter()
     for model in model_list:
-        run_model(model, args.gpu, emb_dir, args.skip_controls)
+        run_model(model, args.gpu, emb_dir, args.skip_controls, args.force)
 
     banner("NEW MODELS PIPELINE COMPLETE")
     print(f"  Total: {(time.perf_counter()-t0)/3600:.1f}h", flush=True)
