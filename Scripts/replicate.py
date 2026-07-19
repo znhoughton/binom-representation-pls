@@ -205,16 +205,16 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
                     "--embeddings-dir", str(emb_dir),
                     *force_flag, *extra_flags]
 
-        # ── Corpus-freq — sequential (two large-batch processes would compete for VRAM) ──
-        for c in CONDITIONS:
-            run(mlp_cmd(c["name"], ["--corpus-freq"]),
-                label=f"PHASE 1  CORPUS-FREQ  {model['flag']} / {c['name']}")
+        # ── Corpus-freq — both conditions in parallel ───────────────────────
+        run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
+                       f"PHASE 1  CORPUS-FREQ  {model['flag']} / {c['name']}")
+                      for c in CONDITIONS])
 
-        # ── Controls — sequential ───────────────────────────────────────────
+        # ── Controls — both conditions in parallel ──────────────────────────
         if not skip_controls:
-            for c in CONDITIONS:
-                run(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
-                    label=f"PHASE 1  CONTROLS  {model['flag']} / {c['name']}")
+            run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
+                           f"PHASE 1  CONTROLS  {model['flag']} / {c['name']}")
+                          for c in CONDITIONS])
 
         # ── Delete both conditions ───────────────────────────────────────────
         for cond in CONDITIONS:
