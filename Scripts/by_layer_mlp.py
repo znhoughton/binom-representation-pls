@@ -282,6 +282,12 @@ def train_all_folds(X, y, fold_data, device, mode, batch_size=None):
                         active[k] = False
                         stopped_epoch[k] = epoch + 1
 
+        n_active = sum(active)
+        if epoch % 25 == 0 or n_active == 0:
+            best_v = min(best_val_loss[k] for k in range(F))
+            print(f"    ep {epoch:>3d}/{MAX_EPOCHS}  active={n_active}/{F}  best_val={best_v:.4f}",
+                  flush=True)
+
     # ── Final predictions from best checkpoints ─────────────────────────────
     results = []
     with torch.no_grad():
