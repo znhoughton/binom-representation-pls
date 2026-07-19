@@ -203,21 +203,21 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                 "--embeddings-dir", str(emb_dir),
                 *force_flag, *extra_flags]
 
-    # ── 2. MLP CV — both conditions in parallel ─────────────────────────────
-    run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel"]),
-                   f"MLP CV  {slug} / {c['name']}")
-                  for c in CONDITIONS])
+    # ── 2. MLP CV — sequential (large-batch processes compete for VRAM if parallel) ──
+    for c in CONDITIONS:
+        run(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel"]),
+            label=f"MLP CV  {slug} / {c['name']}")
 
-    # ── 3. Corpus-freq — both conditions in parallel ────────────────────────
-    run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
-                   f"CORPUS-FREQ  {slug} / {c['name']}")
-                  for c in CONDITIONS])
+    # ── 3. Corpus-freq — sequential ─────────────────────────────────────────
+    for c in CONDITIONS:
+        run(mlp_cmd(c["name"], ["--corpus-freq"]),
+            label=f"CORPUS-FREQ  {slug} / {c['name']}")
 
-    # ── 4. Controls — both conditions in parallel ───────────────────────────
+    # ── 4. Controls — sequential ─────────────────────────────────────────────
     if not skip_controls:
-        run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
-                       f"CONTROLS  {slug} / {c['name']}")
-                      for c in CONDITIONS])
+        for c in CONDITIONS:
+            run(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
+                label=f"CONTROLS  {slug} / {c['name']}")
 
     # ── 5. Delete embeddings ─────────────────────────────────────────────────
     for cond in CONDITIONS:
