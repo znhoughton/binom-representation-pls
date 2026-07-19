@@ -47,21 +47,18 @@ OPT_MODELS = [
         "id":   "znhoughton/opt-babylm-125m-20eps-seed964",
         "slug": "znhoughton_opt-babylm-125m-20eps-seed964",
         "n_layers":  12,
-        "mlp_batch": 262144,
     },
     {
         "flag": "350m",
         "id":   "znhoughton/opt-babylm-350m-20eps-seed964",
         "slug": "znhoughton_opt-babylm-350m-20eps-seed964",
         "n_layers":  24,
-        "mlp_batch": 262144,
     },
     {
         "flag": "1.3b",
         "id":   "znhoughton/opt-babylm-1.3b-20eps-seed964",
         "slug": "znhoughton_opt-babylm-1_3b-20eps-seed964",
         "n_layers":  24,
-        "mlp_batch": 262144,
     },
 ]
 
@@ -201,7 +198,6 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
                     "--conditions", cond_name,
                     "--modes",      "mean_pooled", "individual", "words_only",
                     "--gpu",        str(gpu),
-                    "--batch",      str(model["mlp_batch"]),
                     "--embeddings-dir", str(emb_dir),
                     *force_flag, *extra_flags]
 
