@@ -174,7 +174,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
 
     # ── 1. Extract sequentially (GPU-heavy; one condition at a time) ───────────
     for cond in CONDITIONS:
-        if not mlp_complete(slug, cond["name"]):
+        if force or not mlp_complete(slug, cond["name"]):
             run(
                 [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
                  "--models",        "125m",    # flag ignored — overridden by --slug
@@ -185,7 +185,8 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                  "--embeddings-dir", str(emb_dir),
                  "--model-id",      model["id"],
                  "--slug",          slug,
-                 "--extract-batch-size", str(model["batch_size"])],
+                 "--extract-batch-size", str(model["batch_size"])]
+                + (["--force"] if force else []),
                 label=f"EXTRACT  {slug} / {cond['name']}",
             )
         else:
