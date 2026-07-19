@@ -828,19 +828,19 @@ def main():
                         y_nov = y_nov[torch.from_numpy(ctrl_perm).to(device)]
 
                 for split in (args.splits or []):
-                    has_csv  = (condition, layer_idx, mode, split) in completed
-                    pred_path = (cv_preds_dir / f"{condition}_layer{layer_idx}_{mode}_{split}.npz"
+                    has_csv   = (condition, layer_idx, mode, split) in completed
+                    npz_path  = (cv_preds_dir / f"{condition}_layer{layer_idx}_{mode}_{split}.npz"
                                  if cv_preds_dir is not None else None)
-                    has_pred = pred_path is not None and pred_path.exists()
+                    has_pred  = npz_path is not None and npz_path.exists()
 
-                    if has_csv and (pred_path is None or has_pred):
+                    if has_csv and (npz_path is None or has_pred):
                         print(f"  {layer_tag:>10s}  {split:<12s}  {mode:<14s}  [skipped]", flush=True)
                         continue
 
                     mean_r2, sd_r2, n_folds, mean_best_ep, mean_n_ep = run_cv(
                         X_nov, y_nov, w1_nov, w2_nov, fold_assignments[split],
                         split, mode, device, layer_tag,
-                        pred_path=None if has_pred else pred_path,
+                        pred_path=None if has_pred else npz_path,
                     )
 
                     if not has_csv:
@@ -865,14 +865,12 @@ def main():
                     X_cor = X_cor.to(device)
                     y_pred_cf, r2_cf = train_novel_predict_corpus(
                         X_nov, y_nov, X_cor, y_cor, mode, device, layer_tag)
-                    row = {
+                    results.append({
                         "condition": condition, "layer": layer_idx, "mode": mode,
                         "split": "corpus_pred", "mean_r2": round(r2_cf, 6),
                         "sd_r2": 0.0, "n_folds": 1,
-                    }
-                    results.append(row)
-                    if _csv_writer:
-                        _csv_writer.writerow(row); _csv_f.flush()
+                        "mean_best_epoch": "", "mean_n_epochs": "",
+                    })
                     y_pred_np = y_pred_cf.numpy()
                     y_true_np = y_cor.numpy()
                     for idx in range(len(w1_cor)):
@@ -950,6 +948,8 @@ def main():
                             "mean_r2": round(mean_r2, 6),
                             "sd_r2": round(sd_r2, 6),
                             "n_folds": B,
+                            "mean_best_epoch": "",
+                            "mean_n_epochs": "",
                         }
                         results.append(row)
                         if _csv_writer:
