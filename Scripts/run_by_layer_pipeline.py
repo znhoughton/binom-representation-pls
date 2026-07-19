@@ -227,6 +227,7 @@ def main():
     total_t0 = time.perf_counter()
 
     # Step 1: Extraction
+    extraction_failed = set()  # (model_slug, cond_name) pairs that failed
     if not args.skip_extraction:
         run_label("STEP 1: Extract embeddings at all layers")
         for model in MODELS:
@@ -247,7 +248,9 @@ def main():
                                          args.force, checkpoint=args.checkpoint,
                                          layers_override=args.layers)
                     if not ok:
-                        print(f"  FAILED. Continuing with next.", flush=True)
+                        print(f"  Extraction FAILED for {model['slug']} / {cond['name']} / {data_split}. "
+                              f"MLP will be skipped for this model.", flush=True)
+                        extraction_failed.add(model["slug"])
 
     # Step 2: MLP analysis
     if not args.skip_mlp:
@@ -260,6 +263,9 @@ def main():
                 model["id"] = args.model_id
             if args.slug:
                 model["slug"] = args.slug
+            if model["slug"] in extraction_failed:
+                print(f"  Skipping MLP for {model['slug']} — extraction failed above.", flush=True)
+                continue
             cmd = [
                 PYTHON, str(BASE / "Scripts" / "by_layer_mlp.py"),
                 "--model-slug", model["slug"],

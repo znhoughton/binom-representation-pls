@@ -634,23 +634,28 @@ def main():
         ref_corpus_path = ref_corpus_dir / "layer_last.npz"
         if not ref_corpus_path.exists():
             ref_corpus_path = ref_corpus_dir / f"layer_{args.num_layers}.npz"
-        ref_corpus = np.load(ref_corpus_path, allow_pickle=True)
-        w1_corpus = ref_corpus["word1"].astype(str)
-        w2_corpus = ref_corpus["word2"].astype(str)
+        if not ref_corpus_path.exists():
+            print(f"  Warning: corpus embeddings missing ({ref_corpus_path}); "
+                  f"skipping freq-strata analysis.", flush=True)
+            args.freq_strata = False
+        else:
+            ref_corpus = np.load(ref_corpus_path, allow_pickle=True)
+            w1_corpus = ref_corpus["word1"].astype(str)
+            w2_corpus = ref_corpus["word2"].astype(str)
 
-        corpus_df = pd.DataFrame({"word1": w1_corpus, "word2": w2_corpus})
-        corpus_df = corpus_df.merge(freq_df[["word1","word2","total_freq"]],
-                                    on=["word1","word2"], how="left")
-        total_freq = corpus_df["total_freq"].fillna(1).values.astype(int)
-        del ref_corpus
+            corpus_df = pd.DataFrame({"word1": w1_corpus, "word2": w2_corpus})
+            corpus_df = corpus_df.merge(freq_df[["word1","word2","total_freq"]],
+                                        on=["word1","word2"], how="left")
+            total_freq = corpus_df["total_freq"].fillna(1).values.astype(int)
+            del ref_corpus
 
-        freq_strata = {
-            "freq_1":    total_freq == 1,
-            "freq_2_5":  (total_freq >= 2) & (total_freq <= 5),
-            "freq_6_20": (total_freq >= 6) & (total_freq <= 20),
-            "freq_gt20": total_freq > 20,
-        }
-        print(f"Frequency strata: {', '.join(f'{k}={v.sum()}' for k,v in freq_strata.items())}")
+            freq_strata = {
+                "freq_1":    total_freq == 1,
+                "freq_2_5":  (total_freq >= 2) & (total_freq <= 5),
+                "freq_6_20": (total_freq >= 6) & (total_freq <= 20),
+                "freq_gt20": total_freq > 20,
+            }
+            print(f"Frequency strata: {', '.join(f'{k}={v.sum()}' for k,v in freq_strata.items())}")
 
     results = []
     t_start = time.perf_counter()
