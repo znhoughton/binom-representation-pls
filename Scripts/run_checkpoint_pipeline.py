@@ -277,7 +277,9 @@ def main():
 
     for model in model_list:
         steps = log_spaced_steps(model["total_steps"], model["step_interval"])
-        for step in steps:
+        for i, step in enumerate(steps):
+            remaining = len(steps) - i - 1
+            print(f"\n  Checkpoint {i+1}/{len(steps)}  (step={step}, {remaining} remaining)", flush=True)
             run_step(model, step, args.gpu, emb_dir,
                      args.skip_controls, args.skip_corpus_freq, args.force)
 
