@@ -628,14 +628,14 @@ def main():
     _model_label = (_size.group(1) if _size else args.model_slug) + \
                    (f" step={_step.group(1)}" if _step else "")
 
-    print(f"Model: {args.model_slug}")
-    print(f"Conditions: {args.conditions}")
-    print(f"Splits: {args.splits}")
-    print(f"Modes: {args.modes}")
-    print(f"Device: {device}")
-    print(f"Hidden: {HIDDEN}")
+    print(f"Model: {args.model_slug}", flush=True)
+    print(f"Conditions: {args.conditions}", flush=True)
+    print(f"Splits: {args.splits}", flush=True)
+    print(f"Modes: {args.modes}", flush=True)
+    print(f"Device: {device}", flush=True)
+    print(f"Hidden: {HIDDEN}", flush=True)
     if args.control:
-        print("CONTROL RUN: labels shuffled per layer (writes to by_layer_mlp_control.csv)")
+        print("CONTROL RUN: labels shuffled per layer (writes to by_layer_mlp_control.csv)", flush=True)
 
     # Set up frequency strata if requested (shared across conditions)
     freq_strata = {}
