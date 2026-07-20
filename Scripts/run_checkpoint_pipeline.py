@@ -209,42 +209,41 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
                    "--n-checkpoints",    str(n_checkpoints)]
                   if checkpoint_index is not None else [])
 
-    def mlp_cmd(cond_name):
+    all_conds = [c["name"] for c in CONDITIONS]
+
+    def mlp_cmd(*extra):
         return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                 "--model-slug", slug,
                 "--num-layers", str(model["n_layers"]),
-                "--conditions", cond_name,
+                "--conditions", *all_conds,
                 "--modes", "mean_pooled", "individual", "words_only",
                 "--splits", "pair_novel", "word_novel",
                 "--gpu",    str(gpu),
                 "--batch",  str(model["mlp_batch"]),
                 "--embeddings-dir", str(emb_dir),
-                *ckpt_flags, *force_flag]
+                *ckpt_flags, *force_flag, *extra]
 
-    # ── MLP CV — both conditions in parallel ───────────────────────────────────
-    run_parallel([(mlp_cmd(c["name"]),
-                   f"MLP CV  {model['flag']} step={step} / {c['name']}")
-                  for c in CONDITIONS])
+    # ── MLP CV — both conditions in one process (avoids GPU OOM from parallel) ──
+    run(mlp_cmd(),
+        label=f"MLP CV  {model['flag']} step={step}")
 
-    # ── Corpus-freq — both conditions in parallel ──────────────────────────────
+    # ── Corpus-freq — both conditions in one process ───────────────────────────
     if not skip_corpus_freq:
-        run_parallel([([PYTHON, SCRIPTS / "by_layer_mlp.py",
-                        "--model-slug", slug,
-                        "--num-layers", str(model["n_layers"]),
-                        "--conditions", c["name"],
-                        "--modes", "mean_pooled", "individual", "words_only",
-                        "--corpus-freq",
-                        "--gpu",    str(gpu),
-                        "--embeddings-dir", str(emb_dir),
-                        *force_flag],
-                       f"CORPUS-FREQ  {model['flag']} step={step} / {c['name']}")
-                      for c in CONDITIONS])
+        run([PYTHON, SCRIPTS / "by_layer_mlp.py",
+             "--model-slug", slug,
+             "--num-layers", str(model["n_layers"]),
+             "--conditions", *all_conds,
+             "--modes", "mean_pooled", "individual", "words_only",
+             "--corpus-freq",
+             "--gpu",    str(gpu),
+             "--embeddings-dir", str(emb_dir),
+             *force_flag],
+            label=f"CORPUS-FREQ  {model['flag']} step={step}")
 
-    # ── Controls — both conditions in parallel ─────────────────────────────────
+    # ── Controls — both conditions in one process ──────────────────────────────
     if not skip_controls:
-        run_parallel([(mlp_cmd(c["name"]) + ["--control"],
-                       f"CONTROLS  {model['flag']} step={step} / {c['name']}")
-                      for c in CONDITIONS])
+        run(mlp_cmd("--control"),
+            label=f"CONTROLS  {model['flag']} step={step}")
 
     # ── Free disk ──────────────────────────────────────────────────────────────
     for cond in CONDITIONS:
