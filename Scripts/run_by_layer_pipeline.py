@@ -282,8 +282,6 @@ def main():
                 # words_only: cat(w1, w2) from full sentence — no "and", uses original sentence contexts
                 "--modes", "mean_pooled", "individual", "words_only",
                 "--splits", "pair_novel", "word_novel",
-                "--freq-strata",
-                "--freq-bootstrap", "50",
             ]
             if args.mlp_batch:
                 cmd += ["--batch", str(args.mlp_batch)]
