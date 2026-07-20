@@ -103,6 +103,11 @@ def _fmt_h(seconds: float) -> str:
     return f"{m}m"
 
 
+def _bar(done: int, total: int, width: int = 24) -> str:
+    filled = round(width * done / total) if total else 0
+    return f"[{'█' * filled}{'░' * (width - filled)}] {done}/{total}"
+
+
 def run(cmd, label="", abort_on_fail=True):
     banner(label or " ".join(str(c) for c in cmd[:6]))
     t0 = time.perf_counter()
@@ -272,6 +277,9 @@ def main():
     t_pipeline = time.perf_counter()
     all_step_times: list = []
     compress_thread: threading.Thread = None
+    total_all = sum(len(log_spaced_steps(m["total_steps"], m["step_interval"]))
+                    for m in model_list)
+    done_all = 0
 
     for m_idx, model in enumerate(model_list):
         steps = log_spaced_steps(model["total_steps"], model["step_interval"])
@@ -284,13 +292,14 @@ def main():
                 compress_thread.join()
                 compress_thread = None
 
-            remaining_after = len(steps) - i - 1
-            print(f"\n  Checkpoint {i+1}/{len(steps)}  (step={step}, {remaining_after} remaining)", flush=True)
+            print(f"\n  Checkpoint {i+1}/{len(steps)}  (step={step})", flush=True)
             t0_ckpt = time.perf_counter()
             ran = run_step(model, step, args.gpu, emb_dir,
                            args.skip_controls, args.skip_corpus_freq, args.force,
                            checkpoint_index=i + 1, n_checkpoints=len(steps))
             ckpt_elapsed = time.perf_counter() - t0_ckpt
+            done_all += 1
+            done_model = i + 1
 
             if ran:
                 slug = slug_for(model["flag"], step)
@@ -303,17 +312,18 @@ def main():
                 all_step_times.append(ckpt_elapsed)
                 avg_model = sum(step_times) / len(step_times)
                 avg_all   = sum(all_step_times) / len(all_step_times)
-                remaining_total = remaining_after + sum(
-                    len(log_spaced_steps(m["total_steps"], m["step_interval"]))
-                    for m in model_list[m_idx + 1:]
-                )
-                print(f"\n  ── Timing ──────────────────────────────────────────────────────", flush=True)
+                model_left = len(steps) - done_model
+                phase_left = total_all - done_all
+
+                model_eta = f"  est. {_fmt_h(avg_model * model_left)} remaining" if model_left else "  done"
+                phase_eta = f"  est. {_fmt_h(avg_all   * phase_left)} remaining" if phase_left else "  done"
+
+                print(f"\n  ── Progress ────────────────────────────────────────────────────", flush=True)
+                print(f"     {model['flag']:5s}    {_bar(done_model, len(steps))}{model_eta}", flush=True)
+                print(f"     phase 1  {_bar(done_all, total_all)}{phase_eta}", flush=True)
+                print(f"\n  ── Timing ───────────────────────────────────────────────────────", flush=True)
                 print(f"     This checkpoint:              {_fmt_h(ckpt_elapsed)}", flush=True)
                 print(f"     Avg / checkpoint ({model['flag']}):    {_fmt_h(avg_model)}  (n={len(step_times)})", flush=True)
-                if remaining_after > 0:
-                    print(f"     Est. remaining in {model['flag']}:    {_fmt_h(avg_model * remaining_after)}", flush=True)
-                if remaining_total > 0:
-                    print(f"     Est. remaining in phase 1:    {_fmt_h(avg_all * remaining_total)}", flush=True)
 
         if compress_thread is not None:
             compress_thread.join()
