@@ -36,7 +36,7 @@ SCRIPTS = BASE / "Scripts"
 
 # Fractions of total training at which to sample (log-spaced, ~8 points)
 # Covers: ~0.6%, 1.5%, 3.8%, 9.4%, 23%, 57%, 100%
-LOG_FRACTIONS = [0.006, 0.015, 0.038, 0.094, 0.23, 0.57, 1.0]
+LOG_FRACTIONS = [0.006, 0.015, 0.038, 0.094, 0.23, 0.57]
 
 MODELS = [
     {
