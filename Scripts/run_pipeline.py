@@ -12,7 +12,7 @@ Phases:
        - Delete embeddings
 
   2  Training dynamics (OPT-BabyLM, log-spaced checkpoints)
-       - Final layer only at 7 log-spaced training fractions per model size
+       - All layers, both conditions, 7 log-spaced training fractions per model size
        - Delegates entirely to run_checkpoint_pipeline.py
 
   3  New model families (Pythia / GPT-2 / OLMo / Llama)
