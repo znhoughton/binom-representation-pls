@@ -25,6 +25,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -92,6 +93,14 @@ def slug_for(model_flag: str, step: int) -> str:
 def banner(msg):
     sep = "=" * 64
     print(f"\n{sep}\n  {msg}\n{sep}", flush=True)
+
+
+def _fmt_h(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    if h > 0:
+        return f"{h}h {m:02d}m"
+    return f"{m}m"
 
 
 def run(cmd, label="", abort_on_fail=True):
@@ -177,11 +186,12 @@ def mlp_complete(slug: str, n_layers: int, cond_name: str) -> bool:
 
 def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
              skip_controls: bool, skip_corpus_freq: bool, force: bool = False,
-             checkpoint_index: int = None, n_checkpoints: int = None):
+             checkpoint_index: int = None, n_checkpoints: int = None) -> bool:
+    """Returns True if the step ran, False if it was already complete and skipped."""
     slug = slug_for(model["flag"], step)
     if not force and step_complete(slug, model["n_layers"]):
         banner(f"MODEL {model['flag'].upper()}  step={step}  ALREADY COMPLETE — skipping")
-        return
+        return False
     banner(f"MODEL {model['flag'].upper()}  step={step}  ({step/model['total_steps']*100:.1f}% of training)")
 
     # ── Extract sequentially (GPU-heavy; one condition at a time) ─────────────
@@ -250,7 +260,7 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
         delete_dir(emb_dir / cond["novel_dir"]  / slug)
         delete_dir(emb_dir / cond["corpus_dir"] / slug)
 
-    compress_corpus_pred(slug)
+    return True  # caller fires compress_corpus_pred in background
 
 
 def main():
@@ -277,22 +287,61 @@ def main():
         print(f"  {m['flag']:5s}: {steps}  ({', '.join(fracs)})", flush=True)
     print(flush=True)
 
-    t_chain = time.perf_counter()
+    t_pipeline = time.perf_counter()
+    all_step_times: list = []
+    compress_thread: threading.Thread = None
 
-    for model in model_list:
+    for m_idx, model in enumerate(model_list):
         steps = log_spaced_steps(model["total_steps"], model["step_interval"])
-        for i, step in enumerate(steps):
-            remaining = len(steps) - i - 1
-            print(f"\n  Checkpoint {i+1}/{len(steps)}  (step={step}, {remaining} remaining)", flush=True)
-            run_step(model, step, args.gpu, emb_dir,
-                     args.skip_controls, args.skip_corpus_freq, args.force,
-                     checkpoint_index=i + 1, n_checkpoints=len(steps))
+        step_times: list = []
+        t0_model = time.perf_counter()
 
-        elapsed = time.perf_counter() - t_chain
-        banner(f"MODEL {model['flag'].upper()} ALL STEPS DONE  ({elapsed/3600:.1f}h total)")
+        for i, step in enumerate(steps):
+            # Finish any background compression before step_complete checks _pred_compressed
+            if compress_thread is not None:
+                compress_thread.join()
+                compress_thread = None
+
+            remaining_after = len(steps) - i - 1
+            print(f"\n  Checkpoint {i+1}/{len(steps)}  (step={step}, {remaining_after} remaining)", flush=True)
+            t0_ckpt = time.perf_counter()
+            ran = run_step(model, step, args.gpu, emb_dir,
+                           args.skip_controls, args.skip_corpus_freq, args.force,
+                           checkpoint_index=i + 1, n_checkpoints=len(steps))
+            ckpt_elapsed = time.perf_counter() - t0_ckpt
+
+            if ran:
+                slug = slug_for(model["flag"], step)
+                compress_thread = threading.Thread(
+                    target=compress_corpus_pred, args=(slug,), daemon=True)
+                compress_thread.start()
+                print(f"  [compressing {slug}/by_layer_corpus_pred.csv in background]", flush=True)
+
+                step_times.append(ckpt_elapsed)
+                all_step_times.append(ckpt_elapsed)
+                avg_model = sum(step_times) / len(step_times)
+                avg_all   = sum(all_step_times) / len(all_step_times)
+                remaining_total = remaining_after + sum(
+                    len(log_spaced_steps(m["total_steps"], m["step_interval"]))
+                    for m in model_list[m_idx + 1:]
+                )
+                print(f"\n  ── Timing ──────────────────────────────────────────────────────", flush=True)
+                print(f"     This checkpoint:              {_fmt_h(ckpt_elapsed)}", flush=True)
+                print(f"     Avg / checkpoint ({model['flag']}):    {_fmt_h(avg_model)}  (n={len(step_times)})", flush=True)
+                if remaining_after > 0:
+                    print(f"     Est. remaining in {model['flag']}:    {_fmt_h(avg_model * remaining_after)}", flush=True)
+                if remaining_total > 0:
+                    print(f"     Est. remaining in phase 1:    {_fmt_h(avg_all * remaining_total)}", flush=True)
+
+        if compress_thread is not None:
+            compress_thread.join()
+            compress_thread = None
+
+        model_elapsed = time.perf_counter() - t0_model
+        banner(f"MODEL {model['flag'].upper()} ALL STEPS DONE  ({_fmt_h(model_elapsed)})")
 
     banner("CHECKPOINT PIPELINE COMPLETE")
-    print(f"  Total: {(time.perf_counter()-t_chain)/3600:.1f}h", flush=True)
+    print(f"  Total: {_fmt_h(time.perf_counter() - t_pipeline)}", flush=True)
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ import lzma
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -78,6 +79,14 @@ CONDITIONS = [
 def banner(msg):
     sep = "=" * 66
     print(f"\n{sep}\n  {msg}\n{sep}", flush=True)
+
+
+def _fmt_h(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    if h > 0:
+        return f"{h}h {m:02d}m"
+    return f"{m}m"
 
 
 def run(cmd, label="", abort_on_fail=True):
@@ -172,8 +181,9 @@ def phase1_complete(model: dict) -> bool:
 
 def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
     banner("PHASE 2: OPT-BabyLM full by-layer (final checkpoint)")
+    model_times: list = []
 
-    for model in models:
+    for m_idx, model in enumerate(models):
         slug = model["slug"]
 
         if not force and phase1_complete(model):
@@ -181,6 +191,7 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
             continue
 
         banner(f"PHASE 2  model={model['flag']}  slug={slug}")
+        t0_model = time.perf_counter()
 
         # ── Extract all layers + MLP CV ────────────────────────────────────
         run(
@@ -222,7 +233,21 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
             delete_dir(emb_dir / cond["novel_dir"]  / slug)
             delete_dir(emb_dir / cond["corpus_dir"] / slug)
 
-        compress_corpus_pred(slug)
+        compress_t = threading.Thread(
+            target=compress_corpus_pred, args=(slug,), daemon=True)
+        compress_t.start()
+        print(f"  [compressing {slug}/by_layer_corpus_pred.csv in background]", flush=True)
+
+        model_elapsed = time.perf_counter() - t0_model
+        model_times.append(model_elapsed)
+        avg = sum(model_times) / len(model_times)
+        remaining_models = len(models) - m_idx - 1
+        print(f"\n  ── Phase 2 timing ──────────────────────────────────────────────", flush=True)
+        print(f"     This model:               {_fmt_h(model_elapsed)}", flush=True)
+        print(f"     Avg / model:              {_fmt_h(avg)}  (n={len(model_times)})", flush=True)
+        if remaining_models > 0:
+            print(f"     Est. remaining (phase 2): {_fmt_h(avg * remaining_models)}  ({remaining_models} models left)", flush=True)
+        compress_t.join()
         banner(f"PHASE 2  {model['flag']}  DONE")
 
 
