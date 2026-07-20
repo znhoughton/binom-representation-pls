@@ -5,15 +5,15 @@ Runs all computations needed to produce the paper results, skipping steps
 whose output already exists. R scripts are run separately afterward.
 
 Phases:
-  1  OPT-BabyLM full by-layer (125M / 350M / 1.3B)
+  1  Training dynamics (OPT-BabyLM, log-spaced checkpoints)
+       - All layers, both conditions, 6 log-spaced intermediate checkpoints per model size
+       - Delegates entirely to run_checkpoint_pipeline.py
+
+  2  OPT-BabyLM full by-layer — final checkpoint (125M / 350M / 1.3B)
        - All layers, both conditions (default + attn_zeroed)
        - MLP CV, corpus-freq, controls
        - Compress by_layer_corpus_pred.csv → .xz
        - Delete embeddings
-
-  2  Training dynamics (OPT-BabyLM, log-spaced checkpoints)
-       - All layers, both conditions, 7 log-spaced training fractions per model size
-       - Delegates entirely to run_checkpoint_pipeline.py
 
   3  New model families (Pythia / GPT-2 / OLMo / Llama)
        - Final layer only, final checkpoint
@@ -168,22 +168,21 @@ def phase1_complete(model: dict) -> bool:
     return _pred_compressed(slug)
 
 
-# ── Phase 1: OPT-BabyLM full by-layer ─────────────────────────────────────────
+# ── Phase 2: OPT-BabyLM full by-layer (final checkpoint) ──────────────────────
 
-def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
-    banner("PHASE 1: OPT-BabyLM full by-layer")
+def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
+    banner("PHASE 2: OPT-BabyLM full by-layer (final checkpoint)")
 
     for model in models:
         slug = model["slug"]
 
         if not force and phase1_complete(model):
-            banner(f"PHASE 1  {model['flag']}  ALREADY COMPLETE — skipping")
+            banner(f"PHASE 2  {model['flag']}  ALREADY COMPLETE — skipping")
             continue
 
-        banner(f"PHASE 1  model={model['flag']}  slug={slug}")
+        banner(f"PHASE 2  model={model['flag']}  slug={slug}")
 
         # ── Extract all layers + MLP CV ────────────────────────────────────
-        # run_by_layer_pipeline.py handles its own skip logic internally
         run(
             [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
              "--models",    model["flag"],
@@ -191,7 +190,7 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
              "--embeddings-dir", str(emb_dir),
              "--mlp-batch", str(model["mlp_batch"])]
             + (["--force"] if force else []),
-            label=f"PHASE 1  EXTRACT+MLP  {model['flag']}",
+            label=f"PHASE 2  EXTRACT+MLP  {model['flag']}",
         )
 
         force_flag = ["--force"] if force else []
@@ -209,13 +208,13 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
 
         # ── Corpus-freq — both conditions in parallel ───────────────────────
         run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
-                       f"PHASE 1  CORPUS-FREQ  {model['flag']} / {c['name']}")
+                       f"PHASE 2  CORPUS-FREQ  {model['flag']} / {c['name']}")
                       for c in CONDITIONS])
 
         # ── Controls — both conditions in parallel ──────────────────────────
         if not skip_controls:
             run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
-                           f"PHASE 1  CONTROLS  {model['flag']} / {c['name']}")
+                           f"PHASE 2  CONTROLS  {model['flag']} / {c['name']}")
                           for c in CONDITIONS])
 
         # ── Delete both conditions ───────────────────────────────────────────
@@ -224,13 +223,13 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
             delete_dir(emb_dir / cond["corpus_dir"] / slug)
 
         compress_corpus_pred(slug)
-        banner(f"PHASE 1  {model['flag']}  DONE")
+        banner(f"PHASE 2  {model['flag']}  DONE")
 
 
-# ── Phase 2: Training dynamics ─────────────────────────────────────────────────
+# ── Phase 1: Training dynamics ─────────────────────────────────────────────────
 
-def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
-    banner("PHASE 2: Training dynamics (OPT-BabyLM checkpoints)")
+def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
+    banner("PHASE 1: Training dynamics (OPT-BabyLM intermediate checkpoints)")
     flags = [m["flag"] for m in models]
     run(
         [PYTHON, SCRIPTS / "run_checkpoint_pipeline.py",
@@ -239,7 +238,7 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
          "--embeddings-dir", str(emb_dir)]
         + (["--skip-controls"] if skip_controls else [])
         + (["--force"]         if force         else []),
-        label="PHASE 2  run_checkpoint_pipeline.py",
+        label="PHASE 1  run_checkpoint_pipeline.py",
     )
 
 
@@ -281,7 +280,7 @@ def main():
     # Phase 1 / 2 model filter
     p.add_argument("--opt-models", nargs="+", default=None, dest="opt_models",
                    choices=["125m", "350m", "1.3b"],
-                   help="OPT-BabyLM model sizes to include in phases 1 and 2 (default: all)")
+                   help="OPT-BabyLM model sizes to include in phases 1 and 2 (default: all 3)")
     # Phase 3 options
     p.add_argument("--models", nargs="+", default=None,
                    choices=["pythia", "gpt2", "olmo", "llama"],
@@ -315,6 +314,7 @@ def main():
 
     if 3 in args.phases:
         run_phase3(args.models, args.gpu, emb_dir, args.skip_large, args.skip_controls, args.force)
+
 
     elapsed = time.perf_counter() - t0
     banner(f"REPLICATION COMPLETE  ({elapsed/3600:.1f}h total)")
