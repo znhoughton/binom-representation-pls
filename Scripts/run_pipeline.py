@@ -195,27 +195,27 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
 
         force_flag = ["--force"] if force else []
 
-        def mlp_cmd(cond_name, extra_flags=()):
+        all_conds = [c["name"] for c in CONDITIONS]
+
+        def mlp_cmd(*extra_flags):
             return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                     "--model-slug", slug,
                     "--num-layers", str(model["n_layers"]),
-                    "--conditions", cond_name,
+                    "--conditions", *all_conds,
                     "--modes",      "mean_pooled", "individual", "words_only",
                     "--gpu",        str(gpu),
                     "--batch",      str(model["mlp_batch"]),
                     "--embeddings-dir", str(emb_dir),
                     *force_flag, *extra_flags]
 
-        # ── Corpus-freq — both conditions in parallel ───────────────────────
-        run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
-                       f"PHASE 2  CORPUS-FREQ  {model['flag']} / {c['name']}")
-                      for c in CONDITIONS])
+        # ── Corpus-freq — both conditions in one process ────────────────────────
+        run(mlp_cmd("--corpus-freq"),
+            label=f"PHASE 2  CORPUS-FREQ  {model['flag']}")
 
-        # ── Controls — both conditions in parallel ──────────────────────────
+        # ── Controls — both conditions in one process ───────────────────────────
         if not skip_controls:
-            run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
-                           f"PHASE 2  CONTROLS  {model['flag']} / {c['name']}")
-                          for c in CONDITIONS])
+            run(mlp_cmd("--splits", "pair_novel", "word_novel", "--control"),
+                label=f"PHASE 2  CONTROLS  {model['flag']}")
 
         # ── Delete both conditions ───────────────────────────────────────────
         for cond in CONDITIONS:

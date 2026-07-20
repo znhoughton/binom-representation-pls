@@ -194,31 +194,30 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
 
     force_flag = ["--force"] if force else []
 
-    def mlp_cmd(cond_name, extra_flags=()):
+    all_conds = [c["name"] for c in CONDITIONS]
+
+    def mlp_cmd(*extra_flags):
         return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                 "--model-slug", slug,
                 "--num-layers", str(model["n_layers"]),
-                "--conditions", cond_name,
+                "--conditions", *all_conds,
                 "--modes",      "mean_pooled", "individual", "words_only",
                 "--gpu",        str(gpu),
                 "--embeddings-dir", str(emb_dir),
                 *force_flag, *extra_flags]
 
-    # ── 2. MLP CV — both conditions in parallel ─────────────────────────────
-    run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel"]),
-                   f"MLP CV  {slug} / {c['name']}")
-                  for c in CONDITIONS])
+    # ── 2. MLP CV — both conditions in one process ───────────────────────────
+    run(mlp_cmd("--splits", "pair_novel", "word_novel"),
+        label=f"MLP CV  {slug}")
 
-    # ── 3. Corpus-freq — both conditions in parallel ────────────────────────
-    run_parallel([(mlp_cmd(c["name"], ["--corpus-freq"]),
-                   f"CORPUS-FREQ  {slug} / {c['name']}")
-                  for c in CONDITIONS])
+    # ── 3. Corpus-freq — both conditions in one process ──────────────────────
+    run(mlp_cmd("--corpus-freq"),
+        label=f"CORPUS-FREQ  {slug}")
 
-    # ── 4. Controls — both conditions in parallel ───────────────────────────
+    # ── 4. Controls — both conditions in one process ─────────────────────────
     if not skip_controls:
-        run_parallel([(mlp_cmd(c["name"], ["--splits", "pair_novel", "word_novel", "--control"]),
-                       f"CONTROLS  {slug} / {c['name']}")
-                      for c in CONDITIONS])
+        run(mlp_cmd("--splits", "pair_novel", "word_novel", "--control"),
+            label=f"CONTROLS  {slug}")
 
     # ── 5. Delete embeddings ─────────────────────────────────────────────────
     for cond in CONDITIONS:
