@@ -620,6 +620,14 @@ def main():
     out_path = BASE / "Results" / args.model_slug / out_fname
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Short label for progress headers: "125m" or "125m step=1000"
+    import re as _re
+    _size  = (_re.search(r"opt-babylm-(\S+?)-\d+eps", args.model_slug) or
+              _re.search(r"([^_/]+)$", args.model_slug))
+    _step  = _re.search(r"_step(\d+)", args.model_slug)
+    _model_label = (_size.group(1) if _size else args.model_slug) + \
+                   (f" step={_step.group(1)}" if _step else "")
+
     print(f"Model: {args.model_slug}")
     print(f"Conditions: {args.conditions}")
     print(f"Splits: {args.splits}")
@@ -814,14 +822,15 @@ def main():
                 (condition, layer_idx, mode) in completed_pred for mode in args.modes
             ))
             remaining = len(sorted_layers) - i - 1
+            _hdr = f"[{_model_label}]  {condition} / Layer {layer_idx}  ({i+1}/{len(sorted_layers)}, {remaining} remaining)"
             if cv_done and freq_done and pred_done:
-                print(f"\n--- {condition} / Layer {layer_idx}  ({i+1}/{len(sorted_layers)}, {remaining} remaining) --- [skipped]", flush=True)
+                print(f"\n--- {_hdr} --- [skipped]", flush=True)
                 del raw_nov
                 if raw_cor is not None:
                     del raw_cor
                 continue
 
-            print(f"\n--- {condition} / Layer {layer_idx}  ({i+1}/{len(sorted_layers)}, {remaining} remaining) ---", flush=True)
+            print(f"\n--- {_hdr} ---", flush=True)
 
             if args.corpus_freq and corpus_npz_cf is None:
                 print(f"  Skipping corpus_freq for layer {layer_idx}: corpus embeddings not found")
