@@ -112,7 +112,7 @@ def _incremental_mean_std(X, global_idx, chunk=4096):
     return mean_, std_
 
 
-def train_all_folds(X, y, fold_data, device, mode, batch_size=None):
+def train_all_folds(X, y, fold_data, device, mode, batch_size=None, progress=None):
     """Train all folds simultaneously with batched matrix multiply (torch.bmm).
 
     fold_data: list of (tr_idx_np, te_idx_np, fold_id)
@@ -285,7 +285,8 @@ def train_all_folds(X, y, fold_data, device, mode, batch_size=None):
         n_active = sum(active)
         if epoch % 25 == 0 or n_active == 0:
             best_v = min(best_val_loss[k] for k in range(F))
-            print(f"    ep {epoch:>3d}/{MAX_EPOCHS}  active={n_active}/{F}  best_val={best_v:.4f}",
+            prog = f"  [{progress}]" if progress else ""
+            print(f"    ep {epoch:>3d}/{MAX_EPOCHS}  active={n_active}/{F}  best_val={best_v:.4f}{prog}",
                   flush=True)
 
     # ── Final predictions from best checkpoints ─────────────────────────────
@@ -514,7 +515,7 @@ def _load_layer_pair(novel_dir, corpus_dir, layer_tag, num_layers, do_corpus_fre
     return layer_tag, nov_npz, raw_nov, cor_npz, raw_cor
 
 
-def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name, pred_path=None):
+def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name, pred_path=None, progress=None):
     n = len(w1)
     if pred_path is not None:
         y_true_out = np.full(n, np.nan, dtype=np.float32)
@@ -536,7 +537,7 @@ def run_cv(X, y, w1, w2, fold_assignments, split_name, mode, device, layer_name,
     batch_size = BATCH
     while True:
         try:
-            all_results = train_all_folds(X, y, fold_data, device, mode, batch_size=batch_size)
+            all_results = train_all_folds(X, y, fold_data, device, mode, batch_size=batch_size, progress=progress)
             break
         except torch.cuda.OutOfMemoryError:
             torch.cuda.empty_cache()
@@ -743,6 +744,12 @@ def main():
             _pred_writer.writeheader()
         _pred_f.flush()
 
+    _n_cv_total = (len(args.conditions)
+                   * (args.num_layers + 1)
+                   * len(args.modes)
+                   * len(args.splits or []))
+    _cv_unit = 0
+
     for condition in args.conditions:
         dirs = CONDITION_DIRS[condition]
         novel_dir = emb_root / dirs["novel"] / args.model_slug
@@ -878,10 +885,13 @@ def main():
                         print(f"  {layer_tag:>10s}  {split:<12s}  {mode:<14s}  [skipped]", flush=True)
                         continue
 
+                    _cv_unit += 1
+                    _pct = int(100 * _cv_unit / _n_cv_total) if _n_cv_total else 0
                     mean_r2, sd_r2, n_folds, mean_best_ep, mean_n_ep = run_cv(
                         X_nov, y_nov, w1_nov, w2_nov, fold_assignments[split],
                         split, mode, device, layer_tag,
                         pred_path=None if has_pred else npz_path,
+                        progress=f"{_cv_unit}/{_n_cv_total}  {_pct}%",
                     )
 
                     if not has_csv:
