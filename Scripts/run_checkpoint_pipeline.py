@@ -176,7 +176,8 @@ def mlp_complete(slug: str, n_layers: int, cond_name: str) -> bool:
 
 
 def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
-             skip_controls: bool, skip_corpus_freq: bool, force: bool = False):
+             skip_controls: bool, skip_corpus_freq: bool, force: bool = False,
+             checkpoint_index: int = None, n_checkpoints: int = None):
     slug = slug_for(model["flag"], step)
     if not force and step_complete(slug, model["n_layers"]):
         banner(f"MODEL {model['flag'].upper()}  step={step}  ALREADY COMPLETE — skipping")
@@ -204,6 +205,10 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
 
     force_flag = ["--force"] if force else []
 
+    ckpt_flags = ([f"--checkpoint-index", str(checkpoint_index),
+                   "--n-checkpoints",    str(n_checkpoints)]
+                  if checkpoint_index is not None else [])
+
     def mlp_cmd(cond_name):
         return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                 "--model-slug", slug,
@@ -214,7 +219,7 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
                 "--gpu",    str(gpu),
                 "--batch",  str(model["mlp_batch"]),
                 "--embeddings-dir", str(emb_dir),
-                *force_flag]
+                *ckpt_flags, *force_flag]
 
     # ── MLP CV — both conditions in parallel ───────────────────────────────────
     run_parallel([(mlp_cmd(c["name"]),
@@ -281,7 +286,8 @@ def main():
             remaining = len(steps) - i - 1
             print(f"\n  Checkpoint {i+1}/{len(steps)}  (step={step}, {remaining} remaining)", flush=True)
             run_step(model, step, args.gpu, emb_dir,
-                     args.skip_controls, args.skip_corpus_freq, args.force)
+                     args.skip_controls, args.skip_corpus_freq, args.force,
+                     checkpoint_index=i + 1, n_checkpoints=len(steps))
 
         elapsed = time.perf_counter() - t_chain
         banner(f"MODEL {model['flag'].upper()} ALL STEPS DONE  ({elapsed/3600:.1f}h total)")

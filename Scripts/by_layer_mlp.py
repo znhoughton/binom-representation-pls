@@ -600,6 +600,10 @@ def main():
                    help="Root directory for embedding subdirs (default: <project>/Data)")
     p.add_argument("--force", action="store_true",
                    help="Re-run all computations, ignoring any existing output files")
+    p.add_argument("--checkpoint-index", type=int, default=None, dest="checkpoint_index",
+                   help="1-based index of this checkpoint in the sequence (for progress display)")
+    p.add_argument("--n-checkpoints", type=int, default=None, dest="n_checkpoints",
+                   help="Total number of checkpoints in the sequence (for progress display)")
     args = p.parse_args()
 
     emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
@@ -620,13 +624,16 @@ def main():
     out_path = BASE / "Results" / args.model_slug / out_fname
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Short label for progress headers: "125m" or "125m step=1000"
+    # Short label for progress headers: "125m" or "125m  step=1000  checkpoint 2/7"
     import re as _re
     _size  = (_re.search(r"opt-babylm-(\S+?)-\d+eps", args.model_slug) or
               _re.search(r"([^_/]+)$", args.model_slug))
     _step  = _re.search(r"_step(\d+)", args.model_slug)
     _model_label = (_size.group(1) if _size else args.model_slug) + \
-                   (f" step={_step.group(1)}" if _step else "")
+                   (f"  step={_step.group(1)}" if _step else "")
+    if args.checkpoint_index is not None and args.n_checkpoints is not None:
+        _remaining = args.n_checkpoints - args.checkpoint_index
+        _model_label += f"  checkpoint {args.checkpoint_index}/{args.n_checkpoints}  ({_remaining} remaining)"
 
     print(f"Model: {args.model_slug}", flush=True)
     print(f"Conditions: {args.conditions}", flush=True)
