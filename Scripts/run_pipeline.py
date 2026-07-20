@@ -28,7 +28,6 @@ Usage:
 """
 
 import argparse
-import csv
 import lzma
 import shutil
 import subprocess
@@ -150,31 +149,9 @@ def compress_corpus_pred(slug: str):
     src.unlink()
 
 
-def mlp_row_count(slug: str, cond_name: str) -> int:
-    csv_path = BASE / "Results" / slug / "by_layer_mlp.csv"
-    if not csv_path.exists():
-        return 0
-    with open(csv_path, newline="") as f:
-        return sum(1 for r in csv.DictReader(f)
-                   if r["condition"] == cond_name
-                   and r["split"] in ("pair_novel", "word_novel")
-                   and r["mode"] in ("mean_pooled", "individual", "words_only"))
-
-
-def corpus_freq_complete(slug: str, cond_name: str) -> bool:
-    """True if corpus-freq predictions already written for this slug+condition."""
-    src = BASE / "Results" / slug / "by_layer_corpus_pred.csv"
-    gz  = BASE / "Results" / slug / "by_layer_corpus_pred.csv.gz"
-    return gz.exists() or src.exists()
-
-
 def phase1_complete(model: dict) -> bool:
-    slug = model["slug"]
-    expected_per_cond = (model["n_layers"] + 1) * 3 * 2  # layers × modes × splits
-    for cond in CONDITIONS:
-        if mlp_row_count(slug, cond["name"]) < expected_per_cond:
-            return False
-    return _pred_compressed(slug)
+    """True when corpus-freq predictions are compressed (last thing written per model)."""
+    return _pred_compressed(model["slug"])
 
 
 # ── Phase 2: OPT-BabyLM full by-layer (final checkpoint) ──────────────────────

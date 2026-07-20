@@ -164,24 +164,9 @@ def compress_corpus_pred(slug: str):
     src.unlink()
 
 
-def step_complete(slug: str, n_layers: int) -> bool:
-    """True when both conditions' MLP rows exist and corpus-freq is compressed."""
-    if not _pred_compressed(slug):
-        return False
-    return all(mlp_complete(slug, n_layers, cond["name"]) for cond in CONDITIONS)
-
-
-def mlp_complete(slug: str, n_layers: int, cond_name: str) -> bool:
-    csv_path = BASE / "Results" / slug / "by_layer_mlp.csv"
-    if not csv_path.exists():
-        return False
-    expected = (n_layers + 1) * 3 * 2
-    with open(csv_path, newline="") as f:
-        rows = [r for r in csv.DictReader(f)
-                if r["condition"] == cond_name
-                and r["split"] in ("pair_novel", "word_novel")
-                and r["mode"] in ("mean_pooled", "individual", "words_only")]
-    return len(rows) >= expected
+def step_complete(slug: str) -> bool:
+    """True when corpus-freq predictions are compressed (last thing written per step)."""
+    return _pred_compressed(slug)
 
 
 def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
@@ -189,29 +174,26 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
              checkpoint_index: int = None, n_checkpoints: int = None) -> bool:
     """Returns True if the step ran, False if it was already complete and skipped."""
     slug = slug_for(model["flag"], step)
-    if not force and step_complete(slug, model["n_layers"]):
+    if not force and step_complete(slug):
         banner(f"MODEL {model['flag'].upper()}  step={step}  ALREADY COMPLETE — skipping")
         return False
     banner(f"MODEL {model['flag'].upper()}  step={step}  ({step/model['total_steps']*100:.1f}% of training)")
 
-    # ── Extract sequentially (GPU-heavy; one condition at a time) ─────────────
+    # ── Extract (one condition at a time — GPU-heavy) ──────────────────────────
     for cond in CONDITIONS:
-        if force or not mlp_complete(slug, model["n_layers"], cond["name"]):
-            run(
-                [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
-                 "--models",    model["flag"],
-                 "--conditions", cond["name"],
-                 "--gpu",       str(gpu),
-                 "--skip-mlp",
-                 "--embeddings-dir", str(emb_dir),
-                 "--model-id",  model["id"],
-                 "--checkpoint", str(step),
-                 "--slug",      slug]
-                + (["--force"] if force else []),
-                label=f"EXTRACT  {model['flag']} step={step} / {cond['name']}",
-            )
-        else:
-            banner(f"EXTRACT  {model['flag']} step={step} / {cond['name']}  (skipped — MLP complete)")
+        run(
+            [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
+             "--models",    model["flag"],
+             "--conditions", cond["name"],
+             "--gpu",       str(gpu),
+             "--skip-mlp",
+             "--embeddings-dir", str(emb_dir),
+             "--model-id",  model["id"],
+             "--checkpoint", str(step),
+             "--slug",      slug]
+            + (["--force"] if force else []),
+            label=f"EXTRACT  {model['flag']} step={step} / {cond['name']}",
+        )
 
     force_flag = ["--force"] if force else []
 
