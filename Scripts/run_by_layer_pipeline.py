@@ -291,7 +291,7 @@ def main():
                 "--conditions", "default", "attn_zeroed",
                 # modes run for both conditions:
                 # words_only: cat(w1, w2) from full sentence — no "and", uses original sentence contexts
-                "--modes", "mean_pooled", "individual", "words_only",
+                "--modes", "mean_pooled", "words_only",
                 "--splits", "pair_novel", "word_novel",
             ]
             if args.mlp_batch:

@@ -152,9 +152,9 @@ def mlp_complete(slug: str, cond_name: str) -> bool:
         rows = [r for r in csv.DictReader(f)
                 if r["condition"] == cond_name
                 and r["split"] in ("pair_novel", "word_novel")
-                and r["mode"] in ("mean_pooled", "individual", "words_only")]
-    # Last layer only → expect (1 layer) × 3 modes × 2 splits = 6 rows per condition
-    return len(rows) >= 6
+                and r["mode"] in ("mean_pooled", "words_only")]
+    # Last layer only → expect (1 layer) × 2 modes × 2 splits = 4 rows per condition
+    return len(rows) >= 4
 
 
 def model_complete(slug: str) -> bool:
@@ -201,7 +201,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                 "--model-slug", slug,
                 "--num-layers", str(model["n_layers"]),
                 "--conditions", *all_conds,
-                "--modes",      "mean_pooled", "individual", "words_only",
+                "--modes",      "mean_pooled", "words_only",
                 "--gpu",        str(gpu),
                 "--embeddings-dir", str(emb_dir),
                 *force_flag, *extra_flags]

@@ -190,7 +190,7 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
                     "--model-slug", slug,
                     "--num-layers", str(model["n_layers"]),
                     "--conditions", *all_conds,
-                    "--modes",      "mean_pooled", "individual", "words_only",
+                    "--modes",      "mean_pooled", "words_only",
                     "--gpu",        str(gpu),
                     "--batch",      str(model["mlp_batch"]),
                     "--embeddings-dir", str(emb_dir),
