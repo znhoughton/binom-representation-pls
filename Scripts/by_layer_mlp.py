@@ -580,9 +580,9 @@ def main():
     p.add_argument("--num-layers", type=int, required=True, dest="num_layers",
                    help="Number of transformer layers (e.g., 12 for 125M, 24 for 350M)")
     p.add_argument("--gpu", type=int, default=0)
-    p.add_argument("--modes", nargs="+", default=["mean_pooled", "individual"],
+    p.add_argument("--modes", nargs="+", default=["mean_pooled", "words_only"],
                    choices=["mean_pooled", "individual", "words_only"],
-                   help="Input modes to test (default: mean_pooled individual)")
+                   help="Input modes to test (default: mean_pooled words_only)")
     p.add_argument("--splits", nargs="+", default=None,
                    help="CV splits to run (pair_novel word_novel); omit to skip CV entirely")
     p.add_argument("--conditions", nargs="+", default=["default"],
