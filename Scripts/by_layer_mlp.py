@@ -309,7 +309,7 @@ def train_all_folds(X, y, fold_data, device, mode, batch_size=None, progress=Non
     return results
 
 
-def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_name):
+def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_name, progress=None):
     """Train MLP on all novel pairs, predict on corpus pairs. Returns (y_pred, r²).
     X_nov, y_nov, X_cor must already be on device.
     """
@@ -384,7 +384,8 @@ def train_novel_predict_corpus(X_nov, y_nov, X_cor, y_cor, mode, device, layer_n
         y_pred = mlp(X_cor_sc).cpu()
 
     r2 = pearsonr(y_cor, y_pred) ** 2
-    print(f"  {layer_name:>10s}  corpus_pred   {mode:<14s}  r²={r2:.4f}", flush=True)
+    prog = f"  [{progress}]" if progress else ""
+    print(f"  {layer_name:>10s}  corpus_pred   {mode:<14s}  r²={r2:.4f}{prog}", flush=True)
     return y_pred, r2
 
 
@@ -747,7 +748,7 @@ def main():
     _n_cv_total = (len(args.conditions)
                    * (args.num_layers + 1)
                    * len(args.modes)
-                   * len(args.splits or []))
+                   * (len(args.splits or []) + int(bool(args.corpus_freq))))
     _cv_unit = 0
 
     for condition in args.conditions:
@@ -866,6 +867,7 @@ def main():
                         _cv_unit += 1
                         print(f"  {layer_tag:>10s}  {split:<12s}  {mode:<14s}  [skipped]", flush=True)
                     if args.corpus_freq:
+                        _cv_unit += 1
                         print(f"  {layer_tag:>10s}  corpus_pred   {mode:<14s}  [skipped]", flush=True)
                     continue
                 else:
@@ -916,8 +918,11 @@ def main():
                 if corpus_needed:
                     X_cor, y_cor, w1_cor, w2_cor = x_from_raw(raw_cor, mode)
                     X_cor = X_cor.to(device)
+                    _cv_unit += 1
+                    _pct = round(100 * _cv_unit / _n_cv_total) if _n_cv_total else 0
                     y_pred_cf, r2_cf = train_novel_predict_corpus(
-                        X_nov, y_nov, X_cor, y_cor, mode, device, layer_tag)
+                        X_nov, y_nov, X_cor, y_cor, mode, device, layer_tag,
+                        progress=f"{_cv_unit}/{_n_cv_total}  {_pct}%")
                     results.append({
                         "condition": condition, "layer": layer_idx, "mode": mode,
                         "split": "corpus_pred", "mean_r2": round(r2_cf, 6),
