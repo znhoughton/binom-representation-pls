@@ -863,10 +863,11 @@ def main():
 
                 if not splits_todo and not corpus_needed:
                     for split in (args.splits or []):
+                        _cv_unit += 1
                         print(f"  {layer_tag:>10s}  {split:<12s}  {mode:<14s}  [skipped]", flush=True)
                     if args.corpus_freq:
                         print(f"  {layer_tag:>10s}  corpus_pred   {mode:<14s}  [skipped]", flush=True)
-                    X_nov = y_nov = w1_nov = w2_nov = None
+                    continue
                 else:
                     X_nov, y_nov, w1_nov, w2_nov = x_from_raw(raw_nov, mode)
                     X_nov = X_nov.to(device)
@@ -882,11 +883,12 @@ def main():
                     has_pred  = npz_path is not None and npz_path.exists()
 
                     if has_csv and (npz_path is None or has_pred):
+                        _cv_unit += 1
                         print(f"  {layer_tag:>10s}  {split:<12s}  {mode:<14s}  [skipped]", flush=True)
                         continue
 
                     _cv_unit += 1
-                    _pct = int(100 * _cv_unit / _n_cv_total) if _n_cv_total else 0
+                    _pct = round(100 * _cv_unit / _n_cv_total) if _n_cv_total else 0
                     mean_r2, sd_r2, n_folds, mean_best_ep, mean_n_ep = run_cv(
                         X_nov, y_nov, w1_nov, w2_nov, fold_assignments[split],
                         split, mode, device, layer_tag,
