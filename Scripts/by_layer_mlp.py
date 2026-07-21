@@ -745,10 +745,7 @@ def main():
             _pred_writer.writeheader()
         _pred_f.flush()
 
-    _n_cv_total = (len(args.conditions)
-                   * (args.num_layers + 1)
-                   * len(args.modes)
-                   * (len(args.splits or []) + int(bool(args.corpus_freq))))
+    _n_cv_total = None  # set after first condition's available layers are known
     _cv_unit = 0
 
     for condition in args.conditions:
@@ -804,6 +801,11 @@ def main():
         del ref
 
         sorted_layers = sorted(available, key=lambda t: int(t.split("_")[1]))
+        if _n_cv_total is None and sorted_layers:
+            _n_cv_total = (len(args.conditions)
+                           * len(sorted_layers)
+                           * len(args.modes)
+                           * (len(args.splits or []) + int(bool(args.corpus_freq))))
         _pool = ThreadPoolExecutor(max_workers=1)
 
         def _prefetch(tag):

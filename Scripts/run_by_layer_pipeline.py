@@ -235,6 +235,12 @@ def main():
     extraction_failed = set()  # (model_slug, cond_name) pairs that failed
     if not args.skip_extraction:
         run_label("STEP 1: Extract embeddings at all layers")
+        _active_models = [m for m in MODELS
+                          if not (args.models and not any(f in m["flag"] for f in args.models))]
+        _active_conds  = [c for c in CONDITIONS
+                          if not (args.conditions and c["name"] not in args.conditions)]
+        _n_extract = len(_active_models) * len(_active_conds) * 2  # corpus + novel
+        _extract_done = 0
         for model in MODELS:
             if args.models and not any(m in model["flag"] for m in args.models):
                 continue
@@ -252,6 +258,11 @@ def main():
                     ok = extract_sharded(model, cond, data_split, args.gpu, emb_root,
                                          args.force, checkpoint=args.checkpoint,
                                          layers_override=args.layers)
+                    _extract_done += 1
+                    _pct = round(100 * _extract_done / _n_extract) if _n_extract else 0
+                    status = "OK" if ok else "FAILED"
+                    print(f"\n  [Extraction {_extract_done}/{_n_extract}  {_pct}%  {status}]"
+                          f"  {model['slug']} / {cond['name']} / {data_split}", flush=True)
                     if not ok:
                         print(f"  Extraction FAILED for {model['slug']} / {cond['name']} / {data_split}. "
                               f"MLP will be skipped for this model.", flush=True)
