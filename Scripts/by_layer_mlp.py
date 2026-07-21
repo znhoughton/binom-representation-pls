@@ -841,6 +841,7 @@ def main():
             remaining = len(sorted_layers) - i - 1
             _hdr = f"[{_model_label}]  {condition} / Layer {layer_idx}  ({i+1}/{len(sorted_layers)}, {remaining} remaining)"
             if cv_done and freq_done and pred_done:
+                _cv_unit += len(args.modes) * (len(args.splits or []) + int(bool(args.corpus_freq)))
                 print(f"\n--- {_hdr} --- [skipped]", flush=True)
                 del raw_nov
                 if raw_cor is not None:
