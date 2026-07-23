@@ -1359,3 +1359,87 @@ Script: `Scripts/corpus_freq_regression_by_model_size.R`; results: `Results/corp
 | 22 | — | −0.044 | −0.118 | — | .001 ** |
 | 23 | — | −0.048 | −0.150 | — | <.001 *** |
 | 24 | — | −0.027 | −0.145 | — | <.001 *** |
+
+---
+
+## 6. OPT-125M training dynamics
+
+### Setup
+
+Six log-spaced checkpoints (~0.6%–57.2% of total training): step24 (0.6%), step48 (1.2%), step144 (3.6%), step384 (9.6%), step912 (22.9%), step2280 (57.2%). Final-checkpoint results are reported in Section 1.
+
+### Critical confound: model-derived preference labels
+
+The preference label stored in the embedding NPZ files is `log P(alpha ordering) − log P(non-alpha ordering)`, computed from the model at each checkpoint (`extract_embeddings.py`, line 10). At early checkpoints the model has not yet learned ordering preferences, so all log-prob ratios cluster near 0. This near-zero label variance (SS_tot ≈ 0) artificially inflates r² regardless of what the embeddings encode: even a probe that predicts 0 for every item achieves high r² when the labels have negligible spread. The confound is most severe at step24–step144 and diminishes as training progresses and the model develops genuine ordering preferences. Cross-checkpoint comparisons of absolute r² are therefore not straightforward.
+
+Step24 is excluded from all analyses below. Its CSV contains interleaved rows from two simultaneous write processes (the old per-condition parallel code), producing garbled concatenated lines and duplicate rows.
+
+### Summary: peak r² across layers (default condition)
+
+mp = mean_pooled, wo = words_only, pn = pair_novel, wn = word_novel. Peak-layer index shown in parentheses. † likely inflated by near-zero label variance.
+
+| Checkpoint | % Training | mp / pn | mp / wn | wo / pn | wo / wn |
+|---|---|---|---|---|---|
+| step48  | 1.2%  | .912 (L0)† | .823 (L0)† | .492 (L0)† | .189 (L1) |
+| step144 | 3.6%  | .831 (L0)† | .726 (L0)† | .525 (L0)† | .165 (L1) |
+| step384 | 9.6%  | .642 (L0)† | .495 (L0)† | .460 (L0)  | .225 (L1) |
+| step912 | 22.9% | .513 (L1)  | .363 (L1)  | .407 (L0)  | .236 (L1) |
+| step2280| 57.2% | .348 (L8)  | .228 (L9)  | .335 (L12) | .212 (L8) |
+
+### Layer profiles: default condition
+
+#### mean_pooled / pair_novel
+
+The layer profile inverts over training. Early checkpoints peak at layer 0 and fall monotonically toward later layers; by step2280, layer 0 is the lowest and layers 8–10 are the highest.
+
+| Layer | step48† | step144† | step384† | step912 | step2280 |
+|---:|---:|---:|---:|---:|---:|
+| 0  | .912 | .831 | .642 | .477 | .244 |
+| 1  | .705 | .695 | .610 | .513 | .304 |
+| 2  | .673 | .693 | .606 | .500 | .309 |
+| 3  | .656 | .673 | .605 | .491 | .300 |
+| 4  | .639 | .671 | .607 | .485 | .312 |
+| 5  | .636 | .666 | .601 | .486 | .326 |
+| 6  | .626 | .638 | .608 | .506 | .342 |
+| 7  | .620 | .647 | .606 | .505 | .344 |
+| 8  | .613 | .651 | .615 | .495 | .348 |
+| 9  | .574 | .643 | .610 | .511 | .346 |
+| 10 | .604 | .629 | .600 | .489 | .346 |
+| 11 | .574 | .617 | .604 | .499 | .337 |
+| 12 | .579 | .620 | .610 | .505 | .342 |
+
+#### words_only / pair_novel
+
+Similar inversion but more gradual: early checkpoints are flat-to-decreasing, later checkpoints are flat-to-slightly-increasing.
+
+| Layer | step48† | step144† | step384 | step912 | step2280 |
+|---:|---:|---:|---:|---:|---:|
+| 0  | .492 | .525 | .460 | .407 | .305 |
+| 3  | .465 | .466 | .383 | .368 | .282 |
+| 6  | .427 | .442 | .405 | .365 | .307 |
+| 9  | .371 | .355 | .388 | .368 | .327 |
+| 12 | .384 | .355 | .403 | .400 | .335 |
+
+#### words_only / word_novel — least affected by the confound
+
+This split (probe generalizes to both novel pairs AND novel words) is least sensitive to the label-variance confound: novel-word embeddings carry little word-identity information regardless of checkpoint, so there is no trivial 0-prediction shortcut. Values are stable across all checkpoints.
+
+| Layer | step48 | step144 | step384 | step912 | step2280 |
+|---:|---:|---:|---:|---:|---:|
+| 0  | .173 | .155 | .202 | .207 | .157 |
+| 3  | .181 | .157 | .220 | .226 | .175 |
+| 6  | .165 | .142 | .203 | .228 | .195 |
+| 9  | .155 | .126 | .204 | .229 | .210 |
+| 12 | .158 | .129 | .213 | .231 | .208 |
+
+### Trends
+
+1. **The apparent r² decline over training is largely an artifact of changing label variance.** At step48, all model log-prob ratios are near 0 (the model has no preferences), inflating r². By step2280, the model has developed genuine ordering preferences and the label distribution has real spread; r² then reflects actual probe fidelity. Cross-checkpoint r² comparisons for mean_pooled are unreliable until at least step912.
+
+2. **The layer profile inverts as training progresses.** At step48, layer 0 is the most informative for mean_pooled/pair_novel (r² = .912), declining monotonically toward higher layers. By step2280 the profile reverses: later layers (8–10) are most informative (r² ≈ .348), and layer 0 is weakest (.244). This matches the final-checkpoint peak at layer 9 (r² = .385; Section 1). The early layer-0 dominance likely reflects that initial embedding representations carry whatever sparse ordering signal exists, and that this signal hasn't yet been reorganized across attention layers. As training progresses, ordering-relevant information migrates to and is refined in deeper layers.
+
+3. **words_only / word_novel is stable (~.15–.24 across all checkpoints and layers).** The absence of a trend confirms that the strictest generalization condition is unaffected by the label-variance confound, and also suggests that the capacity to generalize ordering knowledge to unseen words doesn't grow substantially over the training range sampled here. The upward trend across layers within later checkpoints (layer 0 < layer 9 at step2280) may be the first sign of a layer-ascending organizational structure that becomes clearer in the final model.
+
+4. **Most ordering-relevant structure is established by ~57% of training.** Step2280 peak r² (mean_pooled/pair_novel: .348) is already close to the final model's (.385), suggesting the remaining training mainly refines rather than builds the representation.
+
+5. **The attn_zeroed condition shows the same qualitative patterns** (profile inversion, convergence by step2280), with generally lower absolute r² for the word_novel split, consistent with cross-word attention carrying pair-level ordering information that isn't available when that attention is zeroed.
