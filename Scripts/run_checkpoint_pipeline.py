@@ -208,7 +208,19 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
 
     all_conds = [c["name"] for c in CONDITIONS]
 
-    def mlp_cmd(*extra):
+    # Global progress counter: main CV → corpus-freq → controls
+    _n_layers   = model["n_layers"] + 1   # L0…L{n_layers}
+    _n_conds    = len(all_conds)           # 2
+    _n_modes    = 2                        # mean_pooled, words_only
+    _n_splits   = 2                        # pair_novel, word_novel
+    _main_n     = _n_conds * _n_layers * _n_modes * _n_splits
+    _freq_n     = _n_conds * _n_layers * _n_modes if not skip_corpus_freq else 0
+    _ctrl_n     = _n_conds * _n_layers * _n_modes * _n_splits if not skip_controls else 0
+    _global_n   = _main_n + _freq_n + _ctrl_n
+    _freq_off   = _main_n
+    _ctrl_off   = _main_n + _freq_n
+
+    def mlp_cmd(*extra, global_offset=0):
         return [PYTHON, SCRIPTS / "by_layer_mlp.py",
                 "--model-slug", slug,
                 "--num-layers", str(model["n_layers"]),
@@ -218,6 +230,8 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
                 "--gpu",    str(gpu),
                 "--batch",  str(model["mlp_batch"]),
                 "--embeddings-dir", str(emb_dir),
+                "--global-n", str(_global_n),
+                "--global-offset", str(global_offset),
                 *ckpt_flags, *force_flag, *extra]
 
     # ── MLP CV — both conditions in one process (avoids GPU OOM from parallel) ──
@@ -234,12 +248,14 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
              "--corpus-freq",
              "--gpu",    str(gpu),
              "--embeddings-dir", str(emb_dir),
+             "--global-n", str(_global_n),
+             "--global-offset", str(_freq_off),
              *force_flag],
             label=f"CORPUS-FREQ  {model['flag']} step={step}")
 
     # ── Controls — both conditions in one process ──────────────────────────────
     if not skip_controls:
-        run(mlp_cmd("--control"),
+        run(mlp_cmd("--control", global_offset=_ctrl_off),
             label=f"CONTROLS  {model['flag']} step={step}")
 
     # ── Free disk ──────────────────────────────────────────────────────────────

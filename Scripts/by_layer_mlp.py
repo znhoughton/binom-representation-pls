@@ -606,6 +606,10 @@ def main():
                    help="1-based index of this checkpoint in the sequence (for progress display)")
     p.add_argument("--n-checkpoints", type=int, default=None, dest="n_checkpoints",
                    help="Total number of checkpoints in the sequence (for progress display)")
+    p.add_argument("--global-n", type=int, default=None, dest="global_n",
+                   help="Global total CV units across all pipeline sub-runs (for unified progress display)")
+    p.add_argument("--global-offset", type=int, default=0, dest="global_offset",
+                   help="CV units already completed in earlier pipeline sub-runs")
     args = p.parse_args()
 
     emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
@@ -747,6 +751,12 @@ def main():
 
     _n_cv_total = None  # set after first condition's available layers are known
     _cv_unit = 0
+
+    def _prog(cv_unit):
+        g_unit  = args.global_offset + cv_unit
+        g_total = args.global_n if args.global_n else _n_cv_total
+        pct     = round(100 * g_unit / g_total) if g_total else 0
+        return f"{g_unit}/{g_total}  {pct}%"
 
     for condition in args.conditions:
         dirs = CONDITION_DIRS[condition]
@@ -893,12 +903,11 @@ def main():
                         continue
 
                     _cv_unit += 1
-                    _pct = round(100 * _cv_unit / _n_cv_total) if _n_cv_total else 0
                     mean_r2, sd_r2, n_folds, mean_best_ep, mean_n_ep = run_cv(
                         X_nov, y_nov, w1_nov, w2_nov, fold_assignments[split],
                         split, mode, device, layer_tag,
                         pred_path=None if has_pred else npz_path,
-                        progress=f"{_cv_unit}/{_n_cv_total}  {_pct}%",
+                        progress=_prog(_cv_unit),
                     )
 
                     if not has_csv:
@@ -922,10 +931,9 @@ def main():
                     X_cor, y_cor, w1_cor, w2_cor = x_from_raw(raw_cor, mode)
                     X_cor = X_cor.to(device)
                     _cv_unit += 1
-                    _pct = round(100 * _cv_unit / _n_cv_total) if _n_cv_total else 0
                     y_pred_cf, r2_cf = train_novel_predict_corpus(
                         X_nov, y_nov, X_cor, y_cor, mode, device, layer_tag,
-                        progress=f"{_cv_unit}/{_n_cv_total}  {_pct}%")
+                        progress=_prog(_cv_unit))
                     results.append({
                         "condition": condition, "layer": layer_idx, "mode": mode,
                         "split": "corpus_pred", "mean_r2": round(r2_cf, 6),
