@@ -1443,3 +1443,203 @@ This split (probe generalizes to both novel pairs AND novel words) is least sens
 4. **Most ordering-relevant structure is established by ~57% of training.** Step2280 peak r² (mean_pooled/pair_novel: .348) is already close to the final model's (.385), suggesting the remaining training mainly refines rather than builds the representation.
 
 5. **The attn_zeroed condition shows the same qualitative patterns** (profile inversion, convergence by step2280), with generally lower absolute r² for the word_novel split, consistent with cross-word attention carrying pair-level ordering information that isn't available when that attention is zeroed.
+
+---
+
+### Visualization
+
+Interactive line charts for both r² profiles and corpus-frequency β profiles across all 13 layers and 5 checkpoints: [`layer_checkpoint_viz.html`](../layer_checkpoint_viz.html) (open in browser; hover for exact values). Hosted artifact: https://claude.ai/code/artifact/d4141d6f-1e06-4c44-9775-b95b7dbfad51
+
+### Corpus-frequency regression across checkpoints
+
+`lm(|y_true − y_pred| ~ log_freq)` per checkpoint × condition × layer × mode (n = 48,950 corpus pairs each), across 6 checkpoints (step24–step2280, 0.6%–57.2% of training). Positive β: probe systematically underestimates high-frequency pairs (their actual preference exceeds what the probe captured from novel pairs); negative β: probe systematically overestimates them. Full results: `Results/corpus_freq_regression_checkpoints_125m.csv`. Significance: `*` p < .05, `**` p < .01, `***` p < .001; unmarked cells ns.
+
+#### default / mean_pooled
+
+| L | step24 | step48 | step144 | step384 | step912 | step2280 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | +.005    | +.009    | −.020** | −.036*** | −.035** | +.041** |
+| 1  | +.040*** | +.044*** | −.013   | −.057*** | −.048*** | +.027* |
+| 2  | +.038*** | +.044*** | −.005   | −.043*** | −.043*** | +.026* |
+| 3  | +.040*** | +.036*** | −.004   | −.039*** | −.048*** | +.034** |
+| 4  | +.027*   | +.034*** | +.003   | −.044*** | −.038*** | +.019   |
+| 5  | +.018    | +.033**  | −.011   | −.042*** | −.043*** | +.027*  |
+| 6  | +.049*** | +.024*   | −.006   | −.030**  | −.032**  | +.024*  |
+| 7  | +.037*** | +.026*   | −.009   | −.039*** | −.030**  | +.012   |
+| 8  | +.031**  | +.024*   | +.000   | −.030**  | −.017    | +.023*  |
+| 9  | +.033**  | +.021*   | −.001   | −.040*** | −.030**  | +.014   |
+| 10 | +.035**  | +.021*   | −.012   | −.039*** | −.032**  | +.032** |
+| 11 | +.039*** | +.020    | −.006   | −.046*** | −.031**  | +.021   |
+| 12 | +.013    | +.021*   | +.003   | −.041*** | −.028**  | +.016   |
+
+#### default / words_only
+
+| L | step24 | step48 | step144 | step384 | step912 | step2280 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | +.149*** | +.137*** | +.067*** | −.017    | −.061*** | −.029*  |
+| 1  | +.101*** | +.087*** | +.024*   | −.031**  | −.033**  | −.030*  |
+| 2  | +.090*** | +.080*** | +.042*** | −.022*   | −.038*** | −.018   |
+| 3  | +.091*** | +.082*** | +.016    | −.010    | −.029**  | −.017   |
+| 4  | +.087*** | +.091*** | +.008    | −.028**  | −.032**  | −.001   |
+| 5  | +.082*** | +.081*** | +.008    | −.028**  | −.029**  | −.015   |
+| 6  | +.084*** | +.072*** | +.014    | −.026*   | −.050*** | −.004   |
+| 7  | +.083*** | +.087*** | +.028**  | −.032**  | −.048*** | +.003   |
+| 8  | +.075*** | +.087*** | +.013    | −.031**  | −.029**  | +.001   |
+| 9  | +.090*** | +.069*** | +.024*   | −.024*   | −.040*** | −.006   |
+| 10 | +.092*** | +.103*** | +.027*   | −.016    | −.023*   | −.006   |
+| 11 | +.081*** | +.091*** | +.010    | −.032**  | −.028*   | −.014   |
+| 12 | +.096*** | +.080*** | +.014    | −.021*   | −.031**  | −.007   |
+
+#### attn_zeroed / mean_pooled
+
+| L | step24 | step48 | step144 | step384 | step912 | step2280 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | +.007    | +.000    | −.006   | −.037*** | −.035** | −.058*** |
+| 1  | +.004    | +.004    | −.016*  | −.042*** | −.039*** | −.055*** |
+| 2  | +.004    | +.004    | −.023** | −.043*** | −.034*** | −.047*** |
+| 3  | +.015    | +.007    | −.022** | −.037*** | −.035** | −.048*** |
+| 4  | +.008    | +.002    | −.020** | −.036*** | −.046*** | −.056*** |
+| 5  | +.008    | +.014    | −.023** | −.041*** | −.039*** | −.051*** |
+| 6  | +.015    | +.016*   | −.017*  | −.035*** | −.028**  | −.058*** |
+| 7  | +.006    | +.011    | −.017*  | −.037*** | −.039*** | −.072*** |
+| 8  | +.012    | +.013    | −.015*  | −.042*** | −.032**  | −.061*** |
+| 9  | +.012    | +.015*   | −.015   | −.042*** | −.028**  | −.065*** |
+| 10 | +.011    | +.011    | −.010   | −.037*** | −.040*** | −.060*** |
+| 11 | +.005    | +.010    | −.020*  | −.038*** | −.025*   | −.057*** |
+| 12 | +.008    | +.010    | −.013   | −.030*** | −.035*** | −.053*** |
+
+#### attn_zeroed / words_only
+
+| L | step24 | step48 | step144 | step384 | step912 | step2280 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | +.102*** | +.117*** | +.069*** | −.020    | −.050*** | −.085*** |
+| 1  | +.090*** | +.079*** | +.027*   | −.016    | −.027**  | −.080*** |
+| 2  | +.079*** | +.079*** | +.035**  | −.028**  | −.019    | −.071*** |
+| 3  | +.095*** | +.078*** | +.024*   | −.025*   | −.036*** | −.075*** |
+| 4  | +.079*** | +.083*** | +.028*   | −.024*   | −.021*   | −.063*** |
+| 5  | +.082*** | +.076*** | +.040*** | −.025*   | −.035*** | −.072*** |
+| 6  | +.072*** | +.086*** | −.004    | −.015    | −.026*   | −.060*** |
+| 7  | +.092*** | +.085*** | +.031**  | −.017    | −.035*** | −.064*** |
+| 8  | +.079*** | +.079*** | +.037*** | −.027**  | −.027**  | −.063*** |
+| 9  | +.095*** | +.061*** | +.038*** | −.007    | −.023*   | −.054*** |
+| 10 | +.077*** | +.087*** | +.036*** | −.009    | −.016    | −.044*** |
+| 11 | +.073*** | +.081*** | +.023*   | −.018    | −.024*   | −.056*** |
+| 12 | +.079*** | +.085*** | +.038*** | −.023*   | −.027**  | −.069*** |
+
+### Frequency-regression takeaways
+
+1. **Step24 shows the strongest early confound signal, strongest in words_only.** At step24 (0.6% training), the words_only conditions have the largest positive β of any checkpoint: L0 = +.149*** (default) and +.102*** (attn_zeroed), both substantially exceeding step48. This confirms the confound is most acute at the very beginning of training when label variance is minimal, and decays monotonically into step144. The attn_zeroed/mean_pooled condition at step24 is entirely nonsignificant across all layers, consistent with the confound being a label-variance artifact that is condition-agnostic, not a genuine abstract frequency signal.
+
+2. **Sign flips dominate the story, not layer gradients.** All four condition × mode combinations flip negative between step48–step144 and step144–step384. The flip occurs simultaneously across all 13 layers, confirming it reflects a global change in how the model encodes frequency information rather than reorganization across depth.
+
+3. **default / mean_pooled uniquely re-flips to positive at step2280, but primarily at early-to-middle layers.** The positive re-flip (memorization pathway overriding the abstract frequency signal) is significant at L0, L1, L3, L5, L6, L8, and L10 but ns at L7, L9, L11, L12. No other condition/mode combination re-flips.
+
+4. **attn_zeroed effects grow monotonically and are layer-uniform.** From step384 to step2280, the negative β for the abstract pathway grows in magnitude uniformly across all layers. No layer shows a qualitatively different direction, consistent with the abstract frequency signal being a distributed property of the representations rather than localized to specific depths.
+
+5. **The early-layer gradient for attn_zeroed / words_only is the sharpest layer effect.** At step2280, β ranges from −.085 (L0) to −.044 (L10), a modest but consistent decrease across depth. Word-level frequency information (the driver of abstract ordering) is most concentrated in shallow layers before it gets integrated with contextual information.
+
+6. **default / words_only collapses to near-zero at step2280.** Only L0 and L1 remain significant (both p < .05). The contrast with default / mean_pooled (strongly positive re-flip) and attn_zeroed / words_only (strongly negative) is sharp: pair-level memorization requires cross-word attention AND joint sentence representations, not isolated word embeddings. The memorization effect is inherently relational.
+
+---
+
+## Section 7: OPT-BabyLM-350M Training Dynamics
+
+### Setup
+
+Six log-spaced checkpoints covering approximately the same training fractions as the 125M checkpoints in Section 6: step48, step96, step288, step768, step1824, step4560. Final-checkpoint results are in Section 2. OPT-350M has **25 layers (L0–L24)**. Corpus-frequency regression has not yet been run for 350M checkpoints.
+
+### Critical confound: model-derived preference labels
+
+Same confound as Section 6: at early checkpoints, y_true clusters near 0, inflating r² for any probe that predicts ≈0 for all items. Confound is most severe at step48–step96 and substantially resolved by step768. Values marked † are likely inflated.
+
+### Summary: peak r² across layers (default condition)
+
+mp = mean_pooled, wo = words_only, pn = pair_novel, wn = word_novel. Peak-layer index in parentheses. † likely inflated by near-zero label variance.
+
+| Checkpoint | mp/pn | mp/wn | wo/pn | wo/wn |
+|---|---|---|---|---|
+| step48   | .913 (L0)†  | .857 (L1)† | .580 (L0)† | .220 (L9)  |
+| step96   | .911 (L0)†  | .846 (L1)† | .576 (L0)† | .198 (L2)  |
+| step288  | .839 (L0)†  | .754 (L2)† | .569 (L0)† | .166 (L2)  |
+| step768  | .678 (L1)   | .534 (L21) | .547 (L0)  | .227 (L6)  |
+| step1824 | .530 (L22)  | .372 (L22) | .459 (L0)  | .246 (L24) |
+| step4560 | .382 (L24)  | .251 (L22) | .350 (L23) | .208 (L24) |
+
+### Layer profiles: default condition
+
+#### mean_pooled / pair_novel
+
+Early profile: L0 dominant, monotone decline. Flips by step4560: L0=.295 increases to L24=.382. At step768, the profile is nearly flat (.662 at L0, .640 at L24 — range .022, vs .229 range at step48).
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 48†  | .913 | .876 | .833 | .745 | .684 |
+| 96†  | .911 | .872 | .825 | .743 | .640 |
+| 288† | .839 | .802 | .746 | .721 | .661 |
+| 768  | .662 | .658 | .637 | .652 | .640 |
+| 1824 | .493 | .495 | .511 | .502 | .503 |
+| 4560 | .295 | .310 | .326 | .336 | .382 |
+
+#### words_only / pair_novel
+
+Same inversion, but L0 dominance persists longer: still the peak at step1824 (.459 vs L22=.401). By step4560, L23=.350 exceeds L0=.342.
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 48†  | .580 | .526 | .483 | .408 | .340 |
+| 96†  | .576 | .532 | .468 | .366 | .232 |
+| 288† | .569 | .509 | .413 | .303 | .167 |
+| 768  | .547 | .437 | .369 | .385 | .372 |
+| 1824 | .459 | .404 | .378 | .391 | .399 |
+| 4560 | .342 | .299 | .288 | .294 | .343 |
+
+#### words_only / word_novel — least affected by the confound
+
+Dip-and-rebound pattern: drops from step96 to step288, recovers by step768, peaks at step1824, then drops at step4560.
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 48  | .197 | .206 | .211 | .191 | .188 |
+| 96  | .183 | .188 | .183 | .170 | .137 |
+| 288 | .148 | .161 | .141 | .111 | .092 |
+| 768 | .195 | .227 | .215 | .207 | .199 |
+| 1824| .212 | .230 | .222 | .227 | .246 |
+| 4560| .152 | .154 | .159 | .176 | .208 |
+
+#### attn_zeroed / mean_pooled / pair_novel
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 48†  | .915 | .887 | .842 | .809 | .784 |
+| 96†  | .914 | .882 | .838 | .822 | .847 |
+| 288† | .857 | .816 | .761 | .758 | .730 |
+| 768  | .694 | .645 | .626 | .627 | .598 |
+| 1824 | .525 | .475 | .479 | .456 | .477 |
+| 4560 | .317 | .281 | .282 | .280 | .327 |
+
+#### attn_zeroed / words_only / pair_novel
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 48†  | .569 | .549 | .493 | .402 | .344 |
+| 96†  | .561 | .525 | .467 | .373 | .230 |
+| 288† | .543 | .513 | .419 | .289 | .168 |
+| 768  | .494 | .448 | .378 | .382 | .357 |
+| 1824 | .487 | .438 | .395 | .400 | .446 |
+| 4560 | .357 | .324 | .320 | .324 | .390 |
+
+### Trends
+
+1. **Confound dynamics mirror 125M exactly.** Step48 and step96 are firmly in the confound zone (mp/pn L0 ≈ .91; default ≈ attn_zeroed at all layers). Step288 is the transition zone. Step768 is the first checkpoint where the signal is primarily genuine: the mp/pn profile is nearly flat across 25 layers (.662–.640) rather than monotonically declining.
+
+2. **Layer profile inverts as training progresses.** At step48, mp/pn decreases L0=.913 → L24=.684. By step4560, it increases L0=.295 → L24=.382, approximating the final model (peak at L22=.411). As in 125M, the inversion is gradual: step768 is the plateau phase, step1824 shows emerging late-layer advantage. **The 350M profile is flatter throughout**: step48 range = .229 across 25 layers vs 125M's .333 across 13, reflecting more distributed encoding in the deeper architecture.
+
+3. **words_only / word_novel dip-and-rebound confirms the confound timeline.** wo/wn peaks at step48 (.220), drops sharply to step288 (.092 at L24) — this is when labels gain real variance that isolated word representations can't yet track — then rebounds to step1824 (.246 at L24), and drops slightly at step4560 (.208). The rebound onset at step768 marks when abstract word-level ordering cues become recoverable from individual token representations. The pattern is identical to 125M (peak → dip at transition zone → rebound → late-training drop).
+
+4. **attn_zeroed overtakes default for words_only from step1824 onward.** At early checkpoints, default and attn_zeroed give nearly identical wo/pn results (step48 L0: .580 vs .569). By step1824, attn_zeroed/wo/pn exceeds default at all layers (L0: .487 vs .459; L24: .446 vs .399). By step4560, the gap is substantial (L24: .390 vs .343), prefiguring the final-model pattern (Section 2: attn_zeroed/wo/pn peak .424 vs default .376). Cross-word attention is not needed — and increasingly impedes — the probe's access to ordering information as the model matures.
+
+5. **Late-layer acceleration emerges between step1824 and step4560.** The sharp L21–L23 uptick in the final model (Section 2) first appears clearly at step1824: mp/pn L22=.530 vs L18=.502 vs L12=.511. By step4560, the L21–L24 layer range jumps .366, .372, .379, .382 vs L18=.336 — the acceleration is unmistakable. The final model's burst (.405, .411, .411, .402 at L21–L24) is a continuation of this pattern.
+
+6. **Most ordering-relevant structure is in place by step4560.** Step4560 peak mp/pn (.382) is 93% of the final model's (.411); wo/wn at step4560 (.208 at L24) is 86% of the final model's (.242 at L23). As in 125M, the remaining training refines rather than builds the representation.
+
+7. **The attn_zeroed / mean_pooled late-layer uptick at step96 is a transient signal.** At step96, the attn_zeroed/mp/pn profile recovers from L18=.822 to L24=.847 after dipping in the middle layers. This pattern is absent at step48 and step288. It may reflect the model beginning to consolidate abstract ordering information into the final layers in the attention-isolated condition — a precursor to the strong late-layer peak in the final model — but the confound phase makes this hard to interpret cleanly.
