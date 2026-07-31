@@ -1,0 +1,195 @@
+<title>OPT-125M: Layer × Checkpoint Dynamics</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; padding: 24px 32px 48px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { color: #555; font-size: 13px; margin-bottom: 28px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 28px 0 6px; letter-spacing: .01em; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .panel-wrap { position: relative; }
+  .panel-label { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 2px; }
+  .panel-sublabel { font-size: 11px; color: #777; margin-bottom: 6px; }
+  svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #333; }
+  .legend-line { width: 24px; height: 2px; border-radius: 1px; }
+  #tooltip { position: fixed; background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 6px 10px; font-size: 12px; line-height: 1.6; pointer-events: none; display: none; box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 999; }
+  .note { font-size: 11px; color: #777; margin-top: 14px; font-style: italic; }
+</style>
+
+<h1>OPT-125M Training Dynamics: Layer Profiles</h1>
+<p class="subtitle">MLP probe r² and corpus-frequency regression β across 13 layers for 5 training checkpoints · default and attention-zeroed conditions</p>
+
+<h2>Figure 1 — Probe accuracy (r²), pair-novel generalization split</h2>
+<div class="chart-grid" id="r2-grid"></div>
+
+<h2>Figure 2 — Corpus-frequency regression β</h2>
+<p class="subtitle" style="margin-bottom:10px">β from lm(|y_true − y_pred| ~ log_freq) on corpus-pair transfer; + = probe underestimates high-freq pairs, − = overestimates · zero line shown</p>
+<div class="chart-grid" id="beta-grid"></div>
+
+<div class="legend" id="legend"></div>
+<p class="note">Hover over any line for exact values. Data from OPT-BabyLM-125M, steps 48–2280 (1.2%–57.2% of training).</p>
+<div id="tooltip"></div>
+
+<script>
+const COLORS = { 48:'#c6dbef', 144:'#6aaed6', 384:'#2b8cc4', 912:'#0c5fa8', 2280:'#083472' };
+const CKPTS  = [48,144,384,912,2280];
+const PCT    = { 48:'1.2%', 144:'3.6%', 384:'9.6%', 912:'22.9%', 2280:'57.2%' };
+const LAYERS = [0,1,2,3,4,5,6,7,8,9,10,11,12];
+
+const r2 = {
+  default: {
+    mean_pooled: {
+      48:   [.912,.705,.673,.656,.639,.636,.626,.620,.613,.574,.604,.574,.579],
+      144:  [.831,.695,.693,.673,.671,.666,.638,.647,.651,.643,.629,.617,.620],
+      384:  [.642,.610,.606,.605,.607,.601,.608,.606,.615,.610,.600,.604,.610],
+      912:  [.477,.513,.500,.491,.485,.486,.506,.505,.495,.511,.489,.499,.505],
+      2280: [.244,.304,.309,.300,.312,.326,.342,.344,.348,.346,.346,.337,.342],
+    },
+    words_only: {
+      48:   [.492,.487,.466,.465,.482,.424,.427,.423,.388,.371,.363,.407,.384],
+      144:  [.525,.498,.486,.466,.452,.423,.442,.386,.375,.355,.364,.342,.355],
+      384:  [.460,.438,.405,.383,.382,.362,.405,.382,.393,.388,.391,.389,.403],
+      912:  [.407,.392,.381,.368,.366,.372,.365,.385,.369,.368,.394,.392,.400],
+      2280: [.305,.292,.290,.282,.293,.304,.307,.323,.327,.327,.329,.326,.335],
+    },
+  },
+  attn_zeroed: {
+    mean_pooled: {
+      48:   [.912,.825,.806,.799,.788,.764,.770,.768,.779,.773,.768,.771,.770],
+      144:  [.845,.757,.744,.737,.724,.724,.729,.716,.718,.701,.708,.694,.691],
+      384:  [.673,.623,.600,.593,.591,.601,.597,.594,.601,.596,.598,.600,.612],
+      912:  [.510,.457,.444,.443,.448,.422,.429,.427,.427,.440,.445,.450,.458],
+      2280: [.261,.245,.217,.205,.208,.238,.243,.228,.232,.228,.237,.275,.283],
+    },
+    words_only: {
+      48:   [.490,.480,.457,.469,.476,.424,.437,.417,.398,.358,.356,.400,.385],
+      144:  [.517,.500,.485,.473,.453,.447,.421,.380,.364,.365,.356,.340,.342],
+      384:  [.468,.460,.421,.400,.386,.381,.390,.390,.396,.397,.396,.401,.416],
+      912:  [.444,.405,.395,.389,.383,.390,.377,.378,.393,.383,.391,.390,.385],
+      2280: [.320,.304,.293,.303,.315,.322,.351,.349,.344,.355,.356,.359,.368],
+    },
+  },
+};
+
+const beta = {
+  default: {
+    mean_pooled: {
+      48:   [.009,.044,.044,.036,.034,.033,.024,.026,.024,.021,.021,.020,.021],
+      144:  [-.020,-.013,-.005,-.004,.003,-.011,-.006,-.009,.000,-.001,-.012,-.006,.003],
+      384:  [-.036,-.057,-.043,-.039,-.044,-.042,-.030,-.039,-.030,-.040,-.039,-.046,-.041],
+      912:  [-.035,-.048,-.043,-.048,-.038,-.043,-.032,-.030,-.017,-.030,-.032,-.031,-.028],
+      2280: [.041,.027,.026,.034,.019,.027,.024,.012,.023,.014,.032,.021,.016],
+    },
+    words_only: {
+      48:   [.137,.087,.080,.082,.091,.081,.072,.087,.087,.069,.103,.091,.080],
+      144:  [.067,.024,.042,.016,.008,.008,.014,.028,.013,.024,.027,.010,.014],
+      384:  [-.017,-.031,-.022,-.010,-.028,-.028,-.026,-.032,-.031,-.024,-.016,-.032,-.021],
+      912:  [-.061,-.033,-.038,-.029,-.032,-.029,-.050,-.048,-.029,-.040,-.023,-.028,-.031],
+      2280: [-.029,-.030,-.018,-.017,-.001,-.015,-.004,.003,.001,-.006,-.006,-.014,-.007],
+    },
+  },
+  attn_zeroed: {
+    mean_pooled: {
+      48:   [.000,.004,.004,.007,.002,.014,.016,.011,.013,.015,.011,.010,.010],
+      144:  [-.006,-.016,-.023,-.022,-.020,-.023,-.017,-.017,-.015,-.015,-.010,-.020,-.013],
+      384:  [-.037,-.042,-.043,-.037,-.036,-.041,-.035,-.037,-.042,-.042,-.037,-.038,-.030],
+      912:  [-.035,-.039,-.034,-.035,-.046,-.039,-.028,-.039,-.032,-.028,-.040,-.025,-.035],
+      2280: [-.058,-.055,-.047,-.048,-.056,-.051,-.058,-.072,-.061,-.065,-.060,-.057,-.053],
+    },
+    words_only: {
+      48:   [.117,.079,.079,.078,.083,.076,.086,.085,.079,.061,.087,.081,.085],
+      144:  [.069,.027,.035,.024,.028,.040,-.004,.031,.037,.038,.036,.023,.038],
+      384:  [-.020,-.016,-.028,-.025,-.024,-.025,-.015,-.017,-.027,-.007,-.009,-.018,-.023],
+      912:  [-.050,-.027,-.019,-.036,-.021,-.035,-.026,-.035,-.027,-.023,-.016,-.024,-.027],
+      2280: [-.085,-.080,-.071,-.075,-.063,-.072,-.060,-.064,-.063,-.054,-.044,-.056,-.069],
+    },
+  },
+};
+
+const PANELS = [
+  { cond:'default',     mode:'mean_pooled', label:'default / mean pooled',     sublabel:'full attention · sentence mean' },
+  { cond:'default',     mode:'words_only',  label:'default / words only',      sublabel:'full attention · word pair only' },
+  { cond:'attn_zeroed', mode:'mean_pooled', label:'attn zeroed / mean pooled', sublabel:'abstract pathway · sentence mean' },
+  { cond:'attn_zeroed', mode:'words_only',  label:'attn zeroed / words only',  sublabel:'abstract pathway · word pair only' },
+];
+
+const W=380,H=200,M={t:12,r:16,b:38,l:44};
+const PW=W-M.l-M.r, PH=H-M.t-M.b;
+const ns='http://www.w3.org/2000/svg';
+const tooltip=document.getElementById('tooltip');
+
+function el(tag,attrs,parent){
+  const e=document.createElementNS(ns,tag);
+  for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);
+  if(parent)parent.appendChild(e);
+  return e;
+}
+function sx(l){return M.l+(l/12)*PW;}
+function sy(v,mn,mx){return M.t+PH-((v-mn)/(mx-mn))*PH;}
+
+function buildPanel(container,dataSet,p,yMin,yMax,showZero){
+  const wrap=document.createElement('div');
+  wrap.className='panel-wrap';
+  wrap.innerHTML=`<div class="panel-label">${p.label}</div><div class="panel-sublabel">${p.sublabel}</div>`;
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.className='chart';
+  wrap.appendChild(svg);
+  container.appendChild(wrap);
+
+  const gridVals=Array.from({length:5},(_,i)=>yMin+(i/4)*(yMax-yMin));
+  for(const v of gridVals){
+    const y=sy(v,yMin,yMax);
+    el('line',{x1:M.l,y1:y,x2:M.l+PW,y2:y,stroke:'#ddd','stroke-width':'1','stroke-dasharray':'3,3'},svg);
+    el('text',{x:M.l-5,y:y+4,'text-anchor':'end','font-size':'10',fill:'#888'},svg)
+      .textContent=Math.abs(v)<.001?'0':v.toFixed(2);
+  }
+  if(showZero&&yMin<0&&yMax>0){
+    const y0=sy(0,yMin,yMax);
+    el('line',{x1:M.l,y1:y0,x2:M.l+PW,y2:y0,stroke:'#999','stroke-width':'1.5'},svg);
+  }
+  el('line',{x1:M.l,y1:M.t,x2:M.l,y2:M.t+PH,stroke:'#ccc','stroke-width':'1'},svg);
+  el('line',{x1:M.l,y1:M.t+PH,x2:M.l+PW,y2:M.t+PH,stroke:'#ccc','stroke-width':'1'},svg);
+  for(const l of[0,2,4,6,8,10,12]){
+    const x=sx(l);
+    el('line',{x1:x,y1:M.t+PH,x2:x,y2:M.t+PH+4,stroke:'#bbb','stroke-width':'1'},svg);
+    el('text',{x,y:M.t+PH+14,'text-anchor':'middle','font-size':'10',fill:'#888'},svg).textContent=l;
+  }
+  el('text',{x:M.l+PW/2,y:H-4,'text-anchor':'middle','font-size':'11',fill:'#777'},svg).textContent='Layer';
+
+  const hg=el('g',{},svg);
+  const d=dataSet[p.cond][p.mode];
+  for(const ck of CKPTS){
+    const vals=d[ck],col=COLORS[ck];
+    el('polyline',{points:LAYERS.map(l=>`${sx(l)},${sy(vals[l],yMin,yMax)}`).join(' '),
+      fill:'none',stroke:col,'stroke-width':'2','stroke-linejoin':'round','stroke-linecap':'round'},svg);
+    for(const l of LAYERS){
+      const cx=sx(l),cy=sy(vals[l],yMin,yMax);
+      const dot=el('circle',{cx,cy,r:'3',fill:col,stroke:'#fff','stroke-width':'1.5',display:'none'},hg);
+      const hit=el('circle',{cx,cy,r:'7',fill:'transparent',cursor:'crosshair'},hg);
+      hit.addEventListener('mouseenter',()=>{
+        dot.setAttribute('display','');
+        tooltip.innerHTML=`<b>step ${ck}</b> (${PCT[ck]} training)<br>Layer ${l}: <b>${vals[l].toFixed(3)}</b>`;
+        tooltip.style.display='block';
+      });
+      hit.addEventListener('mousemove',e=>{
+        tooltip.style.left=(e.clientX+14)+'px';
+        tooltip.style.top=(e.clientY-28)+'px';
+      });
+      hit.addEventListener('mouseleave',()=>{
+        dot.setAttribute('display','none');
+        tooltip.style.display='none';
+      });
+    }
+  }
+}
+
+for(const p of PANELS) buildPanel(document.getElementById('r2-grid'),r2,p,0,1,false);
+for(const p of PANELS) buildPanel(document.getElementById('beta-grid'),beta,p,-0.15,0.15,true);
+
+const leg=document.getElementById('legend');
+for(const ck of CKPTS){
+  leg.innerHTML+=`<div class="legend-item"><div class="legend-line" style="background:${COLORS[ck]}"></div><span>step ${ck} (${PCT[ck]})</span></div>`;
+}
+</script>
