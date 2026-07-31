@@ -11,10 +11,14 @@ MODELS <- list(
   list(slug = "EleutherAI_pythia-160m",  label = "Pythia-160m"),
   list(slug = "EleutherAI_pythia-410m",  label = "Pythia-410m"),
   list(slug = "EleutherAI_pythia-1b",    label = "Pythia-1B"),
-  list(slug = "EleutherAI_pythia-2.8b",  label = "Pythia-2.8B")
+  list(slug = "EleutherAI_pythia-2.8b",  label = "Pythia-2.8B"),
+  # GPT-2 family (OpenAI; trained on WebText — using Pile freqs as best available proxy)
+  list(slug = "gpt2",                    label = "GPT-2"),
+  list(slug = "gpt2-medium",             label = "GPT-2-medium"),
+  list(slug = "gpt2-large",              label = "GPT-2-large")
 )
 
-# Pile corpus frequency (what Pythia was trained on)
+# Pile corpus frequency (best available proxy for both Pythia and GPT-2)
 freq_df <- read_csv(file.path(BASE, "Results", "corpus_binomials_infinigram_piletrain.csv"),
                     show_col_types = FALSE) |>
   select(word1, word2, freq_total)

@@ -100,7 +100,32 @@ MODELS <- list(
        freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
        freq_data   = pile_freq,
        freq_col    = "pile",
-       pythia_label = "Pythia-2.8B")
+       pythia_label = "Pythia-2.8B"),
+
+  # ── Phase 3: GPT-2 ───────────────────────────────────────────────────────
+  list(label = "GPT-2",        group = "GPT-2 (WebText)",
+       final_layer = 12,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "GPT-2"),
+
+  list(label = "GPT-2-medium", group = "GPT-2 (WebText)",
+       final_layer = 24,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "GPT-2-medium"),
+
+  list(label = "GPT-2-large",  group = "GPT-2 (WebText)",
+       final_layer = 36,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "GPT-2-large")
 )
 
 # ── Helper: run corpus-freq regression for a BabyLM model if CSV missing ──
@@ -198,13 +223,15 @@ print(results |> select(label, group, def_b, az_b, delta, delta_se), n = Inf)
 # ── Plot ────────────────────────────────────────────────────────────────────
 # Fix label order: BabyLM first (ascending params), then Pythia (ascending)
 label_order <- c("OPT-125M", "OPT-350M", "OPT-1.3B",
-                 "Pythia-160m", "Pythia-410m", "Pythia-1B", "Pythia-2.8B")
+                 "Pythia-160m", "Pythia-410m", "Pythia-1B", "Pythia-2.8B",
+                 "GPT-2", "GPT-2-medium", "GPT-2-large")
 results <- results |>
   mutate(label = factor(label, levels = intersect(label_order, label)))
 
 group_colours <- c(
   "BabyLM (2B tok)"   = "#D55E00",
-  "Pythia (300B tok)" = "#0072B2"
+  "Pythia (300B tok)" = "#0072B2",
+  "GPT-2 (WebText)"   = "#009E73"
 )
 
 p <- ggplot(results, aes(x = label, y = delta, fill = group)) +
