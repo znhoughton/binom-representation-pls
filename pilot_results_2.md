@@ -1546,7 +1546,7 @@ Interactive line charts for both r² profiles and corpus-frequency β profiles a
 
 ### Setup
 
-Six log-spaced checkpoints covering approximately the same training fractions as the 125M checkpoints in Section 6: step48, step96, step288, step768, step1824, step4560. Final-checkpoint results are in Section 2. OPT-350M has **25 layers (L0–L24)**. Corpus-frequency regression has not yet been run for 350M checkpoints.
+Six log-spaced checkpoints covering approximately the same training fractions as the 125M checkpoints in Section 6: step48, step96, step288, step768, step1824, step4560. Final-checkpoint results are in Section 2. OPT-350M has **25 layers (L0–L24)**. Corpus-frequency regression results are in `Results/corpus_freq_regression_checkpoints_350m.csv`; the key patterns are reported in Section 8 alongside the 1.3B results for cross-model comparison.
 
 ### Critical confound: model-derived preference labels
 
@@ -1643,3 +1643,230 @@ Dip-and-rebound pattern: drops from step96 to step288, recovers by step768, peak
 6. **Most ordering-relevant structure is in place by step4560.** Step4560 peak mp/pn (.382) is 93% of the final model's (.411); wo/wn at step4560 (.208 at L24) is 86% of the final model's (.242 at L23). As in 125M, the remaining training refines rather than builds the representation.
 
 7. **The attn_zeroed / mean_pooled late-layer uptick at step96 is a transient signal.** At step96, the attn_zeroed/mp/pn profile recovers from L18=.822 to L24=.847 after dipping in the middle layers. This pattern is absent at step48 and step288. It may reflect the model beginning to consolidate abstract ordering information into the final layers in the attention-isolated condition — a precursor to the strong late-layer peak in the final model — but the confound phase makes this hard to interpret cleanly.
+
+---
+
+## Section 8: OPT-BabyLM-1.3B Training Dynamics
+
+### Setup
+
+Six log-spaced checkpoints spanning approximately the same training fractions as the 125M and 350M dynamics: step97 (0.6%), step194 (1.2%), step582 (3.7%), step1455 (9.1%), step3686 (23.2%), step9021 (56.7%). Total training = 15,908 steps over 20 epochs of 100M tokens (2B total tokens), the same training data seen by OPT-125M and OPT-350M. The percentage-of-training comparison is fair because all three models see the same tokens per fraction. Final-checkpoint results are in Section 3. OPT-1.3B has **25 layers (L0–L24)**. Corpus-frequency regression results: `Results/corpus_freq_regression_checkpoints_1.3b.csv`.
+
+### Critical confound: model-derived preference labels
+
+Same confound as Sections 6–7. Early checkpoints have near-zero label variance (y_true ≈ 0), inflating r² for any probe that predicts ≈0. Confound is severe at step97–step582 (mp/pn peak = L0 throughout) and exits at step1455, where L12 (.574) exceeds L0 (.535). Values marked † are likely inflated.
+
+### Summary: peak r² across layers (default condition)
+
+| Checkpoint | % Training | mp/pn | mp/wn | wo/pn | wo/wn |
+|---|---|---|---|---|---|
+| step97   | 0.6%  | .913 (L0)†  | .838 (L0)† | .646 (L0)† | .233 (L6)  |
+| step194  | 1.2%  | .880 (L0)†  | .785 (L0)† | .608 (L0)† | .166 (L6)  |
+| step582  | 3.7%  | .732 (L0)†  | .605 (L0)† | .569 (L0)† | .204 (L6)  |
+| step1455 | 9.1%  | .574 (L12)  | .441 (L12) | .520 (L0)  | .287 (L18) |
+| step3686 | 23.2% | .399 (L18)  | .248 (L24) | .394 (L24) | .236 (L24) |
+| step9021 | 56.7% | .317 (L18)  | .180 (L24) | .320 (L24) | .185 (L24) |
+
+### Layer profiles: default condition
+
+#### mean_pooled / pair_novel
+
+Early profile is L0-dominant (step97: .913 → .718 monotone decline). At step1455 the profile flattens and shifts: L0=.535 with a gentle rise to L12=.574. From step3686 onward, the profile is weakly increasing across layers (L0=.290 → L18=.399 → L24=.394 at step3686). Unlike 350M, there is no sharp late-layer acceleration; the increase from L0 to peak is gradual throughout.
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 97†   | .913 | .750 | .729 | .704 | .718 |
+| 194†  | .880 | .719 | .688 | .643 | .635 |
+| 582†  | .732 | .670 | .664 | .675 | .653 |
+| 1455  | .535 | .571 | .574 | .567 | .555 |
+| 3686  | .290 | .393 | .391 | .399 | .394 |
+| 9021  | .208 | .309 | .315 | .317 | .315 |
+
+#### words_only / pair_novel
+
+L0 dominance persists across interpretable checkpoints and only inverts by step3686.
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 97†   | .637 | .603 | .549 | .538 | .570 |
+| 194†  | .608 | .563 | .535 | .451 | .444 |
+| 582†  | .569 | .498 | .472 | .456 | .421 |
+| 1455  | .520 | .455 | .459 | .476 | .462 |
+| 3686  | .356 | .364 | .382 | .385 | .394 |
+| 9021  | .266 | .286 | .305 | .311 | .320 |
+
+#### words_only / word_novel — least affected by the confound
+
+The 1.3B wo/wn profile is the most suppressed across all checkpoints. Values plateau below .240 and show no rebound pattern — unlike the dip-and-rebound seen in 125M and 350M.
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 97   | .213 | .233 | .212 | .198 | .215 |
+| 194  | .160 | .166 | .160 | .131 | .127 |
+| 582  | .191 | .204 | .200 | .195 | .187 |
+| 1455 | .236 | .270 | .273 | .287 | .283 |
+| 3686 | .153 | .226 | .234 | .235 | .236 |
+| 9021 | .118 | .160 | .174 | .177 | .185 |
+
+#### attn_zeroed / mean_pooled / pair_novel
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 97†   | .917 | .823 | .818 | .808 | .803 |
+| 194†  | .892 | .790 | .765 | .740 | .734 |
+| 582†  | .761 | .702 | .686 | .662 | .672 |
+| 1455  | .563 | .542 | .542 | .534 | .527 |
+| 3686  | .314 | .315 | .358 | .333 | .347 |
+| 9021  | .229 | .258 | .272 | .276 | .268 |
+
+#### attn_zeroed / words_only / pair_novel
+
+| step | L0 | L6 | L12 | L18 | L24 |
+|---:|---:|---:|---:|---:|---:|
+| 97†   | .646 | .603 | .567 | .532 | .568 |
+| 194†  | .615 | .565 | .553 | .447 | .457 |
+| 582†  | .580 | .505 | .489 | .430 | .432 |
+| 1455  | .517 | .449 | .463 | .469 | .467 |
+| 3686  | .367 | .370 | .392 | .397 | .402 |
+| 9021  | .272 | .298 | .321 | .331 | .344 |
+
+### Trends
+
+1. **Confound zone dynamics are identical to smaller models.** step97–step582 are firmly confounded (mp/pn peaks at L0 for all three), with the confound weakening across this range (L0 dominance: .913 → .880 → .732). Step1455 is the first genuinely interpretable checkpoint: mp/pn L0=.535 < L12=.574. The 1.3B exits the confound zone at approximately the same training fraction as the 350M (~9%) and earlier than 125M (which exits ~9.6% = step384).
+
+2. **r² declines continuously after step1455 — no plateau.** This is the sharpest qualitative difference from 125M and 350M. At step1455: mp/pn peak = .574. At step3686 (23.2%): .399. At step9021 (56.7%): .317. For comparison, 350M peaks at step768 (.678) and retains .382 by step4560 (57.2%). The 1.3B final checkpoint (56.7%) reaches only .317, substantially below 350M (.382), despite being a much larger model. This is consistent with severe undertraining: the 1.3B model's greater capacity is filling with memorized pair-specific representations rather than transferable ordering knowledge. A model that truly abstracted ordering preferences would show *increasing* probe transfer accuracy; continuous decline signals that what's being learned is increasingly pair-specific.
+
+3. **No late-layer acceleration.** The 350M develops a clear burst at L21–L24 starting from step1824, matching the final model's architecture. The 1.3B shows only a monotone, shallow increase from L0 to peak across all interpretable checkpoints. At step9021, the layer profile spans .208 (L0) → .317 (L18), a range of .109, compared to 350M at step4560: .295 (L0) → .382 (L24), a range of .087 but with a distinct upturn at the last three layers. The 1.3B's smooth ramp suggests the network hasn't developed late-layer specialization for ordering.
+
+4. **attn_zeroed/mp closely tracks default/mp at step1455.** At the first interpretable checkpoint, the default and attn_zeroed profiles are nearly identical at each layer (step1455 L12: default .574, attn_zeroed .542; L18: .567 vs. .534). The small default > attn_zeroed advantage reflects that self-attention is carrying a modest amount of pair-level ordering information, but the abstract signal (isolated from pair-specific attention patterns) is already comparable in strength. By step3686 this has changed substantially.
+
+5. **attn_zeroed overtakes default for words_only starting at step3686.** At step3686, attn_zeroed/wo/pn (L24 = .402) exceeds default/wo/pn (L24 = .394). By step9021 the gap widens (L24: .344 vs. .320). The pattern mirrors 350M step1824-to-4560, but arrives later — suggesting the 1.3B begins developing the attn_zeroed advantage on the same timescale as 350M, not earlier, despite being 4× larger.
+
+### Corpus-frequency regression across checkpoints
+
+`lm(|y_true − y_pred| ~ log_freq)` per checkpoint × condition × layer × mode. Positive β: probe trained on novel pairs does worse on high-frequency corpus pairs (memorization dominates, probe can't generalize). Negative β: probe does better on high-frequency corpus pairs (abstract frequency signal is stronger for frequent pairs). Full results: `Results/corpus_freq_regression_checkpoints_1.3b.csv`. Selected layers shown (L0, L6, L12, L18, L24). Significance: `*` p < .05, `**` p < .01, `***` p < .001; no asterisk = ns.
+
+#### default / mean_pooled
+
+| L | step97 | step194 | step582 | step1455 | step3686 | step9021 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | −.006    | −.014*  | −.046*** | −.043*** | +.045*** | +.179*** |
+| 6  | +.006    | −.005   | −.035*** | −.030**  | +.030*   | +.176*** |
+| 12 | +.023*   | +.014   | −.034*** | −.037*** | +.024*   | +.164*** |
+| 18 | +.026**  | +.004   | −.039*** | −.056*** | +.038**  | +.173*** |
+| 24 | +.040*** | +.001   | −.043*** | −.038*** | +.031*   | +.169*** |
+
+#### attn_zeroed / mean_pooled
+
+| L | step97 | step194 | step582 | step1455 | step3686 | step9021 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | −.010*   | −.005   | −.045*** | −.048*** | −.079*** | −.094*** |
+| 6  | +.003    | −.017*  | −.037*** | −.033*** | −.050*** | −.082*** |
+| 12 | +.010    | −.019*  | −.040*** | −.040*** | −.059*** | −.070*** |
+| 18 | +.006    | −.019*  | −.046*** | −.052*** | −.053*** | −.069*** |
+| 24 | −.004    | −.013   | −.046*** | −.048*** | −.040*** | −.078*** |
+
+#### default / words_only
+
+| L | step97 | step194 | step582 | step1455 | step3686 | step9021 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | +.066*** | +.056*** | −.018    | −.030**  | −.002    | +.132*** |
+| 6  | +.077*** | +.063*** | −.013    | −.031**  | +.035**  | +.148*** |
+| 12 | +.061*** | +.038**  | −.021    | −.040*** | +.039*** | +.148*** |
+| 18 | +.062*** | +.040*** | −.012    | −.037*** | +.020    | +.140*** |
+| 24 | +.072*** | +.039*** | −.021    | −.035**  | +.018    | +.124*** |
+
+#### attn_zeroed / words_only
+
+| L | step97 | step194 | step582 | step1455 | step3686 | step9021 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0  | +.077*** | +.046*** | +.005    | −.042*** | −.076*** | −.097*** |
+| 6  | +.071*** | +.054*** | −.024*   | −.029**  | −.059*** | −.095*** |
+| 12 | +.084*** | +.044*** | −.018    | −.028**  | −.051*** | −.060*** |
+| 18 | +.069*** | +.027*   | −.020    | −.029**  | −.044*** | −.084*** |
+| 24 | +.075*** | +.039**  | −.013    | −.042*** | −.040*** | −.105*** |
+
+### Frequency-regression takeaways
+
+1. **The confound zone signature is unchanged.** step97–step194 show positive words_only β (+.066 to +.084***) and inconsistent mean_pooled β, exactly as in 125M and 350M. By step582, words_only β collapses toward zero (all ns) and mean_pooled β is clearly negative (≈ −.035 to −.046***). The confound exits on schedule.
+
+2. **Step1455 is the critical inflection: default and attn_zeroed are still aligned.** At the first interpretable checkpoint, both default/mp and attn_zeroed/mp are negative across all layers (default L18 = −.056***; attn_zeroed L18 = −.052***). The magnitude is comparable, meaning cross-word attention is not yet systematically distorting the frequency signal — the model has learned something about ordering that transfers to frequent pairs in both conditions. This is different from what the final model shows (default/mp positive, attn_zeroed/mp negative), suggesting the dissociation develops between step1455 and step3686.
+
+3. **By step3686 (23.2%), default/mp has flipped positive while attn_zeroed/mp deepens negative.** default/mp L18 = +.038**; attn_zeroed/mp L18 = −.053***. Dissociation delta = .091. For comparison, 350M at the same training fraction (step1824, 22.9%): default/mp L18 = −.035**; attn_zeroed/mp L18 = −.032**. The 350M hasn't yet flipped — both conditions are still negative and comparable. The 1.3B begins showing memorization dominance ~10 percentage points of training *earlier* than the 350M does at a comparable scale.
+
+4. **By step9021 (56.7%), the default/mp β is enormous.** default/mp L18 = +.173***; attn_zeroed/mp L18 = −.069***. Dissociation delta = .242. For comparison at the same training fraction: 350M (step4560, 57.2%) default/mp L18 = +.021 (ns), attn_zeroed L18 = −.037**; delta ≈ .058. 125M (step2280, 57.2%) default/mp L7 = +.012 (ns), attn_zeroed L7 = −.072***; delta ≈ .084. The 1.3B's dissociation delta is 3–4× larger than either smaller model, driven primarily by the massive positive default β: the model has memorized frequent pair orderings so strongly that a novel-trained probe completely fails to generalize to them.
+
+5. **Both words_only conditions confirm the memorization pattern.** attn_zeroed/wo at step9021 reaches −.084 to −.105*** (as negative as the mean_pooled condition), indicating that word-level representations are also encoding frequency-related memorization signals — not just the joint pair-level representation. default/wo at step9021 is strongly positive (+.124 to +.148***), again far exceeding 350M or 125M at the same fraction. Memorization has permeated both the contextual and word-level representations.
+
+6. **The attn_zeroed/mp β grows monotonically across all checkpoints.** Unlike the sign-flip in default/mp, the attn_zeroed/mp β never reverses: it starts near-zero in the confound zone, turns negative at step582, and deepens at every subsequent checkpoint (−.046 → −.052 → −.053 → −.069 at L18). This monotonic deepening is not seen in 350M (which plateaus at ≈ −.035 to −.042). The 1.3B continues acquiring abstract frequency-sensitive structure throughout the training range observed, but this abstract signal is progressively dwarfed by the growing memorization pathway in the default condition.
+
+### Cross-model comparison: memorization vs. abstraction at ~57% training
+
+Comparing the three models at their latest checkpoints (all ≈ 57% training), using attn_zeroed/mp β as the memorization index (more negative = more memorization in word-level representations) and the dissociation delta (default/mp β − attn_zeroed/mp β) as the combined measure.
+
+| Model | % Training | az/mp L18 β | def/mp L18 β | Δ (memorization − abstraction) |
+|---|---|---|---|---|
+| OPT-125M (step2280) | 57.2% | −.058*** | +.041** | .099 |
+| OPT-350M (step4560) | 57.2% | −.037**  | +.021    | .058 |
+| OPT-1.3B (step9021) | 56.7% | −.069*** | +.173*** | .242 |
+
+The context-dependence effect (Δ) is non-monotonic with scale: 350M has the smallest delta (least context-dependent, most robust to attention zeroing), then 125M, then 1.3B jumps to 4× the 350M value. The 1.3B's large delta is driven by both a very negative attn_zeroed β (strong word-level memorization shaping embeddings) and a strongly positive default β (attention pathway overwhelmed by pair-specific co-occurrence), working in the same direction.
+
+---
+
+## Section 9: Phase 3 — Pythia (Preliminary)
+
+### Setup
+
+Phase 3 models (Pythia, GPT-2, OLMo, Llama 3) are run using `Scripts/run_new_models.py`, which extracts **final-layer embeddings only** (no by-layer sweep) for each model's single pretrained checkpoint. This is intentional: Phase 3 is a cross-family comparison at the final representation, not a training-dynamics study. Results use the same four condition × mode × split combinations as Phase 1/2, but at a single layer per model. Pythia models are trained on The Pile (~300B tokens, ~3000× more than the BabyLM budget).
+
+**Results currently available:** Pythia-160m and Pythia-410m. Larger Pythia models (1B, 2.8B) and GPT-2/OLMo/Llama 3 are pending. Corpus-frequency regression has not yet been run for Phase 3 models.
+
+### r² at final layer
+
+| Model | Layer | def/mp/pn | def/wo/pn | az/mp/pn | az/wo/pn | az/wo/wn |
+|---|---|---|---|---|---|---|
+| Pythia-160m | L12 | .587 | .570 | .604 | .605 | .535 |
+| Pythia-410m | L24 | .532 | .514 | .552 | .564 | .504 |
+
+### Key observation: attn_zeroed > default throughout
+
+For every Pythia model and every condition, attn_zeroed r² exceeds default r². This is the **opposite** of the OPT-BabyLM pattern at their final checkpoints: all three BabyLM models show default > attn_zeroed for the mean_pooled/pair_novel comparison. The reversal means that for Pythia, zeroing cross-word self-attention consistently improves probe performance — the abstract signal is cleaner without the cross-word attention pathway.
+
+This contrast is consistent with training data quantity. BabyLM models (2B tokens) have sufficient exposure to memorize specific pair orderings; cross-word attention carries memorized, pair-specific representations that interfere with abstract generalization. Pythia models (≥300B tokens) have seen enough diverse contexts that their contextual representations are dominated by abstract ordering patterns, and cross-word attention primarily adds co-occurrence statistics that are redundant with or slightly noise relative to the abstract signal. Note that this interpretation is preliminary — without the full by-layer sweep, we cannot rule out that the effect is specific to the final layer.
+
+### Absolute r² substantially higher
+
+Pythia-160m achieves .587 (default/mp/pn) and .535 (attn_zeroed/wo/wn) at a single final layer. OPT-125M final model (with full layer sweep) peaks at .385 and .242 respectively. The increase is partly attributable to training data volume (~150× more), partly to architecture differences, and partly to the fact that we're comparing at the single best-available layer rather than the true peak layer (which may differ for Pythia).
+
+The words_only/word_novel r² for Pythia (.504–.535) is particularly striking: BabyLM models peak at .242 (125M) to .258 (350M) in this strictest generalization condition. The 2× improvement likely reflects Pythia having encountered the same words in many more distinct ordering contexts, sharpening the word-level ordering signal far beyond what 2B tokens can provide.
+
+### Corpus-frequency regression (final layer only; Pile frequencies)
+
+Frequency measure: `Results/corpus_binomials_infinigram_piletrain.csv` (infinigram counts on The Pile training data). Full results: `Results/corpus_freq_regression_pythia.csv`.
+
+| Model | def/mp β | def/wo β | az/mp β | az/wo β |
+|---|---|---|---|---|
+| Pythia-160m (L12) | −.028*** | −.029*** | −.076*** | −.086*** |
+| Pythia-410m (L24) | −.034*** | −.032*** | −.062*** | −.081*** |
+
+**All four conditions are negative for both Pythia models.** This is the fundamental contrast with OPT-BabyLM, where default/mp is positive (+.039 to +.058 avg across layers) in all three models. For Pythia, even the default condition shows better generalization to high-frequency pairs — the model has learned enough abstract ordering information that cross-word attention does not introduce memorization-driven interference. Zeroing attention still improves performance further (attn_zeroed is 2–3× more negative than default), indicating some pair-specific encoding remains in the attention pathway even for Pythia, but it's no longer large enough to flip the sign.
+
+Cross-family comparison at the fully trained final checkpoint. BabyLM β values are averaged across all layers (see Section 4 for per-layer detail); Pythia values are at the final layer only.
+
+| Model family | Training tokens | def/mp β (avg) | az/mp β (avg) | Δ |
+|---|---|---|---|---|
+| OPT-BabyLM-125M | 2B     | +.054***  | −.063*** | .117 |
+| OPT-BabyLM-350M | 2B     | +.050***  | −.049*** | .099 |
+| OPT-BabyLM-1.3B | 2B     | +.043*–** | −.128*** | .171 |
+| Pythia-160m      | ~300B  | −.028***  | −.076*** | .048 |
+| Pythia-410m      | ~300B  | −.034***  | −.062*** | .028 |
+
+The dissociation delta (def − az) is substantially smaller for Pythia models, driven by the sign-flip in default/mp: when the model isn't memorizing, both conditions are negative and the gap shrinks. The Pythia Δ values (.028–.048) are comparable to the BabyLM *attn_zeroed* signal alone, without any positive memorization component. Within BabyLM, the 1.3B delta (.171) is larger than the 125M delta (.117), driven primarily by the enormous attn_zeroed β — the fully-trained 1.3B has the strongest abstract signal among BabyLM models, not because it generalizes well (probe transfer r² is the *lowest* in the family at final checkout) but because frequent pairs have accumulated the most divergent word-level representations from undertraining on diverse contexts.
+
+Note: BabyLM frequencies are computed from the BabyLM training corpus; Pythia frequencies are from The Pile. These are different frequency distributions, so β magnitudes are not directly comparable across families — the direction and sign of β within each family is the relevant quantity.
+
+### Phase 3 next steps
+
+- Await results for Pythia-1B, Pythia-2.8B, GPT-2 family, OLMo, and Llama-3.
+- Consider whether a small number of intermediate layers should be added for the two smallest Pythia models to verify that the final layer is close to the performance peak (see methods note in run_new_models.py).
