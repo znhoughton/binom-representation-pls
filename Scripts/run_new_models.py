@@ -91,6 +91,7 @@ def run(cmd, label="", abort_on_fail=True):
     print(f"  {status} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
     if rc != 0 and abort_on_fail:
         sys.exit(rc)
+    return rc == 0
 
 
 def run_parallel(cmds_labels: list, abort_on_fail=True):
@@ -175,7 +176,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
     # ── 1. Extract sequentially (GPU-heavy; one condition at a time) ───────────
     for cond in CONDITIONS:
         if force or not mlp_complete(slug, cond["name"]):
-            run(
+            ok = run(
                 [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
                  "--models",        "125m",    # flag ignored — overridden by --slug
                  "--conditions",    cond["name"],
@@ -188,7 +189,11 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                  "--extract-batch-size", str(model["batch_size"])]
                 + (["--force"] if force else []),
                 label=f"EXTRACT  {slug} / {cond['name']}",
+                abort_on_fail=False,
             )
+            if not ok:
+                print(f"  Extraction failed for {slug} / {cond['name']} — skipping model.", flush=True)
+                return
         else:
             banner(f"EXTRACT  {slug} / {cond['name']}  (skipped — MLP already complete)")
 
