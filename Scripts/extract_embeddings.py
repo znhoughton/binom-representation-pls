@@ -342,7 +342,7 @@ def extract_binomial_batch(model, tokenizer, rows, device,
     if zero_cross_attention:
         pad_mask_2d = enc["attention_mask"]  # (B, seq_len), 1=real, 0=pad
         # Compute position_ids from 2D padding mask (so model doesn't use 4D mask for this)
-        position_ids = torch.cumsum(pad_mask_2d, dim=1) * pad_mask_2d - 1
+        position_ids = (torch.cumsum(pad_mask_2d, dim=1) * pad_mask_2d - 1).clamp(min=0)
         position_ids = position_ids.long().to(device)
         enc_device["position_ids"] = position_ids
         # Build 4D causal mask with cross-word zeroing
