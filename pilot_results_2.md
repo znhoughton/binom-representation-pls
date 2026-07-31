@@ -1820,7 +1820,7 @@ The context-dependence effect (Δ) is non-monotonic with scale: 350M has the sma
 
 Phase 3 models (Pythia, GPT-2, OLMo, Llama 3) are run using `Scripts/run_new_models.py`, which extracts **final-layer embeddings only** (no by-layer sweep) for each model's single pretrained checkpoint. This is intentional: Phase 3 is a cross-family comparison at the final representation, not a training-dynamics study. Results use the same four condition × mode × split combinations as Phase 1/2, but at a single layer per model. Pythia models are trained on The Pile (~300B tokens, ~3000× more than the BabyLM budget).
 
-**Results currently available:** Pythia-160m and Pythia-410m. Larger Pythia models (1B, 2.8B) and GPT-2/OLMo/Llama 3 are pending. Corpus-frequency regression has not yet been run for Phase 3 models.
+**Results currently available:** Pythia-160m and Pythia-410m. Larger Pythia models (1B, 2.8B) and GPT-2/OLMo/Llama 3 are pending.
 
 ### r² at final layer
 
