@@ -22,7 +22,6 @@
 set -uo pipefail
 
 PYTHON="C:/Users/zacha/anaconda3/envs/PRenv/python.exe"
-RSCRIPT="C:/Program Files/R/R-4.5.2/bin/x64/Rscript.exe"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 MODELS=(160m 410m 1b 2.8b)
@@ -63,18 +62,6 @@ echo ""
   "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
 
 PIPELINE_EXIT=$?
-
-echo ""
-echo "======================================================================"
-echo "  Corpus-frequency regression (R)"
-echo "======================================================================"
-
-for m in "${MODELS[@]}"; do
-  echo ""
-  echo "--- Pythia-${m} ---"
-  "$RSCRIPT" "$SCRIPT_DIR/corpus_freq_regression_checkpoints_pythia.R" "$m" \
-    || echo "  WARNING: R script failed for Pythia-${m} (skipping)"
-done
 
 echo ""
 echo "======================================================================"
