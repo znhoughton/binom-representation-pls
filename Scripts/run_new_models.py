@@ -56,8 +56,8 @@ MODELS = [
     {"group": "gpt2",   "id": "gpt2-large",              "n_layers": 36,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
     {"group": "gpt2",   "id": "gpt2-xl",                 "n_layers": 48,  "large_gpu": False, "shard_pairs": 200000, "batch_size": 6144},
     # ── OLMo (AI2, open data) ──────────────────────────────────────────────
-    {"group": "olmo",   "id": "allenai/OLMo-1B-hf",     "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
-    {"group": "olmo",   "id": "allenai/OLMo-2-1124-1B",  "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 8192},
+    {"group": "olmo",   "id": "allenai/OLMo-1B-hf",     "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 512},
+    {"group": "olmo",   "id": "allenai/OLMo-2-1124-1B",  "n_layers": 16,  "large_gpu": False, "shard_pairs": 500000, "batch_size": 512},
     {"group": "olmo",   "id": "allenai/OLMo-7B-hf",     "n_layers": 32,  "large_gpu": True,  "shard_pairs": 100000, "batch_size": 4096},
     {"group": "olmo",   "id": "allenai/OLMo-2-1124-7B",  "n_layers": 32,  "large_gpu": True,  "shard_pairs": 100000, "batch_size": 4096},
     # ── Llama 3 (Meta, gated — requires HF token) ──────────────────────────
