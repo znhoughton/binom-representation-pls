@@ -49,6 +49,7 @@ Usage examples
 """
 
 import argparse
+import gc
 import os
 import re
 from pathlib import Path
@@ -674,8 +675,14 @@ def main():
                         layer_indices, args.extract, args.pool
                     )
                 except torch.cuda.OutOfMemoryError:
+                    gc.collect()
                     torch.cuda.empty_cache()
-                    effective_bs = max(1, effective_bs // 2)
+                    if effective_bs <= 1:
+                        raise RuntimeError(
+                            "OOM at batch_size=1 — GPU memory is full. "
+                            "Check for other processes (nvidia-smi) and retry."
+                        )
+                    effective_bs = effective_bs // 2
                     print(f"\n  OOM: retrying with batch_size={effective_bs}", flush=True)
                     continue  # retry same position with smaller batch
                 except Exception as exc:
