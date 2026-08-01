@@ -203,7 +203,7 @@ def _process_binomial_sent(model, tokenizer, sent: str, device,
     inputs = {k: v[:, :last_tok + 1].to(device)
               for k, v in enc.items() if k != "offset_mapping"}
 
-    out = model(**inputs, output_hidden_states=True)
+    out = model(**inputs, output_hidden_states=True, use_cache=False)
 
     lp  = F.log_softmax(out.logits[0], dim=-1)
     ids = inputs["input_ids"][0]
@@ -363,7 +363,7 @@ def extract_binomial_batch(model, tokenizer, rows, device,
         enc_device["attention_mask"] = attn_mask.unsqueeze(1).to(dtype=torch.float16, device=device)
 
     # Forward pass
-    out = model(**enc_device, output_hidden_states=True)
+    out = model(**enc_device, output_hidden_states=True, use_cache=False)
 
     # --- Vectorized logprob computation on GPU ---
     # Gather span positions in fp16 first, then free the full (B, seq_len, vocab)
@@ -454,7 +454,7 @@ def extract_isolated_pair(model, tokenizer, word1, word2, preference: float, dev
         if not word_toks:
             return None
         inputs = {k: v.to(device) for k, v in enc.items() if k != "offset_mapping"}
-        out = model(**inputs, output_hidden_states=True)
+        out = model(**inputs, output_hidden_states=True, use_cache=False)
         return extract_layer_vecs(out.hidden_states, layer_indices,
                                   word_toks, "word", pool_mode)
 
@@ -530,7 +530,7 @@ def extract_isolated_batch(model, tokenizer, rows, device,
 
     # Forward pass
     enc = {k: v.to(device) for k, v in enc.items()}
-    out = model(**enc, output_hidden_states=True)
+    out = model(**enc, output_hidden_states=True, use_cache=False)
 
     # Vectorized hidden state extraction (no logprobs needed for isolated)
     sent_vecs = {}
@@ -595,7 +595,7 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model_kwargs = dict(cache_dir=HF_CACHE_DIR, torch_dtype=torch.float16,
+    model_kwargs = dict(cache_dir=HF_CACHE_DIR, dtype=torch.float16,
                         device_map={"": device})
     if args.checkpoint is not None:
         model_kwargs["revision"] = f"step-{args.checkpoint}"
