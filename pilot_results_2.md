@@ -1366,7 +1366,7 @@ Script: `Scripts/corpus_freq_regression_by_model_size.R`; results: `Results/corp
 
 ### Setup
 
-Six log-spaced checkpoints (~0.6%–57.2% of total training): step24 (0.6%), step48 (1.2%), step144 (3.6%), step384 (9.6%), step912 (22.9%), step2280 (57.2%). Final-checkpoint results are reported in Section 1.
+Seven checkpoints: six log-spaced intermediate checkpoints (~0.6%–57.2% of total training) plus the fully trained final model as the last data point. Intermediate steps: step24 (0.6%), step48 (1.2%), step144 (3.6%), step384 (9.6%), step912 (22.9%), step2280 (57.2%). Final model: step3984 (100%). Full results for the final model are in Section 1.
 
 ### Critical confound: model-derived preference labels
 
@@ -1546,7 +1546,7 @@ Interactive line charts for both r² profiles and corpus-frequency β profiles a
 
 ### Setup
 
-Six log-spaced checkpoints covering approximately the same training fractions as the 125M checkpoints in Section 6: step48, step96, step288, step768, step1824, step4560. Final-checkpoint results are in Section 2. OPT-350M has **25 layers (L0–L24)**. Corpus-frequency regression results are in `Results/corpus_freq_regression_checkpoints_350m.csv`; the key patterns are reported in Section 8 alongside the 1.3B results for cross-model comparison.
+Seven checkpoints: six log-spaced intermediate checkpoints covering the same training fractions as Section 6 plus the fully trained final model. Intermediate steps: step48 (0.6%), step96 (1.2%), step288 (3.6%), step768 (9.6%), step1824 (22.9%), step4560 (57.2%). Final model: step7968 (100%). Full results for the final model are in Section 2. OPT-350M has **25 layers (L0–L24)**. Corpus-frequency regression results are in `Results/corpus_freq_regression_checkpoints_350m.csv`; the key patterns are reported in Section 8 alongside the 1.3B results for cross-model comparison.
 
 ### Critical confound: model-derived preference labels
 
@@ -1650,7 +1650,7 @@ Dip-and-rebound pattern: drops from step96 to step288, recovers by step768, peak
 
 ### Setup
 
-Six log-spaced checkpoints spanning approximately the same training fractions as the 125M and 350M dynamics: step97 (0.6%), step194 (1.2%), step582 (3.7%), step1455 (9.1%), step3686 (23.2%), step9021 (56.7%). Total training = 15,908 steps over 20 epochs of 100M tokens (2B total tokens), the same training data seen by OPT-125M and OPT-350M. The percentage-of-training comparison is fair because all three models see the same tokens per fraction. Final-checkpoint results are in Section 3. OPT-1.3B has **25 layers (L0–L24)**. Corpus-frequency regression results: `Results/corpus_freq_regression_checkpoints_1.3b.csv`.
+Seven checkpoints: six log-spaced intermediate checkpoints plus the fully trained final model. Intermediate steps: step97 (0.6%), step194 (1.2%), step582 (3.7%), step1455 (9.1%), step3686 (23.2%), step9021 (56.7%). Final model: step15908 (100%). Total training = 15,908 steps over 20 epochs of 100M tokens (2B total tokens), the same training data seen by OPT-125M and OPT-350M. The percentage-of-training comparison is fair because all three models see the same tokens per fraction. Full results for the final model are in Section 3. OPT-1.3B has **25 layers (L0–L24)**. Corpus-frequency regression results: `Results/corpus_freq_regression_checkpoints_1.3b.csv`.
 
 ### Critical confound: model-derived preference labels
 
@@ -1800,17 +1800,17 @@ The 1.3B wo/wn profile is the most suppressed across all checkpoints. Values pla
 
 6. **The attn_zeroed/mp β grows monotonically across all checkpoints.** Unlike the sign-flip in default/mp, the attn_zeroed/mp β never reverses: it starts near-zero in the confound zone, turns negative at step582, and deepens at every subsequent checkpoint (−.046 → −.052 → −.053 → −.069 at L18). This monotonic deepening is not seen in 350M (which plateaus at ≈ −.035 to −.042). The 1.3B continues acquiring abstract frequency-sensitive structure throughout the training range observed, but this abstract signal is progressively dwarfed by the growing memorization pathway in the default condition.
 
-### Cross-model comparison: memorization vs. abstraction at ~57% training
+### Cross-model comparison: memorization vs. abstraction at full training (100%)
 
-Comparing the three models at their latest checkpoints (all ≈ 57% training), using attn_zeroed/mp β as the memorization index (more negative = more memorization in word-level representations) and the dissociation delta (default/mp β − attn_zeroed/mp β) as the combined measure.
+Comparing the three models at their fully trained final checkpoints, using attn_zeroed/mp β as the memorization index (more negative = more memorization in word-level representations) and the dissociation delta (default/mp β − attn_zeroed/mp β) as the combined measure. Layer reported: L18 for 350M and 1.3B (consistent with the within-model analysis above); L12 (last available layer) for 125M.
 
-| Model | % Training | az/mp L18 β | def/mp L18 β | Δ (memorization − abstraction) |
+| Model | % Training | az/mp β | def/mp β | Δ (memorization − abstraction) |
 |---|---|---|---|---|
-| OPT-125M (step2280) | 57.2% | −.058*** | +.041** | .099 |
-| OPT-350M (step4560) | 57.2% | −.037**  | +.021    | .058 |
-| OPT-1.3B (step9021) | 56.7% | −.069*** | +.173*** | .242 |
+| OPT-125M (step3984, L12) | 100% | −.070*** | +.039** | .109 |
+| OPT-350M (step7968, L18) | 100% | −.047*** | +.039** | .086 |
+| OPT-1.3B (step15908, L18) | 100% | −.132*** | +.057** | .189 |
 
-The context-dependence effect (Δ) is non-monotonic with scale: 350M has the smallest delta (least context-dependent, most robust to attention zeroing), then 125M, then 1.3B jumps to 4× the 350M value. The 1.3B's large delta is driven by both a very negative attn_zeroed β (strong word-level memorization shaping embeddings) and a strongly positive default β (attention pathway overwhelmed by pair-specific co-occurrence), working in the same direction.
+The context-dependence effect (Δ) is non-monotonic with scale: 350M has the smallest delta (least context-dependent, most robust to attention zeroing), then 125M, then 1.3B with the largest delta (~2.2× the 350M value). The 1.3B's large delta is driven primarily by a much more negative attn_zeroed β (−.132 vs −.047), indicating that word-level representations in the larger model are far more deeply shaped by corpus frequency; the def/mp β is also slightly stronger (+.057 vs +.039), meaning the attention pathway additionally picks up more frequency-correlated co-occurrence signals.
 
 ---
 
