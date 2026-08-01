@@ -642,19 +642,20 @@ def main():
 
     layer_args = args.layer if args.layer else ["last"]
     slug       = args.model.replace("/", "_").replace(".", "_")
-    out_dir    = Path(args.out)
     is_sharded = args.shard_index is not None and args.num_shards is not None
 
-    # Determine which layers still need extraction
-    shard_suffix = f"_shard{args.shard_index}" if is_sharded else ""
-    out_files   = {la: out_dir / f"{layer_tag(la)}{shard_suffix}.npz" for la in layer_args}
-    needed      = [la for la in layer_args if not out_files[la].exists() or args.force]
-    already_done = [la for la in layer_args if la not in needed]
-
-    for la in already_done:
-        print(f"Output already exists, skipping: {out_files[la]}  (use --force to re-extract)")
-    if not needed:
-        return
+    if args.calibrate:
+        needed = layer_args
+    else:
+        out_dir      = Path(args.out)
+        shard_suffix = f"_shard{args.shard_index}" if is_sharded else ""
+        out_files    = {la: out_dir / f"{layer_tag(la)}{shard_suffix}.npz" for la in layer_args}
+        needed       = [la for la in layer_args if not out_files[la].exists() or args.force]
+        already_done = [la for la in layer_args if la not in needed]
+        for la in already_done:
+            print(f"Output already exists, skipping: {out_files[la]}  (use --force to re-extract)")
+        if not needed:
+            return
 
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     print(f"Model:    {args.model}")
