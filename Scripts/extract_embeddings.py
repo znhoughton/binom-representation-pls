@@ -671,12 +671,16 @@ def main():
             pbar = tqdm(total=len(all_rows))
             while i < len(all_rows):
                 batch = all_rows[i:i + effective_bs]
+                _oom = False
                 try:
                     results = batch_fn(
                         model, tokenizer, batch, device,
                         layer_indices, args.extract, args.pool
                     )
                 except torch.cuda.OutOfMemoryError:
+                    _oom = True
+                # traceback released here — frame locals (GPU tensors) freed to cache
+                if _oom:
                     gc.collect()
                     torch.cuda.empty_cache()
                     if effective_bs <= 1:
