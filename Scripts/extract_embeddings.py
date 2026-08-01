@@ -95,7 +95,7 @@ def parse_args():
     p.add_argument("--pref-source", dest="pref_source", default=None,
                    help="Path to existing binomial .npz to copy preference+word pairs from "
                         "(isolated context only; auto-derived from default paths if omitted)")
-    p.add_argument("--out",      required=True,
+    p.add_argument("--out",      required=False, default=None,
                    help="Output directory; file saved as layer_{layer}.npz inside it")
     p.add_argument("--gpu",      type=int, default=0)
     p.add_argument("--force",    action="store_true",
@@ -108,7 +108,13 @@ def parse_args():
                    help="Number of pairs to process per forward pass (default: 1)")
     p.add_argument("--no-merge",   action="store_true", dest="no_merge",
                    help="Skip chunk merging (exit after flushing; merge separately)")
-    return p.parse_args()
+    p.add_argument("--calibrate",  action="store_true",
+                   help="Probe GPU memory and print SAFE_BATCH_SIZE=N, then exit. "
+                        "--batch-size is treated as the upper bound.")
+    args = p.parse_args()
+    if not args.calibrate and args.out is None:
+        p.error("--out is required unless --calibrate is set")
+    return args
 
 
 # ── Layer helpers ─────────────────────────────────────────────────────────────
@@ -563,6 +569,72 @@ def extract_isolated_batch(model, tokenizer, rows, device,
     return output
 
 
+# ── Batch-size calibration ────────────────────────────────────────────────────
+
+def probe_safe_batch_size(model, tokenizer, device, data: str, max_bs: int) -> int:
+    """
+    Run a small forward pass on real corpus pairs to estimate a safe extraction
+    batch_size.  Uses 50% of free VRAM as headroom for variable-length padding
+    spikes.  Returns min(estimate, max_bs).
+    """
+    csv_path = CSV_PATHS[data]
+    pairs_df = pd.read_csv(csv_path, nrows=8)
+
+    sents = []
+    for _, row in pairs_df.iterrows():
+        w1   = str(row["word1"]).lower().strip()
+        w2   = str(row["word2"]).lower().strip()
+        sent = str(row["example_sentence"]).strip()
+        span_a = find_span(sent, w1, w2)
+        span_b = find_span(sent, w2, w1)
+        if span_a is None and span_b is None:
+            continue
+        s = (span_a if span_a is not None else span_b)[0]
+        sents.append(sent[:s] + w1 + " and " + w2)
+        sents.append(sent[:s] + w2 + " and " + w1)
+
+    if not sents:
+        print("  Probe: no valid sentences found; using fallback", flush=True)
+        return min(512, max_bs)
+
+    # Warmup: one tiny forward pass to settle the CUDA allocator before measuring
+    warmup_enc = tokenizer(sents[:2], padding=True, return_tensors="pt")
+    warmup_dev = {k: v.to(device) for k, v in warmup_enc.items()}
+    with torch.no_grad():
+        _ = model(**warmup_dev, output_hidden_states=True, use_cache=False)
+    del _, warmup_dev
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    # Probe pass: measure peak activation memory for the sample batch
+    n_sents = len(sents)
+    torch.cuda.reset_peak_memory_stats(device)
+    baseline = torch.cuda.memory_allocated(device)
+
+    probe_enc = tokenizer(sents, padding=True, return_tensors="pt")
+    probe_dev = {k: v.to(device) for k, v in probe_enc.items()}
+    with torch.no_grad():
+        out = model(**probe_dev, output_hidden_states=True, use_cache=False)
+    peak = torch.cuda.max_memory_allocated(device)
+    del out, probe_dev
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    activation_mem = max(peak - baseline, 1)
+    per_sent = activation_mem / n_sents
+    # Each pair = 2 sentences in the forward pass
+    per_pair = per_sent * 2
+
+    free = torch.cuda.mem_get_info(device)[0]
+    # 50% safety factor: variable-length padding can double peak mem vs short probe sentences
+    safe_pairs = max(1, int(free * 0.5 / per_pair))
+    result = min(safe_pairs, max_bs)
+
+    print(f"  Probe ({n_sents} sents): activation={activation_mem/1e9:.2f} GB  "
+          f"free={free/1e9:.2f} GB  → safe_bs={result} (cap={max_bs})", flush=True)
+    return result
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -604,6 +676,11 @@ def main():
     model.half()  # force fp16 regardless of model config defaults
     model.eval()
     print(f"Model dtype: {next(model.parameters()).dtype}")
+
+    if args.calibrate:
+        safe_bs = probe_safe_batch_size(model, tokenizer, device, args.data, args.batch_size)
+        print(f"SAFE_BATCH_SIZE={safe_bs}", flush=True)
+        return
 
     layer_indices = [resolve_layer_idx(model, la) for la in needed]
     print(f"Layer indices: {layer_indices} / {model.config.num_hidden_layers}")

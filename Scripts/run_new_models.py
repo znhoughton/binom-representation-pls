@@ -120,6 +120,36 @@ def delete_dir(path, label=""):
         print("  Deleted.", flush=True)
 
 
+def calibrate_batch_size(model_id: str, max_bs: int, gpu: int) -> int:
+    """
+    Run extract_embeddings.py --calibrate as a subprocess to probe GPU memory
+    and determine a safe starting batch_size for this model.  The subprocess
+    exits after the probe, so its CUDA allocator state doesn't carry over into
+    the real extraction.
+    """
+    result = subprocess.run(
+        [PYTHON, SCRIPTS / "extract_embeddings.py",
+         "--model",      model_id,
+         "--data",       "corpus",
+         "--batch-size", str(max_bs),
+         "--gpu",        str(gpu),
+         "--calibrate"],
+        capture_output=True, text=True,
+    )
+    if result.stdout:
+        print(result.stdout, end="", flush=True)
+    if result.stderr:
+        print(result.stderr, end="", flush=True)
+    for line in result.stdout.splitlines():
+        if line.startswith("SAFE_BATCH_SIZE="):
+            bs = int(line.split("=")[1])
+            print(f"  → Calibrated batch_size={bs} for {model_id}", flush=True)
+            return bs
+    fallback = min(512, max_bs)
+    print(f"  WARNING: calibration failed for {model_id}; using fallback bs={fallback}", flush=True)
+    return fallback
+
+
 def _pred_compressed(slug: str) -> bool:
     r = BASE / "Results" / slug
     return (r / "by_layer_corpus_pred.csv.gz").exists() or \
@@ -173,6 +203,10 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
         return
     banner(f"MODEL: {model['id']}  (slug={slug})")
 
+    # ── 0. Calibrate batch_size (subprocess exits after probe — clean slate) ──
+    banner(f"CALIBRATE  {model['id']}")
+    effective_bs = calibrate_batch_size(model["id"], model["batch_size"], gpu)
+
     # ── 1. Extract sequentially (GPU-heavy; one condition at a time) ───────────
     for cond in CONDITIONS:
         if force or not mlp_complete(slug, cond["name"]):
@@ -186,7 +220,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                  "--embeddings-dir", str(emb_dir),
                  "--model-id",      model["id"],
                  "--slug",          slug,
-                 "--extract-batch-size", str(model["batch_size"])]
+                 "--extract-batch-size", str(effective_bs)]
                 + (["--force"] if force else []),
                 label=f"EXTRACT  {slug} / {cond['name']}",
                 abort_on_fail=False,
