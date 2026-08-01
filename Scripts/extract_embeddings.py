@@ -712,6 +712,8 @@ def main():
                         acc[li]["na_w2"].append(nw2)
                 i += len(batch)
                 pbar.update(len(batch))
+                gc.collect()
+                torch.cuda.empty_cache()
                 if len(preferences) >= flush_every:
                     _flush_chunks()
             pbar.close()
