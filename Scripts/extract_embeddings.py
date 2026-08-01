@@ -601,7 +601,9 @@ def main():
         model_kwargs["revision"] = f"step-{args.checkpoint}"
         print(f"Checkpoint: step-{args.checkpoint}")
     model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
+    model.half()  # force fp16 regardless of model config defaults
     model.eval()
+    print(f"Model dtype: {next(model.parameters()).dtype}")
 
     layer_indices = [resolve_layer_idx(model, la) for la in needed]
     print(f"Layer indices: {layer_indices} / {model.config.num_hidden_layers}")
