@@ -125,7 +125,49 @@ MODELS <- list(
        freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
        freq_data   = pile_freq,
        freq_col    = "pile",
-       pythia_label = "GPT-2-large")
+       pythia_label = "GPT-2-large"),
+
+  list(label = "GPT-2-XL",    group = "GPT-2 (WebText)",
+       final_layer = 48,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "GPT-2-XL"),
+
+  # ── Phase 3: OLMo (AI2, trained on Dolma) ────────────────────────────────
+  list(label = "OLMo-1B",     group = "OLMo (Dolma)",
+       final_layer = 16,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "OLMo-1B"),
+
+  list(label = "OLMo-7B",     group = "OLMo (Dolma)",
+       final_layer = 32,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "OLMo-7B"),
+
+  list(label = "OLMo-2-7B",   group = "OLMo (Dolma)",
+       final_layer = 32,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "OLMo-2-7B"),
+
+  # ── Phase 3: Llama 3 (Meta) ───────────────────────────────────────────────
+  list(label = "Llama-3-8B",  group = "Llama 3 (Meta)",
+       final_layer = 32,
+       corpus_pred = NULL,
+       freq_csv    = file.path(BASE, "Results", "corpus_freq_regression_pythia.csv"),
+       freq_data   = pile_freq,
+       freq_col    = "pile",
+       pythia_label = "Llama-3-8B")
 )
 
 # ── Helper: run corpus-freq regression for a BabyLM model if CSV missing ──
@@ -224,14 +266,18 @@ print(results |> select(label, group, def_b, az_b, delta, delta_se), n = Inf)
 # Fix label order: BabyLM first (ascending params), then Pythia (ascending)
 label_order <- c("OPT-125M", "OPT-350M", "OPT-1.3B",
                  "Pythia-160m", "Pythia-410m", "Pythia-1B", "Pythia-2.8B",
-                 "GPT-2", "GPT-2-medium", "GPT-2-large")
+                 "GPT-2", "GPT-2-medium", "GPT-2-large", "GPT-2-XL",
+                 "OLMo-1B", "OLMo-7B", "OLMo-2-7B",
+                 "Llama-3-8B")
 results <- results |>
   mutate(label = factor(label, levels = intersect(label_order, label)))
 
 group_colours <- c(
   "BabyLM (2B tok)"   = "#D55E00",
   "Pythia (300B tok)" = "#0072B2",
-  "GPT-2 (WebText)"   = "#009E73"
+  "GPT-2 (WebText)"   = "#009E73",
+  "OLMo (Dolma)"      = "#E69F00",
+  "Llama 3 (Meta)"    = "#CC79A7"
 )
 
 p <- ggplot(results, aes(x = label, y = delta, fill = group)) +
