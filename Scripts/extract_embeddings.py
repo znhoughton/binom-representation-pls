@@ -81,6 +81,10 @@ def parse_args():
     p.add_argument("--model",      required=True, help="HuggingFace model ID")
     p.add_argument("--checkpoint", type=int, default=None,
                    help="Training checkpoint step to load (e.g. 24 → revision='step-24').")
+    p.add_argument("--revision", default=None,
+                   help="Exact HF Hub revision string (overrides --checkpoint). "
+                        "Use for models whose tag format differs from 'step-N' "
+                        "(e.g. Pythia: 'step1000' has no hyphen).")
     p.add_argument("--data",     choices=["corpus", "novel"], required=True)
     p.add_argument("--layer",    default=None, nargs="+",
                    help="Layer(s) to extract: 'last', 'second_to_last', or integer index. "
@@ -670,7 +674,10 @@ def main():
 
     model_kwargs = dict(cache_dir=HF_CACHE_DIR, dtype=torch.float16,
                         device_map={"": device})
-    if args.checkpoint is not None:
+    if args.revision is not None:
+        model_kwargs["revision"] = args.revision
+        print(f"Revision: {args.revision}")
+    elif args.checkpoint is not None:
         model_kwargs["revision"] = f"step-{args.checkpoint}"
         print(f"Checkpoint: step-{args.checkpoint}")
     model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
