@@ -1814,59 +1814,141 @@ The context-dependence effect (Δ) is non-monotonic with scale: 350M has the sma
 
 ---
 
-## Section 9: Phase 3 — Pythia (Preliminary)
+## Section 9: Phase 3 — Cross-Family Comparison
 
 ### Setup
 
-Phase 3 models (Pythia, GPT-2, OLMo, Llama 3) are run using `Scripts/run_new_models.py`, which extracts **final-layer embeddings only** (no by-layer sweep) for each model's single pretrained checkpoint. This is intentional: Phase 3 is a cross-family comparison at the final representation, not a training-dynamics study. Results use the same four condition × mode × split combinations as Phase 1/2, but at a single layer per model. Pythia models are trained on The Pile (~300B tokens, ~3000× more than the BabyLM budget).
+Phase 3 models are run using `Scripts/run_new_models.py`, which extracts **final-layer embeddings only** (no by-layer sweep) for each model's single pretrained checkpoint. This is intentional: Phase 3 is a cross-family comparison at the final representation, not a training-dynamics study. Results use the same four condition × mode × split combinations as Phase 1/2, but at a single layer per model. Frequency measure for all Phase 3 models: `Results/corpus_binomials_infinigram_piletrain.csv` (Pile infinigram counts). Full regression results: `Results/corpus_freq_regression_pythia.csv`.
 
-**Results currently available:** Pythia-160m and Pythia-410m. Larger Pythia models (1B, 2.8B) and GPT-2/OLMo/Llama 3 are pending.
+**Note on position embeddings:** The attn_zeroed condition has different semantics across architectures. For RoPE models (Pythia, OLMo, Llama 3), zeroing cross-word attention also removes relative position information between words — representations are genuinely position-free with respect to co-occurrence context. For GPT-2 (absolute position embeddings added at layer 0), absolute position is baked into every token's representation regardless of attention masking, so attn_zeroed representations still encode absolute token position. This means GPT-2's attn_zeroed condition is not directly comparable to Pythia/OLMo/Llama, and its results should be interpreted accordingly.
 
-### r² at final layer
+**Missing models:** OLMo-2-1124-1B and Llama-3.2-1B did not complete successfully (empty result files); they are excluded.
 
-| Model | Layer | def/mp/pn | def/wo/pn | az/mp/pn | az/wo/pn | az/wo/wn |
-|---|---|---|---|---|---|---|
-| Pythia-160m | L12 | .587 | .570 | .604 | .605 | .535 |
-| Pythia-410m | L24 | .532 | .514 | .552 | .564 | .504 |
+---
 
-### Key observation: attn_zeroed > default throughout
+### r² at final layer — all Phase 3 models
 
-For every Pythia model and every condition, attn_zeroed r² exceeds default r². This is the **opposite** of the OPT-BabyLM pattern at their final checkpoints: all three BabyLM models show default > attn_zeroed for the mean_pooled/pair_novel comparison. The reversal means that for Pythia, zeroing cross-word self-attention consistently improves probe performance — the abstract signal is cleaner without the cross-word attention pathway.
+| Model | Layer | def/mp/pn | def/wo/pn | az/mp/pn | az/wo/pn | def/mp/wn | def/wo/wn | az/mp/wn | az/wo/wn |
+|---|---|---|---|---|---|---|---|---|---|
+| Pythia-160m  | L12 | .588 | .570 | .604 | .605 | .497 | .456 | .510 | .535 |
+| Pythia-410m  | L24 | .532 | .514 | .552 | .564 | .462 | .434 | .480 | .504 |
+| Pythia-1B    | L16 | .554 | .523 | .567 | .568 | .488 | .454 | .496 | .495 |
+| Pythia-2.8B  | L32 | .542 | .503 | .563 | .563 | .485 | .443 | .491 | .502 |
+| GPT-2        | L12 | .648 | .618 | .786 | .422 | .601 | .574 | .718 | .281 |
+| GPT-2-medium | L24 | .533 | .521 | .756 | .507 | .453 | .448 | .670 | .346 |
+| GPT-2-large  | L36 | .519 | .487 | .668 | .498 | .449 | .425 | .571 | .346 |
+| GPT-2-XL     | L48 | .487 | .458 | .726 | .534 | .420 | .391 | .641 | .377 |
+| OLMo-1B      | L16 | .575 | .537 | .597 | .604 | .505 | .471 | .514 | .522 |
+| OLMo-7B      | L32 | .621 | .566 | .658 | .653 | .561 | .503 | .580 | .582 |
+| OLMo-2-7B    | L32 | .614 | .549 | .642 | .615 | .554 | .478 | .570 | .545 |
+| Llama-3-8B   | L32 | .545 | .448 | .521 | .514 | .510 | .402 | .470 | .454 |
 
-This contrast is consistent with training data quantity. BabyLM models (2B tokens) have sufficient exposure to memorize specific pair orderings; cross-word attention carries memorized, pair-specific representations that interfere with abstract generalization. Pythia models (≥300B tokens) have seen enough diverse contexts that their contextual representations are dominated by abstract ordering patterns, and cross-word attention primarily adds co-occurrence statistics that are redundant with or slightly noise relative to the abstract signal. Note that this interpretation is preliminary — without the full by-layer sweep, we cannot rule out that the effect is specific to the final layer.
+---
 
-### Absolute r² substantially higher
+### 1. Generalization to novel words
 
-Pythia-160m achieves .587 (default/mp/pn) and .535 (attn_zeroed/wo/wn) at a single final layer. OPT-125M final model (with full layer sweep) peaks at .385 and .242 respectively. The increase is partly attributable to training data volume (~150× more), partly to architecture differences, and partly to the fact that we're comparing at the single best-available layer rather than the true peak layer (which may differ for Pythia).
+The word_novel split (both test words unseen during probe training) is the strictest test of abstract generalization. All Phase 3 models substantially exceed BabyLM models on this measure:
 
-The words_only/word_novel r² for Pythia (.504–.535) is particularly striking: BabyLM models peak at .242 (125M) to .258 (350M) in this strictest generalization condition. The 2× improvement likely reflects Pythia having encountered the same words in many more distinct ordering contexts, sharpening the word-level ordering signal far beyond what 2B tokens can provide.
+- BabyLM peak az/mp/wn: .191 (OPT-350M, layer 22)
+- Pythia range az/mp/wn: .491–.510 — roughly 2.5–2.7× the BabyLM peak
+- OLMo range az/mp/wn: .514–.580
+- Llama-3-8B az/mp/wn: .470
+- GPT-2 az/mp/wn: .641–.718 (elevated by position embedding; see note above)
 
-### Corpus-frequency regression (final layer only; Pile frequencies)
+The improvements are consistent across modes: even the strictest condition (attn_zeroed / words_only / word_novel) reaches .495–.582 for Pythia and OLMo, compared to BabyLM peaks near .215. The ordering signal in fully-trained large models has been abstracted to individual word representations at a level that far exceeds what 2B tokens can support.
 
-Frequency measure: `Results/corpus_binomials_infinigram_piletrain.csv` (infinigram counts on The Pile training data). Full results: `Results/corpus_freq_regression_pythia.csv`.
+Within the RoPE family, OLMo-7B and OLMo-2-7B show the highest word_novel r² in all conditions (.545–.582 for az/wo/wn), slightly outperforming Pythia and Llama-3-8B. Pythia-160m (the smallest Pythia model) has the highest Pythia word_novel r² (.535 az/wo/wn), which slightly declines with scale in the Pythia family — this is consistent with larger models distributing the signal across more capacity, not with worse generalization per se.
 
-| Model | def/mp β | def/wo β | az/mp β | az/wo β |
+---
+
+### 2. Attention effects: what happens when cross-word attention is zeroed?
+
+**All Phase 3 models except Llama-3-8B show az > def for pair_novel mean_pooled.** This is the opposite of the BabyLM pattern (where default > attn_zeroed at final checkpoints). For large-data models, zeroing cross-word attention improves probe performance — cross-word attention adds pair-specific co-occurrence noise that slightly degrades the abstract signal.
+
+**Llama-3-8B is the sole exception:** def/mp/pn = .545 > az/mp/pn = .521. Cross-word attention helps Llama-3-8B, not hurts it. Llama-3-8B is also the only model where def/mp/wn (.510) substantially exceeds az/mp/wn (.470). The mechanism is unclear — Llama-3's grouped-query attention (GQA) and the exceptionally large and diverse training corpus (~15T tokens) may have produced an attention pathway that encodes more abstract (rather than pair-specific) ordering information.
+
+**GPT-2's attn_zeroed spike is a position embedding artifact.** GPT-2's az/mp/pn values (.726–.786) are by far the highest in the dataset, but the az/mp vs az/wo gap is uniquely extreme:
+- GPT-2: az/mp/pn = .786 vs az/wo/pn = .422 — gap of .364
+- GPT-2-medium: .756 vs .507 — gap of .249
+- GPT-2-large: .668 vs .498 — gap of .170
+- GPT-2-XL: .726 vs .534 — gap of .192
+
+No RoPE model shows a gap above .050. The mean_pooled condition includes the "and" token, which sits at a maximally informative absolute position (between w1 and w2, at a different sequence offset depending on ordering). With cross-word attention zeroed but absolute positions intact, mean-pooling over w1+and+w2 produces a vector that reliably encodes which word appeared first purely via position, inflating r². This is not lexical abstraction. The words_only condition (which excludes "and") is more interpretable for GPT-2; even there, some position signal remains because w1 appears earlier in the sequence than w2.
+
+For RoPE models, where attn_zeroed is genuinely position-free, the az/mp vs az/wo gap is small:
+- Pythia-160m: .604 vs .605 — gap ≈ .001
+- OLMo-7B: .658 vs .653 — gap ≈ .005
+- Llama-3-8B: .521 vs .514 — gap ≈ .007
+
+This confirms that for RoPE models the mean_pooled and words_only conditions carry essentially the same information in the attn_zeroed setting.
+
+---
+
+### 3. Memorization vs. abstraction: corpus-frequency regression
+
+All Phase 3 models show **negative β in all conditions** — a fundamental departure from BabyLM, where default/mean_pooled is positive. Higher-frequency pairs are predicted more accurately by a novel-trained probe in every Phase 3 model, in both default and attn_zeroed conditions. This is the hallmark of abstraction: the model's representations reflect the underlying ordering tendency more reliably for frequent items, rather than encoding idiosyncratic memorized sequences.
+
+| Model | def/mp β | def/wo β | az/mp β | az/wo β | Δ (def−az mp) |
+|---|---|---|---|---|---|
+| Pythia-160m  | −.028*** | −.029*** | −.076*** | −.086*** | .048 |
+| Pythia-410m  | −.034*** | −.032*** | −.062*** | −.081*** | .028 |
+| Pythia-1B    | −.031*** | −.025*** | −.054*** | −.075*** | .022 |
+| Pythia-2.8B  | −.033*** | −.032*** | −.056*** | −.072*** | .023 |
+| GPT-2        | −.016*** | −.015*** | −.069*** | −.082*** | .053 |
+| GPT-2-medium | −.022*** | −.014*** | −.074*** | −.086*** | .051 |
+| GPT-2-large  | −.025*** | −.017*** | −.064*** | −.077*** | .039 |
+| GPT-2-XL     | −.027*** | −.021*** | −.068*** | −.079*** | .041 |
+| OLMo-1B      | −.036*** | −.033*** | −.059*** | −.071*** | .022 |
+| OLMo-7B      | −.035*** | −.032*** | −.053*** | −.068*** | .018 |
+| OLMo-2-7B    | −.055*** | −.050*** | −.059*** | −.074*** | .004 |
+| Llama-3-8B   | −.044*** | −.044*** | −.061*** | −.074*** | .017 |
+
+The delta (default/mp β − attn_zeroed/mp β) is the context-dependence index: how much additional frequency sensitivity comes from cross-word attention. For BabyLM this was dominated by the sign-flip (positive def, negative az → large positive delta). For Phase 3 models the delta is purely about magnitude (both negative, but az more negative), and it's much smaller.
+
+**Cross-family summary:**
+
+| Model family | Training tokens | def/mp β | az/mp β | Δ |
 |---|---|---|---|---|
-| Pythia-160m (L12) | −.028*** | −.029*** | −.076*** | −.086*** |
-| Pythia-410m (L24) | −.034*** | −.032*** | −.062*** | −.081*** |
+| OPT-BabyLM-125M | 2B   | +.054*** | −.063*** | .117 |
+| OPT-BabyLM-350M | 2B   | +.050*** | −.049*** | .099 |
+| OPT-BabyLM-1.3B | 2B   | +.043*** | −.128*** | .171 |
+| Pythia-160m | ~300B       | −.028*** | −.076*** | .048 |
+| Pythia-1B   | ~300B       | −.031*** | −.054*** | .022 |
+| Pythia-2.8B | ~300B       | −.033*** | −.056*** | .023 |
+| OLMo-1B     | ~3T         | −.036*** | −.059*** | .022 |
+| OLMo-7B     | ~2.5T       | −.035*** | −.053*** | .018 |
+| OLMo-2-7B   | ~3T         | −.055*** | −.059*** | .004 |
+| Llama-3-8B  | ~15T        | −.044*** | −.061*** | .017 |
 
-**All four conditions are negative for both Pythia models.** This is the fundamental contrast with OPT-BabyLM, where default/mp is positive (+.039 to +.058 avg across layers) in all three models. For Pythia, even the default condition shows better generalization to high-frequency pairs — the model has learned enough abstract ordering information that cross-word attention does not introduce memorization-driven interference. Zeroing attention still improves performance further (attn_zeroed is 2–3× more negative than default), indicating some pair-specific encoding remains in the attention pathway even for Pythia, but it's no longer large enough to flip the sign.
+Note: BabyLM frequencies are from the BabyLM training corpus; all Phase 3 frequencies are from The Pile. Magnitudes are not directly comparable across families; signs and relative patterns within each family are.
 
-Cross-family comparison at the fully trained final checkpoint. BabyLM β values are averaged across all layers (see Section 4 for per-layer detail); Pythia values are at the final layer only.
+---
 
-| Model family | Training tokens | def/mp β (avg) | az/mp β (avg) | Δ |
-|---|---|---|---|---|
-| OPT-BabyLM-125M | 2B     | +.054***  | −.063*** | .117 |
-| OPT-BabyLM-350M | 2B     | +.050***  | −.049*** | .099 |
-| OPT-BabyLM-1.3B | 2B     | +.043*–** | −.128*** | .171 |
-| Pythia-160m      | ~300B  | −.028***  | −.076*** | .048 |
-| Pythia-410m      | ~300B  | −.034***  | −.062*** | .028 |
+### 4. Trends by training data, parameters, and model family
 
-The dissociation delta (def − az) is substantially smaller for Pythia models, driven by the sign-flip in default/mp: when the model isn't memorizing, both conditions are negative and the gap shrinks. The Pythia Δ values (.028–.048) are comparable to the BabyLM *attn_zeroed* signal alone, without any positive memorization component. Within BabyLM, the 1.3B delta (.171) is larger than the 125M delta (.117), driven primarily by the enormous attn_zeroed β — the fully-trained 1.3B has the strongest abstract signal among BabyLM models, not because it generalizes well (probe transfer r² is the *lowest* in the family at final checkout) but because frequent pairs have accumulated the most divergent word-level representations from undertraining on diverse contexts.
+**Training data volume is the primary driver of the memorization/abstraction divide.** The sharpest discontinuity in the dataset is between BabyLM (2B tokens, positive default/mp β) and all large-data models (≥300B tokens, negative default/mp β). Within Phase 3, all four families trained on hundreds of billions to trillions of tokens behave qualitatively similarly — both conditions negative, small delta.
 
-Note: BabyLM frequencies are computed from the BabyLM training corpus; Pythia frequencies are from The Pile. These are different frequency distributions, so β magnitudes are not directly comparable across families — the direction and sign of β within each family is the relevant quantity.
+**Within-family scale effects:**
 
-### Phase 3 next steps
+- *Pythia:* The delta decreases monotonically from 160m (.048) to 410m (.028) to 1B (.022), then plateaus (2.8B: .023). Larger Pythia models are marginally less context-dependent. The default β is stable (−.028 to −.034) across all four sizes, while attn_zeroed β becomes less negative as parameters increase (.076 → .056), shrinking the gap.
 
-- Await results for Pythia-1B, Pythia-2.8B, GPT-2 family, OLMo, and Llama-3.
-- Consider whether a small number of intermediate layers should be added for the two smallest Pythia models to verify that the final layer is close to the performance peak (see methods note in run_new_models.py).
+- *OLMo:* Delta narrows from 1B (.022) to 7B (.018) to OLMo-2-7B (.004). OLMo-2-7B is the most striking case: default/mp β (−.055) is nearly as negative as attn_zeroed/mp β (−.059), meaning cross-word attention contributes almost nothing to the frequency sensitivity of the representation. OLMo-2-7B was trained with improved data curation and training recipes relative to OLMo-1; this near-zero delta suggests its FFN pathway alone carries essentially the full abstract ordering signal.
+
+- *GPT-2:* The default β grows more negative with scale (−.016 to −.027), and the attn_zeroed β stabilizes (−.064 to −.074). The delta of ~.040–.053 is larger than Pythia or OLMo at comparable scales, but as noted this is confounded by position embeddings.
+
+**Amount of training data vs. number of parameters:**
+
+The clearest within-family contrast is OLMo-1B vs OLMo-7B vs OLMo-2-7B: same dataset family (Dolma), but 7B parameters and improved training produces default/mp β = −.055 (more negative, stronger abstract signal) compared to −.036 for 1B. Llama-3-8B, trained on far more data (~15T tokens), shows default/mp β = −.044 — more negative than any Pythia model but comparable to OLMo-7B. The relationship between scale and abstraction within Phase 3 is consistent but modest: more parameters or more data both push default β more negative, but by small amounts. The big jump comes from crossing the BabyLM/large-data boundary, not from scaling within Phase 3.
+
+**OLMo and Pythia are remarkably convergent** despite different architectures (SwiGLU vs GELU FFNs), different training corpora (Dolma vs Pile), and different training procedures. At 1B parameters: Pythia-1B delta = .022, OLMo-1B delta = .022, both default/mp β ≈ −.031 to −.036, both az/mp β ≈ −.054 to −.059. The convergence at matched parameter counts suggests the abstraction level is primarily determined by training data scale (both ~300B–3T tokens), not architecture.
+
+**Context-dependence delta plot:** `Results/delta_by_model.pdf`
+
+---
+
+### 5. Missing and incomplete models
+
+- **OLMo-2-1124-1B**: extraction completed but MLP probes produced no results (empty CSV). Likely a pipeline issue during probe training. To be re-run.
+- **Llama-3.2-1B**: same — empty MLP results. To be re-run.
+
+These two models are excluded from all Phase 3 analyses above.

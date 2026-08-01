@@ -15,7 +15,14 @@ MODELS <- list(
   # GPT-2 family (OpenAI; trained on WebText — using Pile freqs as best available proxy)
   list(slug = "gpt2",                    label = "GPT-2"),
   list(slug = "gpt2-medium",             label = "GPT-2-medium"),
-  list(slug = "gpt2-large",              label = "GPT-2-large")
+  list(slug = "gpt2-large",              label = "GPT-2-large"),
+  list(slug = "gpt2-xl",                 label = "GPT-2-XL"),
+  # OLMo family (AI2; trained on Dolma — Pile freqs as best available proxy)
+  list(slug = "allenai_OLMo-1B-hf",         label = "OLMo-1B"),
+  list(slug = "allenai_OLMo-7B-hf",         label = "OLMo-7B"),
+  list(slug = "allenai_OLMo-2-1124-7B",     label = "OLMo-2-7B"),
+  # Llama 3 (Meta — Pile freqs as best available proxy)
+  list(slug = "meta-llama_Meta-Llama-3-8B", label = "Llama-3-8B")
 )
 
 # Pile corpus frequency (best available proxy for both Pythia and GPT-2)
