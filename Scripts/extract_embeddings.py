@@ -672,6 +672,7 @@ def main():
             while i < len(all_rows):
                 batch = all_rows[i:i + effective_bs]
                 _oom = False
+                _exc = None
                 try:
                     results = batch_fn(
                         model, tokenizer, batch, device,
@@ -679,7 +680,9 @@ def main():
                     )
                 except torch.cuda.OutOfMemoryError:
                     _oom = True
-                # traceback released here — frame locals (GPU tensors) freed to cache
+                except Exception as exc:
+                    _exc = exc
+                # Both except blocks have exited — traceback released, GPU tensors freed to cache
                 if _oom:
                     gc.collect()
                     torch.cuda.empty_cache()
@@ -690,10 +693,10 @@ def main():
                         )
                     effective_bs = effective_bs // 2
                     print(f"\n  OOM: retrying with batch_size={effective_bs}", flush=True)
-                    continue  # retry same position with smaller batch
-                except Exception as exc:
+                    continue
+                if _exc is not None:
                     skipped += len(batch)
-                    print(f"  WARNING batch {i}: {exc}", flush=True)
+                    print(f"  WARNING batch {i}: {_exc}", flush=True)
                     i += len(batch)
                     pbar.update(len(batch))
                     continue
