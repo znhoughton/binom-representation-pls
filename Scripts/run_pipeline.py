@@ -46,6 +46,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 PYTHON  = sys.executable
@@ -100,6 +101,32 @@ def _fmt_h(seconds: float) -> str:
     return f"{m}m"
 
 
+def check_hf_access(phases):
+    """Verify HuggingFace authentication before any phases run.
+
+    Phase 3 includes gated Llama models; exits if credentials are missing or
+    the gated repo is not accessible.
+    """
+    if 3 not in phases:
+        return
+    banner("HF ACCESS CHECK")
+    try:
+        from huggingface_hub import HfApi
+        api = HfApi()
+        user_info = api.whoami()
+        print(f"  Authenticated as: {user_info.get('name', '?')}", flush=True)
+        api.model_info("meta-llama/Llama-3.2-1B")
+        print("  Gated access: OK (meta-llama/Llama-3.2-1B accessible)", flush=True)
+    except ImportError:
+        print("  WARNING: huggingface_hub not installed — skipping HF access check.",
+              flush=True)
+    except Exception as e:
+        print(f"\n  ERROR: HuggingFace access check failed: {e}", flush=True)
+        print("  Llama models will fail. Set HF_TOKEN or run 'huggingface-cli login'.",
+              flush=True)
+        sys.exit(1)
+
+
 def run(cmd, label="", abort_on_fail=True):
     banner(label or " ".join(str(c) for c in cmd[:6]))
     t0 = time.perf_counter()
@@ -109,6 +136,7 @@ def run(cmd, label="", abort_on_fail=True):
     print(f"  {status} in {elapsed:.0f}s ({elapsed/60:.1f}m)", flush=True)
     if rc != 0 and abort_on_fail:
         sys.exit(rc)
+    return rc == 0
 
 
 def run_parallel(cmds_labels: list, abort_on_fail=True):
@@ -245,7 +273,7 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
 def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
     banner("PHASE 1: Training dynamics (OPT-BabyLM intermediate checkpoints)")
     flags = [m["flag"] for m in models]
-    run(
+    return run(
         [PYTHON, SCRIPTS / "run_babylm_checkpoints.py",
          "--models",       *flags,
          "--gpu",          str(gpu),
@@ -253,6 +281,7 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
         + (["--skip-controls"] if skip_controls else [])
         + (["--force"]         if force         else []),
         label="PHASE 1  run_babylm_checkpoints.py",
+        abort_on_fail=False,
     )
 
 
@@ -274,7 +303,7 @@ def run_phase3(model_groups, gpu: int, emb_dir: Path,
         cmd.append("--skip-controls")
     if force:
         cmd.append("--force")
-    run(cmd, label="PHASE 3  run_scale_models.py")
+    return run(cmd, label="PHASE 3  run_scale_models.py", abort_on_fail=False)
 
 
 # ── Phase 4: Pythia checkpoint sweep (BabyLM-aligned token counts) ─────────────
@@ -292,7 +321,7 @@ def run_phase4(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False
         cmd.append("--skip-controls")
     if force:
         cmd.append("--force")
-    run(cmd, label="PHASE 4  run_scale_models.py --checkpoints")
+    return run(cmd, label="PHASE 4  run_scale_models.py --checkpoints", abort_on_fail=False)
 
 
 # ── Phase 5: Pythia full by-layer (final checkpoint) ──────────────────────────
@@ -310,7 +339,7 @@ def run_phase5(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False
         cmd.append("--skip-controls")
     if force:
         cmd.append("--force")
-    run(cmd, label="PHASE 5  run_scale_models.py --by-layer")
+    return run(cmd, label="PHASE 5  run_scale_models.py --by-layer", abort_on_fail=False)
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -356,25 +385,42 @@ def main():
     print(f"  Skip controls: {args.skip_controls}", flush=True)
     print(flush=True)
 
+    check_hf_access(args.phases)
+
     t0 = time.perf_counter()
+    failed_phases: list[int] = []
 
     if 1 in args.phases:
-        run_phase1(opt_models, args.gpu, emb_dir, args.skip_controls, args.force)
+        if not run_phase1(opt_models, args.gpu, emb_dir, args.skip_controls, args.force):
+            failed_phases.append(1)
 
     if 2 in args.phases:
         run_phase2(opt_models, args.gpu, emb_dir, args.skip_controls, args.force)
 
     if 3 in args.phases:
-        run_phase3(args.models, args.gpu, emb_dir, args.skip_large, args.skip_controls, args.force)
+        if not run_phase3(args.models, args.gpu, emb_dir, args.skip_large, args.skip_controls, args.force):
+            failed_phases.append(3)
 
     if 4 in args.phases:
-        run_phase4(args.gpu, emb_dir, args.skip_controls, args.force)
+        if not run_phase4(args.gpu, emb_dir, args.skip_controls, args.force):
+            failed_phases.append(4)
 
     if 5 in args.phases:
-        run_phase5(args.gpu, emb_dir, args.skip_controls, args.force)
+        if not run_phase5(args.gpu, emb_dir, args.skip_controls, args.force):
+            failed_phases.append(5)
 
     elapsed = time.perf_counter() - t0
-    banner(f"REPLICATION COMPLETE  ({elapsed/3600:.1f}h total)")
+
+    if failed_phases:
+        log_path = BASE / "Results" / "pipeline_errors.log"
+        with open(log_path, "a") as f:
+            f.write(f"\n[{datetime.now().isoformat()}] run_pipeline.py — failed phases: {failed_phases}\n")
+            f.write(f"  See model-level details in the same file (written by run_scale_models.py)\n")
+        banner(f"PIPELINE FINISHED WITH ERRORS  phases={failed_phases}  "
+               f"({elapsed/3600:.1f}h) — see Results/pipeline_errors.log")
+        sys.exit(1)
+    else:
+        banner(f"REPLICATION COMPLETE  ({elapsed/3600:.1f}h total)")
 
 
 if __name__ == "__main__":
