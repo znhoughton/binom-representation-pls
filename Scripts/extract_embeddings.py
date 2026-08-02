@@ -582,7 +582,11 @@ def probe_safe_batch_size(model, tokenizer, device, data: str, max_bs: int) -> i
     spikes.  Returns min(estimate, max_bs).
     """
     csv_path = CSV_PATHS[data]
-    pairs_df = pd.read_csv(csv_path, nrows=8)
+    # Skip the first 200 rows to avoid any systematic bias in early pairs
+    # (early pairs tend to have binomials near sentence start → short probe
+    # sentences → underestimated per-sentence memory).  Use 64 pairs for a
+    # stable estimate across the length distribution.
+    pairs_df = pd.read_csv(csv_path, skiprows=range(1, 201), nrows=64)
 
     sents = []
     for _, row in pairs_df.iterrows():
