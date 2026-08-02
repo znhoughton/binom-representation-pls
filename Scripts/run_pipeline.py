@@ -104,26 +104,50 @@ def _fmt_h(seconds: float) -> str:
 def check_hf_access(phases):
     """Verify HuggingFace authentication before any phases run.
 
-    Phase 3 includes gated Llama models; exits if credentials are missing or
-    the gated repo is not accessible.
+    Phase 3 includes gated repos (Llama, OLMo-2); exits if credentials are
+    missing or any gated repo is inaccessible.
     """
     if 3 not in phases:
         return
     banner("HF ACCESS CHECK")
+
+    # Models in phase 3 that require accepting a gated license on HuggingFace
+    GATED_MODELS = [
+        "meta-llama/Llama-3.2-1B",
+        "meta-llama/Meta-Llama-3-8B",
+        "allenai/OLMo-2-1124-1B",
+        "allenai/OLMo-2-1124-7B",
+    ]
+
     try:
         from huggingface_hub import HfApi
         api = HfApi()
         user_info = api.whoami()
         print(f"  Authenticated as: {user_info.get('name', '?')}", flush=True)
-        api.model_info("meta-llama/Llama-3.2-1B")
-        print("  Gated access: OK (meta-llama/Llama-3.2-1B accessible)", flush=True)
+
+        failures = []
+        for repo in GATED_MODELS:
+            try:
+                api.model_info(repo)
+                print(f"  OK  {repo}", flush=True)
+            except Exception as e:
+                print(f"  FAIL  {repo}  ({e})", flush=True)
+                failures.append(repo)
+
+        if failures:
+            print(f"\n  {len(failures)} gated repo(s) not accessible:", flush=True)
+            for r in failures:
+                print(f"    {r}", flush=True)
+            print("  Accept the license on huggingface.co and set HF_TOKEN "
+                  "or run 'huggingface-cli login'.", flush=True)
+            sys.exit(1)
+
     except ImportError:
         print("  WARNING: huggingface_hub not installed — skipping HF access check.",
               flush=True)
     except Exception as e:
-        print(f"\n  ERROR: HuggingFace access check failed: {e}", flush=True)
-        print("  Llama models will fail. Set HF_TOKEN or run 'huggingface-cli login'.",
-              flush=True)
+        print(f"\n  ERROR: HuggingFace auth check failed: {e}", flush=True)
+        print("  Set HF_TOKEN or run 'huggingface-cli login'.", flush=True)
         sys.exit(1)
 
 
