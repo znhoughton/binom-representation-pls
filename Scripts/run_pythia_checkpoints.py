@@ -187,16 +187,17 @@ def step_complete(slug: str) -> bool:
     return _pred_compressed(slug)
 
 
-def calibrate_batch_size(model_id: str, max_bs: int, gpu: int) -> int:
-    result = subprocess.run(
-        [PYTHON, SCRIPTS / "extract_embeddings.py",
-         "--model",      model_id,
-         "--data",       "corpus",
-         "--batch-size", str(max_bs),
-         "--gpu",        str(gpu),
-         "--calibrate"],
-        capture_output=True, text=True,
-    )
+def calibrate_batch_size(model_id: str, max_bs: int, gpu: int,
+                         revision: str = None) -> int:
+    cmd = [PYTHON, SCRIPTS / "extract_embeddings.py",
+           "--model",      model_id,
+           "--data",       "corpus",
+           "--batch-size", str(max_bs),
+           "--gpu",        str(gpu),
+           "--calibrate"]
+    if revision is not None:
+        cmd += ["--revision", revision]
+    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.stdout:
         print(result.stdout, end="", flush=True)
     if result.stderr:
@@ -346,10 +347,6 @@ def main():
     done_all  = 0
 
     for model in model_list:
-        # Calibrate batch size once per model (uses the base model, not a checkpoint)
-        banner(f"CALIBRATE  EleutherAI/pythia-{model['flag']}")
-        effective_bs = calibrate_batch_size(model["id"], model["batch_size"], args.gpu)
-
         step_times: list = []
         t0_model = time.perf_counter()
 
@@ -360,6 +357,13 @@ def main():
 
             print(f"\n  Checkpoint {i+1}/{len(steps)}  "
                   f"(step={step}, ~{tokens(step)} tokens)", flush=True)
+
+            # Calibrate per checkpoint — early checkpoints may have different
+            # memory profiles than the final model.
+            banner(f"CALIBRATE  EleutherAI/pythia-{model['flag']}  {revision(step)}")
+            effective_bs = calibrate_batch_size(
+                model["id"], model["batch_size"], args.gpu, revision=revision(step))
+
             t0_ckpt = time.perf_counter()
             ran = run_step(model, step, effective_bs, args.gpu, emb_dir,
                            args.skip_controls, args.skip_corpus_freq, args.force,
