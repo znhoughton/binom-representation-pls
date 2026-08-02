@@ -21,7 +21,7 @@
 
 set -uo pipefail
 
-PYTHON="C:/Users/zacha/anaconda3/envs/PRenv/python.exe"
+PYTHON="${PYTHON:-python}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 MODELS=(160m 410m 1b 2.8b)
