@@ -17,13 +17,13 @@ Large models (OLMo-7B, Llama-3-8B) require an A100 or similar. Mark them with
 "large_gpu": True and pass --skip-large if running on a smaller machine.
 
 Usage:
-    python Scripts/run_new_models.py [--models pythia gpt2 olmo llama]
-                                     [--gpu 0]
-                                     [--embeddings-dir /path]
-                                     [--skip-large]
-                                     [--skip-controls]
-                                     [--checkpoints]   # Pythia checkpoint sweep
-                                     [--by-layer]      # full layer sweep (Pythia)
+    python Scripts/run_scale_models.py [--models pythia gpt2 olmo llama]
+                                      [--gpu 0]
+                                      [--embeddings-dir /path]
+                                      [--skip-large]
+                                      [--skip-controls]
+                                      [--checkpoints]   # Pythia checkpoint sweep
+                                      [--by-layer]      # full layer sweep (Pythia)
 
 Adding a model: append an entry to MODELS below. The slug is derived
 automatically from the HF model ID (slashes → underscores).
@@ -223,7 +223,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
     for cond in CONDITIONS:
         if force or not mlp_complete(slug, cond["name"]):
             extract_cmd = [
-                PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
+                PYTHON, SCRIPTS / "run_bylayer.py",
                 "--conditions",    cond["name"],
                 "--gpu",           str(gpu),
                 "--skip-mlp",
@@ -291,9 +291,9 @@ def run_by_layer(model: dict, gpu: int, emb_dir: Path,
 
     effective_bs = calibrate_batch_size(model["id"], model["batch_size"], gpu)
 
-    # Extraction + MLP for all layers via run_by_layer_pipeline.py
+    # Extraction + MLP for all layers via run_bylayer.py
     pipeline_cmd = [
-        PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
+        PYTHON, SCRIPTS / "run_bylayer.py",
         "--conditions", "default", "attn_zeroed",
         "--gpu",        str(gpu),
         "--embeddings-dir", str(emb_dir),
@@ -309,7 +309,7 @@ def run_by_layer(model: dict, gpu: int, emb_dir: Path,
         print(f"  By-layer pipeline failed for {slug}.", flush=True)
         return
 
-    # Controls: run separately (run_by_layer_pipeline.py doesn't include them)
+    # Controls: run separately (run_bylayer.py doesn't include them)
     if not skip_controls:
         force_flag = ["--force"] if force else []
         ctrl_cmd = [

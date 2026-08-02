@@ -1,4 +1,8 @@
 """
+DEPRECATED: superseded by run_scale_models.py --checkpoints (Phase 4 in run_pipeline.py).
+This script ran all layers at each checkpoint; the new pipeline runs final layer only,
+which is the design we settled on for the paper.
+
 Training-dynamics checkpoint pipeline for Pythia models.
 
 Checkpoints are selected by TOKEN COUNT rather than training fraction so that
