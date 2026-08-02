@@ -1,17 +1,17 @@
 """
-Final-layer analysis pipeline for additional model families.
+Analysis pipeline for additional model families (Pythia, GPT-2, OLMo, Llama 3).
 
-Runs only the last layer of each model's final checkpoint — no by-layer sweep,
-no training dynamics. Designed for Pythia, GPT-2, OLMo, and Llama 3.
+Three modes:
+  (default)       Final-layer probe at each model's final checkpoint.
+  --checkpoints   Final-layer probe at BabyLM-aligned Pythia checkpoint steps.
+  --by-layer      Full by-layer sweep at the final checkpoint (Pythia).
 
-For each model:
+For each model in default/checkpoint mode:
   1. Extract last-layer embeddings (novel + corpus, both conditions)
-     → saved to <embeddings_dir>/{condition}_dir/<slug>/layer_last.npz
   2. Run MLP CV probes (pair_novel + word_novel splits)
   3. Run novel→corpus transfer prediction (corpus-freq analysis)
-  4. Compress by_layer_corpus_pred.csv → .gz  (gitignored uncompressed)
-  5. Run control (shuffled-label) probes
-  6. Delete embeddings to free disk
+  4. Run control probes (final models only, not checkpoints)
+  5. Delete embeddings; compress by_layer_corpus_pred.csv → .xz
 
 Large models (OLMo-7B, Llama-3-8B) require an A100 or similar. Mark them with
 "large_gpu": True and pass --skip-large if running on a smaller machine.
@@ -19,9 +19,11 @@ Large models (OLMo-7B, Llama-3-8B) require an A100 or similar. Mark them with
 Usage:
     python Scripts/run_new_models.py [--models pythia gpt2 olmo llama]
                                      [--gpu 0]
-                                     [--embeddings-dir /dpluth-data]
+                                     [--embeddings-dir /path]
                                      [--skip-large]
                                      [--skip-controls]
+                                     [--checkpoints]   # Pythia checkpoint sweep
+                                     [--by-layer]      # full layer sweep (Pythia)
 
 Adding a model: append an entry to MODELS below. The slug is derived
 automatically from the HF model ID (slashes → underscores).
@@ -120,22 +122,23 @@ def delete_dir(path, label=""):
         print("  Deleted.", flush=True)
 
 
-def calibrate_batch_size(model_id: str, max_bs: int, gpu: int) -> int:
+def calibrate_batch_size(model_id: str, max_bs: int, gpu: int,
+                         revision: str = None) -> int:
     """
     Run extract_embeddings.py --calibrate as a subprocess to probe GPU memory
     and determine a safe starting batch_size for this model.  The subprocess
     exits after the probe, so its CUDA allocator state doesn't carry over into
     the real extraction.
     """
-    result = subprocess.run(
-        [PYTHON, SCRIPTS / "extract_embeddings.py",
-         "--model",      model_id,
-         "--data",       "corpus",
-         "--batch-size", str(max_bs),
-         "--gpu",        str(gpu),
-         "--calibrate"],
-        capture_output=True, text=True,
-    )
+    cmd = [PYTHON, SCRIPTS / "extract_embeddings.py",
+           "--model",      model_id,
+           "--data",       "corpus",
+           "--batch-size", str(max_bs),
+           "--gpu",        str(gpu),
+           "--calibrate"]
+    if revision is not None:
+        cmd += ["--revision", revision]
+    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.stdout:
         print(result.stdout, end="", flush=True)
     if result.stderr:
@@ -196,35 +199,48 @@ def model_complete(slug: str) -> bool:
 
 
 def run_model(model: dict, gpu: int, emb_dir: Path,
-              skip_controls: bool, force: bool = False):
-    slug = model_slug(model["id"])
+              skip_controls: bool, force: bool = False,
+              revision: str = None):
+    """Run final-layer extraction + probes for one model (or one checkpoint).
+
+    revision: HF Hub revision string (e.g. "step256" for Pythia). When given,
+              appended to the slug and passed to extraction with --revision.
+    """
+    base_slug = model_slug(model["id"])
+    slug = f"{base_slug}_{revision}" if revision else base_slug
+
     if not force and model_complete(slug):
-        banner(f"MODEL: {model['id']}  ALREADY COMPLETE — skipping")
+        banner(f"MODEL: {model['id']}  {revision or 'final'}  ALREADY COMPLETE — skipping")
         return
-    banner(f"MODEL: {model['id']}  (slug={slug})")
+    banner(f"MODEL: {model['id']}  {revision or 'final'}  (slug={slug})")
 
     # ── 0. Calibrate batch_size (subprocess exits after probe — clean slate) ──
-    banner(f"CALIBRATE  {model['id']}")
-    effective_bs = calibrate_batch_size(model["id"], model["batch_size"], gpu)
+    banner(f"CALIBRATE  {model['id']}  {revision or ''}")
+    effective_bs = calibrate_batch_size(model["id"], model["batch_size"], gpu,
+                                        revision=revision)
 
     # ── 1. Extract sequentially (GPU-heavy; one condition at a time) ───────────
     for cond in CONDITIONS:
         if force or not mlp_complete(slug, cond["name"]):
-            ok = run(
-                [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
-                 "--models",        "125m",    # flag ignored — overridden by --slug
-                 "--conditions",    cond["name"],
-                 "--gpu",           str(gpu),
-                 "--skip-mlp",
-                 "--layers",        "last",
-                 "--embeddings-dir", str(emb_dir),
-                 "--model-id",      model["id"],
-                 "--slug",          slug,
-                 "--extract-batch-size", str(effective_bs)]
-                + (["--force"] if force else []),
-                label=f"EXTRACT  {slug} / {cond['name']}",
-                abort_on_fail=False,
-            )
+            extract_cmd = [
+                PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
+                "--conditions",    cond["name"],
+                "--gpu",           str(gpu),
+                "--skip-mlp",
+                "--layers",        "last",
+                "--embeddings-dir", str(emb_dir),
+                "--model-id",      model["id"],
+                "--num-layers",    str(model["n_layers"]),
+                "--slug",          slug,
+                "--extract-batch-size", str(effective_bs),
+            ]
+            if revision is not None:
+                extract_cmd += ["--revision", revision]
+            if force:
+                extract_cmd.append("--force")
+            ok = run(extract_cmd,
+                     label=f"EXTRACT  {slug} / {cond['name']}",
+                     abort_on_fail=False)
             if not ok:
                 print(f"  Extraction failed for {slug} / {cond['name']} — skipping model.", flush=True)
                 return
@@ -267,6 +283,57 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
     compress_corpus_pred(slug)
 
 
+def run_by_layer(model: dict, gpu: int, emb_dir: Path,
+                 skip_controls: bool, force: bool = False):
+    """Run full by-layer extraction + MLP probes for a model's final checkpoint."""
+    slug = model_slug(model["id"])
+    banner(f"BY-LAYER: {model['id']}  (slug={slug})")
+
+    effective_bs = calibrate_batch_size(model["id"], model["batch_size"], gpu)
+
+    # Extraction + MLP for all layers via run_by_layer_pipeline.py
+    pipeline_cmd = [
+        PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
+        "--conditions", "default", "attn_zeroed",
+        "--gpu",        str(gpu),
+        "--embeddings-dir", str(emb_dir),
+        "--model-id",   model["id"],
+        "--num-layers", str(model["n_layers"]),
+        "--slug",       slug,
+        "--extract-batch-size", str(effective_bs),
+    ]
+    if force:
+        pipeline_cmd.append("--force")
+    ok = run(pipeline_cmd, label=f"BY-LAYER PIPELINE  {slug}", abort_on_fail=False)
+    if not ok:
+        print(f"  By-layer pipeline failed for {slug}.", flush=True)
+        return
+
+    # Controls: run separately (run_by_layer_pipeline.py doesn't include them)
+    if not skip_controls:
+        force_flag = ["--force"] if force else []
+        ctrl_cmd = [
+            PYTHON, SCRIPTS / "by_layer_mlp.py",
+            "--model-slug", slug,
+            "--num-layers", str(model["n_layers"]),
+            "--conditions", "default", "attn_zeroed",
+            "--modes",      "mean_pooled", "words_only",
+            "--gpu",        str(gpu),
+            "--embeddings-dir", str(emb_dir),
+            "--splits",    "pair_novel", "word_novel",
+            "--control",
+            *force_flag,
+        ]
+        run(ctrl_cmd, label=f"BY-LAYER CONTROLS  {slug}")
+
+    # Compress corpus predictions
+    compress_corpus_pred(slug)
+
+
+# BabyLM-aligned Pythia checkpoint steps (step1000 ≈ 2.10B tokens = BabyLM full training)
+PYTHIA_CHECKPOINT_STEPS = [16, 32, 64, 256, 512, 1000]
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--models", nargs="+", default=None,
@@ -279,7 +346,16 @@ def main():
     p.add_argument("--skip-controls", action="store_true", dest="skip_controls")
     p.add_argument("--force",         action="store_true",
                    help="Re-run all computations even if output already exists")
+    p.add_argument("--checkpoints",   action="store_true",
+                   help="Run final-layer probe at BabyLM-aligned checkpoint steps "
+                        "(Pythia only: step16/32/64/256/512/1000)")
+    p.add_argument("--by-layer",      action="store_true", dest="by_layer",
+                   help="Run full by-layer sweep at the final checkpoint "
+                        "(any group; most useful for Pythia)")
     args = p.parse_args()
+
+    if args.checkpoints and args.by_layer:
+        p.error("--checkpoints and --by-layer are mutually exclusive")
 
     emb_dir = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
 
@@ -289,13 +365,36 @@ def main():
         and not (args.skip_large and m["large_gpu"])
     ]
 
-    print(f"Running {len(model_list)} models:", flush=True)
-    for m in model_list:
-        print(f"  {m['id']}", flush=True)
-
     t0 = time.perf_counter()
-    for model in model_list:
-        run_model(model, args.gpu, emb_dir, args.skip_controls, args.force)
+
+    if args.checkpoints:
+        # Final-layer probe at each BabyLM-aligned Pythia step
+        pythia_list = [m for m in model_list if m["group"] == "pythia"]
+        if not pythia_list:
+            p.error("--checkpoints requires --models pythia (or default which includes pythia)")
+        print(f"Checkpoint sweep: {len(pythia_list)} Pythia models × "
+              f"{len(PYTHIA_CHECKPOINT_STEPS)} steps", flush=True)
+        for model in pythia_list:
+            for step in PYTHIA_CHECKPOINT_STEPS:
+                revision = f"step{step}"
+                run_model(model, args.gpu, emb_dir, args.skip_controls,
+                          args.force, revision=revision)
+
+    elif args.by_layer:
+        # Full by-layer sweep at the final checkpoint
+        print(f"By-layer sweep: {len(model_list)} models", flush=True)
+        for m in model_list:
+            print(f"  {m['id']}", flush=True)
+        for model in model_list:
+            run_by_layer(model, args.gpu, emb_dir, args.skip_controls, args.force)
+
+    else:
+        # Default: final-layer probe at the final checkpoint
+        print(f"Running {len(model_list)} models:", flush=True)
+        for m in model_list:
+            print(f"  {m['id']}", flush=True)
+        for model in model_list:
+            run_model(model, args.gpu, emb_dir, args.skip_controls, args.force)
 
     banner("NEW MODELS PIPELINE COMPLETE")
     print(f"  Total: {(time.perf_counter()-t0)/3600:.1f}h", flush=True)

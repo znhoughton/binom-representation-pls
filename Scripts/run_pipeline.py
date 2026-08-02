@@ -19,11 +19,23 @@ Phases:
        - Final layer only, final checkpoint
        - Delegates entirely to run_new_models.py
 
+  4  Pythia checkpoint sweep (BabyLM-aligned token counts)
+       - Final layer only at step16/32/64/256/512/1000 for each Pythia size
+       - Directly comparable to BabyLM Phase 1 in token count
+       - Delegates to run_new_models.py --checkpoints
+
+  5  Pythia full by-layer — final checkpoint (160M / 410M / 1B / 2.8B)
+       - All layers, both conditions (default + attn_zeroed)
+       - MLP CV, corpus-freq, controls
+       - Directly comparable to BabyLM Phase 2
+       - Delegates to run_new_models.py --by-layer
+
 Usage:
     python Scripts/run_pipeline.py --embeddings-dir /path/to/embeddings --gpu 0
     python Scripts/run_pipeline.py --phases 1 2 --embeddings-dir /path/to/embeddings
     python Scripts/run_pipeline.py --phases 3 --models pythia gpt2
     python Scripts/run_pipeline.py --phases 3 --skip-large  # skip 7B/8B models
+    python Scripts/run_pipeline.py --phases 4 5             # Pythia supplementary
     python Scripts/run_pipeline.py --force                  # re-run all phases
 """
 
@@ -265,6 +277,42 @@ def run_phase3(model_groups, gpu: int, emb_dir: Path,
     run(cmd, label="PHASE 3  run_new_models.py")
 
 
+# ── Phase 4: Pythia checkpoint sweep (BabyLM-aligned token counts) ─────────────
+
+def run_phase4(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
+    banner("PHASE 4: Pythia checkpoint sweep (BabyLM-aligned token counts)")
+    cmd = [
+        PYTHON, SCRIPTS / "run_new_models.py",
+        "--models",        "pythia",
+        "--checkpoints",
+        "--gpu",           str(gpu),
+        "--embeddings-dir", str(emb_dir),
+    ]
+    if skip_controls:
+        cmd.append("--skip-controls")
+    if force:
+        cmd.append("--force")
+    run(cmd, label="PHASE 4  run_new_models.py --checkpoints")
+
+
+# ── Phase 5: Pythia full by-layer (final checkpoint) ──────────────────────────
+
+def run_phase5(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
+    banner("PHASE 5: Pythia full by-layer (final checkpoint)")
+    cmd = [
+        PYTHON, SCRIPTS / "run_new_models.py",
+        "--models",        "pythia",
+        "--by-layer",
+        "--gpu",           str(gpu),
+        "--embeddings-dir", str(emb_dir),
+    ]
+    if skip_controls:
+        cmd.append("--skip-controls")
+    if force:
+        cmd.append("--force")
+    run(cmd, label="PHASE 5  run_new_models.py --by-layer")
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
@@ -273,8 +321,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--phases", nargs="+", type=int, default=[1, 2, 3],
-                   choices=[1, 2, 3],
-                   help="Which phases to run (default: 1 2 3)")
+                   choices=[1, 2, 3, 4, 5],
+                   help="Which phases to run (default: 1 2 3). "
+                        "Phases 4-5 are Pythia-only supplementary analyses.")
     p.add_argument("--gpu",            type=int, default=0)
     p.add_argument("--embeddings-dir", default=None, dest="embeddings_dir",
                    help="Root directory for embedding subdirs "
@@ -286,7 +335,8 @@ def main():
     # Phase 3 options
     p.add_argument("--models", nargs="+", default=None,
                    choices=["pythia", "gpt2", "olmo", "llama"],
-                   help="New-model groups to include in phase 3 (default: all)")
+                   help="New-model groups to include in phase 3 (default: all). "
+                        "Phases 4 and 5 always run Pythia only.")
     p.add_argument("--skip-large",    action="store_true", dest="skip_large",
                    help="Phase 3: skip models that need a large GPU (OLMo-7B, Llama-8B)")
     p.add_argument("--skip-controls", action="store_true", dest="skip_controls",
@@ -317,6 +367,11 @@ def main():
     if 3 in args.phases:
         run_phase3(args.models, args.gpu, emb_dir, args.skip_large, args.skip_controls, args.force)
 
+    if 4 in args.phases:
+        run_phase4(args.gpu, emb_dir, args.skip_controls, args.force)
+
+    if 5 in args.phases:
+        run_phase5(args.gpu, emb_dir, args.skip_controls, args.force)
 
     elapsed = time.perf_counter() - t0
     banner(f"REPLICATION COMPLETE  ({elapsed/3600:.1f}h total)")
