@@ -115,7 +115,7 @@ def check_hf_access(phases):
     GATED_MODELS = [
         "meta-llama/Llama-3.2-1B",
         "meta-llama/Meta-Llama-3-8B",
-        "allenai/OLMo-2-1124-1B",
+        "allenai/OLMo-2-0425-1B",
         "allenai/OLMo-2-1124-7B",
     ]
 
