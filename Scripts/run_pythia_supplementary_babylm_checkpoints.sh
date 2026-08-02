@@ -21,7 +21,6 @@
 
 set -uo pipefail
 
-PYTHON="${PYTHON:-python}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 MODELS=(160m 410m 1b 2.8b)
@@ -55,7 +54,7 @@ echo "  Tokens :  33.6M  67.1M  134M   537M    1.07B   2.10B"
 echo "======================================================================"
 echo ""
 
-"$PYTHON" "$SCRIPT_DIR/run_pythia_checkpoints.py" \
+python "$SCRIPT_DIR/run_pythia_checkpoints.py" \
   --models "${MODELS[@]}" \
   --range babylm \
   --gpu "$GPU" \
