@@ -35,7 +35,7 @@ Usage:
     python Scripts/run_pipeline.py --phases 1 2 --embeddings-dir /path/to/embeddings
     python Scripts/run_pipeline.py --phases 3 --models pythia gpt2
     python Scripts/run_pipeline.py --phases 3 --skip-large  # skip 7B/8B models
-    python Scripts/run_pipeline.py --phases 4 5             # Pythia supplementary
+    python Scripts/run_pipeline.py --phases 4 5             # Pythia supplementary only
     python Scripts/run_pipeline.py --force                  # re-run all phases
 """
 
@@ -320,9 +320,9 @@ def main():
         description="Grand unified replication pipeline.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--phases", nargs="+", type=int, default=[1, 2, 3],
+    p.add_argument("--phases", nargs="+", type=int, default=[1, 2, 3, 4, 5],
                    choices=[1, 2, 3, 4, 5],
-                   help="Which phases to run (default: 1 2 3). "
+                   help="Which phases to run (default: all). "
                         "Phases 4-5 are Pythia-only supplementary analyses.")
     p.add_argument("--gpu",            type=int, default=0)
     p.add_argument("--embeddings-dir", default=None, dest="embeddings_dir",
