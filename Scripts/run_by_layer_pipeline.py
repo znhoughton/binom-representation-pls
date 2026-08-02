@@ -218,7 +218,13 @@ def main():
                         "Default: all layers 0..num_layers.")
     # Checkpoint overrides — used by run_checkpoint_pipeline.py
     p.add_argument("--model-id",   default=None, dest="model_id",
-                   help="Override model HF Hub ID for the selected model")
+                   help="Override model HF Hub ID. When provided together with --slug "
+                        "and --num-layers, bypasses the MODELS registry entirely so "
+                        "arbitrary models (e.g. Pythia) can be run without adding them "
+                        "to the registry.")
+    p.add_argument("--num-layers", type=int, default=None, dest="num_layers",
+                   help="Number of hidden layers (required when --model-id is used with "
+                        "a model not in the MODELS registry)")
     p.add_argument("--checkpoint", type=int, default=None,
                    help="Checkpoint step to load (passed to extract_embeddings.py --checkpoint)")
     p.add_argument("--revision", default=None,
@@ -236,26 +242,44 @@ def main():
 
     total_t0 = time.perf_counter()
 
+    # When --model-id + --num-layers are both provided, bypass the MODELS registry
+    # and build a single synthetic entry. This lets arbitrary models (e.g. Pythia
+    # checkpoints) run without being added to the BabyLM-specific registry.
+    if args.model_id and args.num_layers is not None:
+        _override_models = [{
+            "flag":        (args.models[0] if args.models else "custom"),
+            "id":          args.model_id,
+            "slug":        args.slug or args.model_id.replace("/", "_"),
+            "num_layers":  args.num_layers,
+            "batch_size":  args.extract_batch_size or 8192,
+            "shard_pairs": 500000,
+        }]
+    else:
+        _override_models = None  # use MODELS registry below
+
     # Step 1: Extraction
     extraction_failed = set()  # (model_slug, cond_name) pairs that failed
     if not args.skip_extraction:
         run_label("STEP 1: Extract embeddings at all layers")
-        _active_models = [m for m in MODELS
-                          if not (args.models and not any(f in m["flag"] for f in args.models))]
+        registry = _override_models if _override_models is not None else MODELS
+        _active_models = [m for m in registry
+                          if not (_override_models is None and args.models
+                                  and not any(f in m["flag"] for f in args.models))]
         _active_conds  = [c for c in CONDITIONS
                           if not (args.conditions and c["name"] not in args.conditions)]
         _n_extract = len(_active_models) * len(_active_conds) * 2  # corpus + novel
         _extract_done = 0
-        for model in MODELS:
-            if args.models and not any(m in model["flag"] for m in args.models):
+        for model in registry:
+            if _override_models is None and args.models and not any(m in model["flag"] for m in args.models):
                 continue
             model = dict(model)  # shallow copy before overriding
-            if args.model_id:
-                model["id"] = args.model_id
-            if args.slug:
-                model["slug"] = args.slug
-            if args.extract_batch_size:
-                model["batch_size"] = args.extract_batch_size
+            if _override_models is None:
+                if args.model_id:
+                    model["id"] = args.model_id
+                if args.slug:
+                    model["slug"] = args.slug
+                if args.extract_batch_size:
+                    model["batch_size"] = args.extract_batch_size
             for cond in CONDITIONS:
                 if args.conditions and cond["name"] not in args.conditions:
                     continue
@@ -277,14 +301,16 @@ def main():
     # Step 2: MLP analysis
     if not args.skip_mlp:
         run_label("STEP 2: MLP analysis")
-        for model in MODELS:
-            if args.models and not any(m in model["flag"] for m in args.models):
+        registry = _override_models if _override_models is not None else MODELS
+        for model in registry:
+            if _override_models is None and args.models and not any(m in model["flag"] for m in args.models):
                 continue
             model = dict(model)
-            if args.model_id:
-                model["id"] = args.model_id
-            if args.slug:
-                model["slug"] = args.slug
+            if _override_models is None:
+                if args.model_id:
+                    model["id"] = args.model_id
+                if args.slug:
+                    model["slug"] = args.slug
             if model["slug"] in extraction_failed:
                 print(f"  Skipping MLP for {model['slug']} — extraction failed above.", flush=True)
                 continue

@@ -227,12 +227,12 @@ def run_step(model: dict, step: int, effective_bs: int, gpu: int, emb_dir: Path,
     for cond in CONDITIONS:
         ok = run(
             [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
-             "--models",         model["flag"],
              "--conditions",     cond["name"],
              "--gpu",            str(gpu),
              "--skip-mlp",
              "--embeddings-dir", str(emb_dir),
              "--model-id",       model["id"],
+             "--num-layers",     str(model["n_layers"]),
              "--revision",       rev,
              "--slug",           slug,
              "--extract-batch-size", str(effective_bs)]
