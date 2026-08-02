@@ -20,6 +20,7 @@
 #   bash Scripts/run_pythia_supplementary_babylm_checkpoints.sh --skip-controls
 
 set -uo pipefail
+# shellcheck shell=bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
