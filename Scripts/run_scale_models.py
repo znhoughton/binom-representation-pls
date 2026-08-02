@@ -36,6 +36,7 @@ import shutil
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 PYTHON  = sys.executable
@@ -243,7 +244,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                      abort_on_fail=False)
             if not ok:
                 print(f"  Extraction failed for {slug} / {cond['name']} — skipping model.", flush=True)
-                return
+                return f"extract/{cond['name']}"
         else:
             banner(f"EXTRACT  {slug} / {cond['name']}  (skipped — MLP already complete)")
 
@@ -262,17 +263,20 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                 *force_flag, *extra_flags]
 
     # ── 2. MLP CV — both conditions in one process ───────────────────────────
-    run(mlp_cmd("--splits", "pair_novel", "word_novel"),
-        label=f"MLP CV  {slug}")
+    if not run(mlp_cmd("--splits", "pair_novel", "word_novel"),
+               label=f"MLP CV  {slug}", abort_on_fail=False):
+        return "mlp_cv"
 
     # ── 3. Corpus-freq — both conditions in one process ──────────────────────
-    run(mlp_cmd("--corpus-freq"),
-        label=f"CORPUS-FREQ  {slug}")
+    if not run(mlp_cmd("--corpus-freq"),
+               label=f"CORPUS-FREQ  {slug}", abort_on_fail=False):
+        return "corpus_freq"
 
     # ── 4. Controls — both conditions in one process ─────────────────────────
     if not skip_controls:
-        run(mlp_cmd("--splits", "pair_novel", "word_novel", "--control"),
-            label=f"CONTROLS  {slug}")
+        if not run(mlp_cmd("--splits", "pair_novel", "word_novel", "--control"),
+                   label=f"CONTROLS  {slug}", abort_on_fail=False):
+            print("  Controls failed — continuing without control data.", flush=True)
 
     # ── 5. Delete embeddings ─────────────────────────────────────────────────
     for cond in CONDITIONS:
@@ -281,6 +285,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
 
     # ── 6. Compress corpus predictions ───────────────────────────────────────
     compress_corpus_pred(slug)
+    return None  # success
 
 
 def run_by_layer(model: dict, gpu: int, emb_dir: Path,
@@ -304,10 +309,9 @@ def run_by_layer(model: dict, gpu: int, emb_dir: Path,
     ]
     if force:
         pipeline_cmd.append("--force")
-    ok = run(pipeline_cmd, label=f"BY-LAYER PIPELINE  {slug}", abort_on_fail=False)
-    if not ok:
+    if not run(pipeline_cmd, label=f"BY-LAYER PIPELINE  {slug}", abort_on_fail=False):
         print(f"  By-layer pipeline failed for {slug}.", flush=True)
-        return
+        return "by_layer_pipeline"
 
     # Controls: run separately (run_bylayer.py doesn't include them)
     if not skip_controls:
@@ -324,10 +328,12 @@ def run_by_layer(model: dict, gpu: int, emb_dir: Path,
             "--control",
             *force_flag,
         ]
-        run(ctrl_cmd, label=f"BY-LAYER CONTROLS  {slug}")
+        if not run(ctrl_cmd, label=f"BY-LAYER CONTROLS  {slug}", abort_on_fail=False):
+            print("  Controls failed — continuing without control data.", flush=True)
 
     # Compress corpus predictions
     compress_corpus_pred(slug)
+    return None  # success
 
 
 # BabyLM-aligned Pythia checkpoint steps (step1000 ≈ 2.10B tokens = BabyLM full training)
@@ -366,6 +372,13 @@ def main():
     ]
 
     t0 = time.perf_counter()
+    failures: list[dict] = []
+
+    def record(model_id, step, revision=None):
+        failures.append({"model": model_id, "step": step,
+                         "revision": revision or "final"})
+        print(f"  !! FAILED: {model_id}  revision={revision or 'final'}  step={step}",
+              flush=True)
 
     if args.checkpoints:
         # Final-layer probe at each BabyLM-aligned Pythia step
@@ -377,8 +390,10 @@ def main():
         for model in pythia_list:
             for step in PYTHIA_CHECKPOINT_STEPS:
                 revision = f"step{step}"
-                run_model(model, args.gpu, emb_dir, args.skip_controls,
-                          args.force, revision=revision)
+                err = run_model(model, args.gpu, emb_dir, args.skip_controls,
+                                args.force, revision=revision)
+                if err:
+                    record(model["id"], err, revision)
 
     elif args.by_layer:
         # Full by-layer sweep at the final checkpoint
@@ -386,7 +401,9 @@ def main():
         for m in model_list:
             print(f"  {m['id']}", flush=True)
         for model in model_list:
-            run_by_layer(model, args.gpu, emb_dir, args.skip_controls, args.force)
+            err = run_by_layer(model, args.gpu, emb_dir, args.skip_controls, args.force)
+            if err:
+                record(model["id"], err)
 
     else:
         # Default: final-layer probe at the final checkpoint
@@ -394,9 +411,20 @@ def main():
         for m in model_list:
             print(f"  {m['id']}", flush=True)
         for model in model_list:
-            run_model(model, args.gpu, emb_dir, args.skip_controls, args.force)
+            err = run_model(model, args.gpu, emb_dir, args.skip_controls, args.force)
+            if err:
+                record(model["id"], err)
 
-    banner("NEW MODELS PIPELINE COMPLETE")
+    if failures:
+        log_path = BASE / "Results" / "pipeline_errors.log"
+        with open(log_path, "a") as f:
+            f.write(f"\n[{datetime.now().isoformat()}] run_scale_models.py\n")
+            for fail in failures:
+                f.write(f"  {fail['model']}  revision={fail['revision']}  step={fail['step']}\n")
+        banner(f"COMPLETED WITH {len(failures)} FAILURE(S) — see Results/pipeline_errors.log")
+        sys.exit(1)
+
+    banner("SCALE MODELS PIPELINE COMPLETE")
     print(f"  Total: {(time.perf_counter()-t0)/3600:.1f}h", flush=True)
 
 
