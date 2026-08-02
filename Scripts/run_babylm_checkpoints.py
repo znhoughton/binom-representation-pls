@@ -12,7 +12,7 @@ Log-spaced steps are chosen as a fixed fraction of each model's total training,
 rounded to the nearest available tag.
 
 Usage:
-    python Scripts/run_checkpoint_pipeline.py [--models 125m 350m 1.3b]
+    python Scripts/run_babylm_checkpoints.py [--models 125m 350m 1.3b]
                                               [--gpu 0]
                                               [--skip-controls]
                                               [--skip-corpus-freq]
@@ -187,7 +187,7 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
     # ── Extract (one condition at a time — GPU-heavy) ──────────────────────────
     for cond in CONDITIONS:
         run(
-            [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
+            [PYTHON, SCRIPTS / "run_bylayer.py",
              "--models",    model["flag"],
              "--conditions", cond["name"],
              "--gpu",       str(gpu),

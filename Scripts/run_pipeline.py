@@ -7,7 +7,7 @@ whose output already exists. R scripts are run separately afterward.
 Phases:
   1  Training dynamics (OPT-BabyLM, log-spaced checkpoints)
        - All layers, both conditions, 6 log-spaced intermediate checkpoints per model size
-       - Delegates entirely to run_checkpoint_pipeline.py
+       - Delegates entirely to run_babylm_checkpoints.py
 
   2  OPT-BabyLM full by-layer — final checkpoint (125M / 350M / 1.3B)
        - All layers, both conditions (default + attn_zeroed)
@@ -17,18 +17,18 @@ Phases:
 
   3  New model families (Pythia / GPT-2 / OLMo / Llama)
        - Final layer only, final checkpoint
-       - Delegates entirely to run_new_models.py
+       - Delegates entirely to run_scale_models.py
 
   4  Pythia checkpoint sweep (BabyLM-aligned token counts)
        - Final layer only at step16/32/64/256/512/1000 for each Pythia size
        - Directly comparable to BabyLM Phase 1 in token count
-       - Delegates to run_new_models.py --checkpoints
+       - Delegates to run_scale_models.py --checkpoints
 
   5  Pythia full by-layer — final checkpoint (160M / 410M / 1B / 2.8B)
        - All layers, both conditions (default + attn_zeroed)
        - MLP CV, corpus-freq, controls
        - Directly comparable to BabyLM Phase 2
-       - Delegates to run_new_models.py --by-layer
+       - Delegates to run_scale_models.py --by-layer
 
 Usage:
     python Scripts/run_pipeline.py --embeddings-dir /path/to/embeddings --gpu 0
@@ -184,7 +184,7 @@ def run_phase2(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
 
         # ── Extract all layers + MLP CV ────────────────────────────────────
         run(
-            [PYTHON, SCRIPTS / "run_by_layer_pipeline.py",
+            [PYTHON, SCRIPTS / "run_bylayer.py",
              "--models",    model["flag"],
              "--gpu",       str(gpu),
              "--embeddings-dir", str(emb_dir),
@@ -246,13 +246,13 @@ def run_phase1(models, gpu: int, emb_dir: Path, skip_controls: bool, force: bool
     banner("PHASE 1: Training dynamics (OPT-BabyLM intermediate checkpoints)")
     flags = [m["flag"] for m in models]
     run(
-        [PYTHON, SCRIPTS / "run_checkpoint_pipeline.py",
+        [PYTHON, SCRIPTS / "run_babylm_checkpoints.py",
          "--models",       *flags,
          "--gpu",          str(gpu),
          "--embeddings-dir", str(emb_dir)]
         + (["--skip-controls"] if skip_controls else [])
         + (["--force"]         if force         else []),
-        label="PHASE 1  run_checkpoint_pipeline.py",
+        label="PHASE 1  run_babylm_checkpoints.py",
     )
 
 
@@ -262,7 +262,7 @@ def run_phase3(model_groups, gpu: int, emb_dir: Path,
                skip_large: bool, skip_controls: bool, force: bool = False):
     banner("PHASE 3: New model families (Pythia / GPT-2 / OLMo / Llama)")
     cmd = [
-        PYTHON, SCRIPTS / "run_new_models.py",
+        PYTHON, SCRIPTS / "run_scale_models.py",
         "--gpu",           str(gpu),
         "--embeddings-dir", str(emb_dir),
     ]
@@ -274,7 +274,7 @@ def run_phase3(model_groups, gpu: int, emb_dir: Path,
         cmd.append("--skip-controls")
     if force:
         cmd.append("--force")
-    run(cmd, label="PHASE 3  run_new_models.py")
+    run(cmd, label="PHASE 3  run_scale_models.py")
 
 
 # ── Phase 4: Pythia checkpoint sweep (BabyLM-aligned token counts) ─────────────
@@ -282,7 +282,7 @@ def run_phase3(model_groups, gpu: int, emb_dir: Path,
 def run_phase4(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
     banner("PHASE 4: Pythia checkpoint sweep (BabyLM-aligned token counts)")
     cmd = [
-        PYTHON, SCRIPTS / "run_new_models.py",
+        PYTHON, SCRIPTS / "run_scale_models.py",
         "--models",        "pythia",
         "--checkpoints",
         "--gpu",           str(gpu),
@@ -292,7 +292,7 @@ def run_phase4(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False
         cmd.append("--skip-controls")
     if force:
         cmd.append("--force")
-    run(cmd, label="PHASE 4  run_new_models.py --checkpoints")
+    run(cmd, label="PHASE 4  run_scale_models.py --checkpoints")
 
 
 # ── Phase 5: Pythia full by-layer (final checkpoint) ──────────────────────────
@@ -300,7 +300,7 @@ def run_phase4(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False
 def run_phase5(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False):
     banner("PHASE 5: Pythia full by-layer (final checkpoint)")
     cmd = [
-        PYTHON, SCRIPTS / "run_new_models.py",
+        PYTHON, SCRIPTS / "run_scale_models.py",
         "--models",        "pythia",
         "--by-layer",
         "--gpu",           str(gpu),
@@ -310,7 +310,7 @@ def run_phase5(gpu: int, emb_dir: Path, skip_controls: bool, force: bool = False
         cmd.append("--skip-controls")
     if force:
         cmd.append("--force")
-    run(cmd, label="PHASE 5  run_new_models.py --by-layer")
+    run(cmd, label="PHASE 5  run_scale_models.py --by-layer")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────

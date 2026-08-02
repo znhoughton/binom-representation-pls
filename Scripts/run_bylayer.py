@@ -3,8 +3,8 @@ Master pipeline: extraction → MLP analysis for the by-layer study.
 Uses subprocess sharding to prevent memory accumulation.
 
 Usage:
-    python Scripts/run_by_layer_pipeline.py
-    python Scripts/run_by_layer_pipeline.py --models 125m
+    python Scripts/run_bylayer.py
+    python Scripts/run_bylayer.py --models 125m
 """
 import argparse
 import gc
@@ -216,7 +216,7 @@ def main():
     p.add_argument("--layers", nargs="+", default=None,
                    help="Layers to extract (e.g. 'last' for final-layer-only). "
                         "Default: all layers 0..num_layers.")
-    # Checkpoint overrides — used by run_checkpoint_pipeline.py
+    # Checkpoint overrides — used by run_babylm_checkpoints.py
     p.add_argument("--model-id",   default=None, dest="model_id",
                    help="Override model HF Hub ID. When provided together with --slug "
                         "and --num-layers, bypasses the MODELS registry entirely so "
