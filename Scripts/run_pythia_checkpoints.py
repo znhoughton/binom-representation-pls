@@ -72,28 +72,28 @@ MODELS = [
         "id":        "EleutherAI/pythia-160m",
         "n_layers":  12,
         "mlp_batch": 262144,
-        "batch_size": 8192,   # upper bound for calibration
+        "batch_size": 1024,
     },
     {
         "flag":      "410m",
         "id":        "EleutherAI/pythia-410m",
         "n_layers":  24,
         "mlp_batch": 262144,
-        "batch_size": 8192,
+        "batch_size": 512,
     },
     {
         "flag":      "1b",
         "id":        "EleutherAI/pythia-1b",
         "n_layers":  16,
         "mlp_batch": 262144,
-        "batch_size": 8192,
+        "batch_size": 512,
     },
     {
         "flag":      "2.8b",
         "id":        "EleutherAI/pythia-2.8b",
         "n_layers":  32,
         "mlp_batch": 131072,
-        "batch_size": 6144,
+        "batch_size": 256,
     },
 ]
 
@@ -358,11 +358,7 @@ def main():
             print(f"\n  Checkpoint {i+1}/{len(steps)}  "
                   f"(step={step}, ~{tokens(step)} tokens)", flush=True)
 
-            # Calibrate per checkpoint — early checkpoints may have different
-            # memory profiles than the final model.
-            banner(f"CALIBRATE  EleutherAI/pythia-{model['flag']}  {revision(step)}")
-            effective_bs = calibrate_batch_size(
-                model["id"], model["batch_size"], args.gpu, revision=revision(step))
+            effective_bs = model["batch_size"]
 
             t0_ckpt = time.perf_counter()
             ran = run_step(model, step, effective_bs, args.gpu, emb_dir,
