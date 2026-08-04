@@ -1074,3 +1074,315 @@
 [10:14:35] [PID:705508] skip: Pythia-1B|512|attn_zeroed|words_only
 [10:14:35] [PID:705508] skip: Pythia-1B|1000|attn_zeroed|words_only
 [10:14:35] [PID:705175] Done. All models saved to: Data/brms_models
+[17:44:02] [PID:710905] Compiling Stan templates...
+[17:45:12] [PID:710905] Templates compiled.
+[17:45:12] [PID:710905] Total jobs: 236; running 4 in parallel (4 chains each)
+[17:45:12] [PID:711226] skip: BabyLM-125M|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: BabyLM-350M|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: BabyLM-1.3B|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-160M|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-410M|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-1B|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-2.8B|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-125M|final|default|words_only
+[17:45:12] [PID:711226] skip: GPT-2|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: GPT-2-M|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-350M|final|default|words_only
+[17:45:12] [PID:711226] skip: GPT-2-L|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-1.3B|final|default|words_only
+[17:45:12] [PID:711226] skip: GPT-2-XL|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-160M|final|default|words_only
+[17:45:12] [PID:711226] skip: OLMo-1B|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-410M|final|default|words_only
+[17:45:12] [PID:711226] skip: OLMo-7B|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-1B|final|default|words_only
+[17:45:12] [PID:711226] skip: OLMo-2-1B|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-2.8B|final|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-125M|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: OLMo-2-7B|final|default|mean_pooled
+[17:45:12] [PID:711226] skip: Llama-1.3B|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: GPT-2|final|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-350M|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: Llama-3-8B|final|default|mean_pooled
+[17:45:12] [PID:711227] skip: GPT-2-M|final|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-1.3B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: BabyLM-125M|24|default|mean_pooled
+[17:45:12] [PID:711227] skip: GPT-2-L|final|default|words_only
+[17:45:12] [PID:711228] skip: Pythia-160M|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: BabyLM-125M|48|default|mean_pooled
+[17:45:12] [PID:711227] skip: GPT-2-XL|final|default|words_only
+[17:45:12] [PID:711228] skip: Pythia-410M|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: BabyLM-125M|144|default|mean_pooled
+[17:45:12] [PID:711227] skip: OLMo-1B|final|default|words_only
+[17:45:12] [PID:711229] skip: BabyLM-125M|final|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-1B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: BabyLM-125M|384|default|mean_pooled
+[17:45:12] [PID:711227] skip: OLMo-7B|final|default|words_only
+[17:45:12] [PID:711228] skip: Pythia-2.8B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-350M|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-125M|912|default|mean_pooled
+[17:45:12] [PID:711227] skip: OLMo-2-1B|final|default|words_only
+[17:45:12] [PID:711228] skip: GPT-2|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-1.3B|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-125M|2280|default|mean_pooled
+[17:45:12] [PID:711227] skip: OLMo-2-7B|final|default|words_only
+[17:45:12] [PID:711228] skip: GPT-2-M|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-160M|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-350M|48|default|mean_pooled
+[17:45:12] [PID:711227] skip: Llama-1.3B|final|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-410M|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-350M|96|default|mean_pooled
+[17:45:12] [PID:711228] skip: GPT-2-L|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Llama-3-8B|final|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-1B|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-350M|288|default|mean_pooled
+[17:45:12] [PID:711228] skip: GPT-2-XL|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-125M|24|default|words_only
+[17:45:12] [PID:711226] skip: BabyLM-350M|768|default|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-2.8B|final|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: OLMo-1B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-125M|48|default|words_only
+[17:45:12] [PID:711229] skip: GPT-2|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-350M|1824|default|mean_pooled
+[17:45:12] [PID:711228] skip: OLMo-7B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-125M|144|default|words_only
+[17:45:12] [PID:711229] skip: GPT-2-M|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-350M|4560|default|mean_pooled
+[17:45:12] [PID:711228] skip: OLMo-2-1B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: GPT-2-L|final|attn_zeroed|words_only
+[17:45:12] [PID:711227] skip: BabyLM-125M|384|default|words_only
+[17:45:12] [PID:711226] skip: BabyLM-1.3B|97|default|mean_pooled
+[17:45:12] [PID:711228] skip: OLMo-2-7B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: GPT-2-XL|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-1.3B|194|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-125M|912|default|words_only
+[17:45:12] [PID:711228] skip: Llama-1.3B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: OLMo-1B|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-1.3B|582|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-125M|2280|default|words_only
+[17:45:12] [PID:711228] skip: Llama-3-8B|final|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: OLMo-7B|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-1.3B|1455|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-350M|48|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-125M|24|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: OLMo-2-1B|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-1.3B|3686|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-350M|96|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-125M|48|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: OLMo-2-7B|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: BabyLM-1.3B|9021|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-350M|288|default|words_only
+[17:45:12] [PID:711229] skip: Llama-1.3B|final|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: BabyLM-125M|144|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-160M|16|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-350M|768|default|words_only
+[17:45:12] [PID:711229] skip: Llama-3-8B|final|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-160M|32|default|mean_pooled
+[17:45:12] [PID:711228] skip: BabyLM-125M|384|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-350M|1824|default|words_only
+[17:45:12] [PID:711226] skip: Pythia-160M|64|default|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-125M|24|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: BabyLM-125M|912|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-160M|256|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-350M|4560|default|words_only
+[17:45:12] [PID:711229] skip: BabyLM-125M|48|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: BabyLM-125M|2280|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-160M|512|default|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-125M|144|attn_zeroed|words_only
+[17:45:12] [PID:711227] skip: BabyLM-1.3B|97|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-350M|48|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-125M|384|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-160M|1000|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-1.3B|194|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-350M|96|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-125M|912|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-410M|16|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-1.3B|582|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-350M|288|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-125M|2280|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-410M|32|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-1.3B|1455|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-350M|768|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-350M|48|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-410M|64|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-1.3B|3686|default|words_only
+[17:45:12] [PID:711229] skip: BabyLM-350M|96|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: BabyLM-350M|1824|attn_zeroed|mean_pooled
+[17:45:12] [PID:711226] skip: Pythia-410M|256|default|mean_pooled
+[17:45:12] [PID:711227] skip: BabyLM-1.3B|9021|default|words_only
+[17:45:12] [PID:711229] skip: BabyLM-350M|288|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-410M|512|default|mean_pooled
+[17:45:12] [PID:711228] skip: BabyLM-350M|4560|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-160M|16|default|words_only
+[17:45:12] [PID:711229] skip: BabyLM-350M|768|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-410M|1000|default|mean_pooled
+[17:45:12] [PID:711228] skip: BabyLM-1.3B|97|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-160M|32|default|words_only
+[17:45:12] [PID:711229] skip: BabyLM-350M|1824|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-1B|16|default|mean_pooled
+[17:45:12] [PID:711228] skip: BabyLM-1.3B|194|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-160M|64|default|words_only
+[17:45:12] [PID:711226] skip: Pythia-1B|32|default|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-350M|4560|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: BabyLM-1.3B|582|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-160M|256|default|words_only
+[17:45:12] [PID:711226] skip: Pythia-1B|64|default|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-1.3B|97|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: BabyLM-1.3B|1455|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-1.3B|194|attn_zeroed|words_only
+[17:45:12] [PID:711227] skip: Pythia-160M|512|default|words_only
+[17:45:12] [PID:711226] skip: Pythia-1B|256|default|mean_pooled
+[17:45:12] [PID:711228] skip: BabyLM-1.3B|3686|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-1.3B|582|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-1B|512|default|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-160M|1000|default|words_only
+[17:45:12] [PID:711228] skip: BabyLM-1.3B|9021|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-1.3B|1455|attn_zeroed|words_only
+[17:45:12] [PID:711226] skip: Pythia-1B|1000|default|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-410M|16|default|words_only
+[17:45:12] [PID:711228] skip: Pythia-160M|16|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: BabyLM-1.3B|3686|attn_zeroed|words_only
+[17:45:12] [PID:711226] fitting: Pythia-2.8B|16|default|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-410M|32|default|words_only
+[17:45:12] [PID:711229] skip: BabyLM-1.3B|9021|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-160M|32|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-410M|64|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-160M|16|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-160M|64|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-410M|256|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-160M|32|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-160M|256|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-410M|512|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-160M|64|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-160M|512|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-410M|1000|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-160M|256|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-160M|1000|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-1B|16|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-160M|512|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-410M|16|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-1B|32|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-160M|1000|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-410M|32|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-1B|64|default|words_only
+[17:45:12] [PID:711228] skip: Pythia-410M|64|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-410M|16|attn_zeroed|words_only
+[17:45:12] [PID:711227] skip: Pythia-1B|256|default|words_only
+[17:45:12] [PID:711228] skip: Pythia-410M|256|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-410M|32|attn_zeroed|words_only
+[17:45:12] [PID:711227] skip: Pythia-1B|512|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-410M|64|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-410M|512|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] skip: Pythia-1B|1000|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-410M|256|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-410M|1000|attn_zeroed|mean_pooled
+[17:45:12] [PID:711227] fitting: Pythia-2.8B|16|default|words_only
+[17:45:12] [PID:711229] skip: Pythia-410M|512|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-1B|16|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-410M|1000|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-1B|32|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-1B|16|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-1B|64|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-1B|32|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-1B|256|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-1B|64|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-1B|512|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-1B|256|attn_zeroed|words_only
+[17:45:12] [PID:711228] skip: Pythia-1B|1000|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-1B|512|attn_zeroed|words_only
+[17:45:12] [PID:711228] fitting: Pythia-2.8B|16|attn_zeroed|mean_pooled
+[17:45:12] [PID:711229] skip: Pythia-1B|1000|attn_zeroed|words_only
+[17:45:12] [PID:711229] fitting: Pythia-2.8B|16|attn_zeroed|words_only
+[17:45:19] [PID:711226]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.490  divergent=0
+[17:45:19] [PID:711229]   [OK] lin: max_rhat=1.002  min_ess_ratio=0.479  divergent=0
+[17:45:19] [PID:711227]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.546  divergent=0
+[17:45:19] [PID:711228]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.514  divergent=0
+[17:45:32] [PID:711229]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.410  divergent=0
+[17:45:32] [PID:711229]   -> saved: Pythia_2_8B_16_attn_zeroed_words_only_lin_{lin,quad}.rds
+[17:45:32] [PID:711229] fitting: Pythia-2.8B|32|attn_zeroed|words_only
+[17:45:32] [PID:711226]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.402  divergent=0
+[17:45:32] [PID:711226]   -> saved: Pythia_2_8B_16_default_mean_pooled_lin_{lin,quad}.rds
+[17:45:32] [PID:711226] fitting: Pythia-2.8B|32|default|mean_pooled
+[17:45:36] [PID:711227]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.392  divergent=0
+[17:45:36] [PID:711227]   -> saved: Pythia_2_8B_16_default_words_only_lin_{lin,quad}.rds
+[17:45:36] [PID:711227] fitting: Pythia-2.8B|32|default|words_only
+[17:45:37] [PID:711229]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.521  divergent=0
+[17:45:37] [PID:711228]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.367  divergent=0
+[17:45:37] [PID:711228]   -> saved: Pythia_2_8B_16_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[17:45:37] [PID:711228] fitting: Pythia-2.8B|32|attn_zeroed|mean_pooled
+[17:45:37] [PID:711226]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.488  divergent=0
+[17:45:41] [PID:711227]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.525  divergent=0
+[17:45:43] [PID:711228]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.493  divergent=0
+[17:45:50] [PID:711229]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.361  divergent=0
+[17:45:51] [PID:711229]   -> saved: Pythia_2_8B_32_attn_zeroed_words_only_lin_{lin,quad}.rds
+[17:45:51] [PID:711229] fitting: Pythia-2.8B|64|attn_zeroed|words_only
+[17:45:51] [PID:711226]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.350  divergent=0
+[17:45:51] [PID:711226]   -> saved: Pythia_2_8B_32_default_mean_pooled_lin_{lin,quad}.rds
+[17:45:51] [PID:711226] fitting: Pythia-2.8B|64|default|mean_pooled
+[17:45:55] [PID:711229]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.527  divergent=0
+[17:45:56] [PID:711227]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.429  divergent=0
+[17:45:56] [PID:711227]   -> saved: Pythia_2_8B_32_default_words_only_lin_{lin,quad}.rds
+[17:45:56] [PID:711227] fitting: Pythia-2.8B|64|default|words_only
+[17:45:57] [PID:711226]   [OK] lin: max_rhat=1.002  min_ess_ratio=0.496  divergent=0
+[17:45:57] [PID:711228]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.432  divergent=0
+[17:45:58] [PID:711228]   -> saved: Pythia_2_8B_32_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[17:45:58] [PID:711228] fitting: Pythia-2.8B|64|attn_zeroed|mean_pooled
+[17:46:02] [PID:711227]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.451  divergent=0
+[17:46:03] [PID:711228]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.493  divergent=0
+[17:46:08] [PID:711229]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.410  divergent=0
+[17:46:08] [PID:711229]   -> saved: Pythia_2_8B_64_attn_zeroed_words_only_lin_{lin,quad}.rds
+[17:46:08] [PID:711229] fitting: Pythia-2.8B|256|attn_zeroed|words_only
+[17:46:10] [PID:711226]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.413  divergent=0
+[17:46:10] [PID:711226]   -> saved: Pythia_2_8B_64_default_mean_pooled_lin_{lin,quad}.rds
+[17:46:10] [PID:711226] fitting: Pythia-2.8B|256|default|mean_pooled
+[17:46:14] [PID:711229]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.526  divergent=0
+[17:46:15] [PID:711226]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.549  divergent=0
+[17:46:16] [PID:711227]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.407  divergent=0
+[17:46:16] [PID:711227]   -> saved: Pythia_2_8B_64_default_words_only_lin_{lin,quad}.rds
+[17:46:16] [PID:711227] fitting: Pythia-2.8B|256|default|words_only
+[17:46:18] [PID:711228]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.420  divergent=0
+[17:46:18] [PID:711228]   -> saved: Pythia_2_8B_64_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[17:46:18] [PID:711228] fitting: Pythia-2.8B|256|attn_zeroed|mean_pooled
+[17:46:23] [PID:711227]   [OK] lin: max_rhat=1.000  min_ess_ratio=0.531  divergent=0
+[17:46:24] [PID:711228]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.503  divergent=0
+[17:46:27] [PID:711229]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.403  divergent=0
+[17:46:28] [PID:711229]   -> saved: Pythia_2_8B_256_attn_zeroed_words_only_lin_{lin,quad}.rds
+[17:46:28] [PID:711229] fitting: Pythia-2.8B|512|attn_zeroed|words_only
+[17:46:28] [PID:711226]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.399  divergent=0
+[17:46:29] [PID:711226]   -> saved: Pythia_2_8B_256_default_mean_pooled_lin_{lin,quad}.rds
+[17:46:29] [PID:711226] fitting: Pythia-2.8B|512|default|mean_pooled
+[17:46:34] [PID:711229]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.538  divergent=0
+[17:46:35] [PID:711226]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.514  divergent=0
+[17:46:35] [PID:711227]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.367  divergent=0
+[17:46:35] [PID:711227]   -> saved: Pythia_2_8B_256_default_words_only_lin_{lin,quad}.rds
+[17:46:35] [PID:711227] fitting: Pythia-2.8B|512|default|words_only
+[17:46:36] [PID:711228]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.399  divergent=0
+[17:46:37] [PID:711228]   -> saved: Pythia_2_8B_256_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[17:46:37] [PID:711228] fitting: Pythia-2.8B|512|attn_zeroed|mean_pooled
+[17:46:42] [PID:711227]   [OK] lin: max_rhat=1.000  min_ess_ratio=0.501  divergent=0
+[17:46:43] [PID:711228]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.492  divergent=0
+[17:46:46] [PID:711229]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.418  divergent=0
+[17:46:46] [PID:711229]   -> saved: Pythia_2_8B_512_attn_zeroed_words_only_lin_{lin,quad}.rds
+[17:46:46] [PID:711229] fitting: Pythia-2.8B|1000|attn_zeroed|words_only
+[17:46:48] [PID:711226]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.413  divergent=0
+[17:46:48] [PID:711226]   -> saved: Pythia_2_8B_512_default_mean_pooled_lin_{lin,quad}.rds
+[17:46:48] [PID:711226] fitting: Pythia-2.8B|1000|default|mean_pooled
+[17:46:53] [PID:711229]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.493  divergent=0
+[17:46:54] [PID:711227]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.342  divergent=0
+[17:46:54] [PID:711226]   [OK] lin: max_rhat=1.000  min_ess_ratio=0.503  divergent=0
+[17:46:54] [PID:711227]   -> saved: Pythia_2_8B_512_default_words_only_lin_{lin,quad}.rds
+[17:46:54] [PID:711227] fitting: Pythia-2.8B|1000|default|words_only
+[17:46:56] [PID:711228]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.400  divergent=0
+[17:46:57] [PID:711228]   -> saved: Pythia_2_8B_512_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[17:46:57] [PID:711228] fitting: Pythia-2.8B|1000|attn_zeroed|mean_pooled
+[17:47:00] [PID:711227]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.495  divergent=0
+[17:47:02] [PID:711228]   [OK] lin: max_rhat=1.001  min_ess_ratio=0.536  divergent=0
+[17:47:06] [PID:711229]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.386  divergent=0
+[17:47:06] [PID:711229]   -> saved: Pythia_2_8B_1000_attn_zeroed_words_only_lin_{lin,quad}.rds
+[17:47:07] [PID:711226]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.361  divergent=0
+[17:47:07] [PID:711226]   -> saved: Pythia_2_8B_1000_default_mean_pooled_lin_{lin,quad}.rds
+[17:47:13] [PID:711227]   [OK] quad: max_rhat=1.002  min_ess_ratio=0.370  divergent=0
+[17:47:14] [PID:711227]   -> saved: Pythia_2_8B_1000_default_words_only_lin_{lin,quad}.rds
+[17:47:15] [PID:711228]   [OK] quad: max_rhat=1.001  min_ess_ratio=0.383  divergent=0
+[17:47:15] [PID:711228]   -> saved: Pythia_2_8B_1000_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[17:47:15] [PID:710905] Done. All models saved to: Data/brms_models
