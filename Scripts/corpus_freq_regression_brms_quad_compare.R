@@ -18,9 +18,8 @@ suppressPackageStartupMessages({
 N_PARALLEL <- 4   # outer parallel workers; each uses CHAINS_PER_MODEL cores
 CHAINS_PER_MODEL <- 4
 
-BASE      <- "/path/to/binom-corpus-pls"   # ← set on server
-RESULTS   <- file.path(BASE, "Results")
-MODEL_DIR <- file.path(BASE, "Data", "brms_models")
+RESULTS   <- "Results"
+MODEL_DIR <- file.path("Data", "brms_models")
 LOG       <- file.path(RESULTS, "brms_quad_compare_progress.log")
 
 dir.create(MODEL_DIR, showWarnings = FALSE, recursive = TRUE)
@@ -32,7 +31,7 @@ log_msg <- function(...) {
 }
 
 # ── Frequency data ─────────────────────────────────────────────────────────────
-freq_babylm <- read_csv(file.path(BASE, "Data", "corpus_binomials.csv"),
+freq_babylm <- read_csv(file.path("Data", "corpus_binomials.csv"),
                         show_col_types = FALSE) |>
   mutate(freq_total = freq_w1_w2 + freq_w2_w1) |>
   select(word1, word2, freq_total)
