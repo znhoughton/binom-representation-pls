@@ -1,0 +1,428 @@
+[22:02:46] [PID:338401] Compiling Stan templates...
+[22:03:56] [PID:338401] Templates compiled.
+[22:03:56] [PID:338401] Total jobs: 212; running 4 in parallel (4 chains each)
+[22:03:56] [PID:338721] fitting: BabyLM-125M|final|default|mean_pooled
+[22:03:56] [PID:338722] fitting: BabyLM-125M|final|default|words_only
+[22:03:56] [PID:338723] fitting: BabyLM-125M|final|attn_zeroed|mean_pooled
+[22:03:56] [PID:338724] fitting: BabyLM-125M|final|attn_zeroed|words_only
+[22:04:11] [PID:338723]   -> saved: BabyLM_125M_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:04:11] [PID:338723] fitting: BabyLM-350M|final|attn_zeroed|mean_pooled
+[22:04:11] [PID:338721]   -> saved: BabyLM_125M_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:04:11] [PID:338721] fitting: BabyLM-350M|final|default|mean_pooled
+[22:04:12] [PID:338722]   -> saved: BabyLM_125M_final_default_words_only_lin_{lin,quad}.rds
+[22:04:12] [PID:338722] fitting: BabyLM-350M|final|default|words_only
+[22:04:13] [PID:338724]   -> saved: BabyLM_125M_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:04:13] [PID:338724] fitting: BabyLM-350M|final|attn_zeroed|words_only
+[22:04:26] [PID:338723]   -> saved: BabyLM_350M_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:04:26] [PID:338723] fitting: BabyLM-1.3B|final|attn_zeroed|mean_pooled
+[22:04:26] [PID:338721]   -> saved: BabyLM_350M_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:04:26] [PID:338721] fitting: BabyLM-1.3B|final|default|mean_pooled
+[22:04:28] [PID:338722]   -> saved: BabyLM_350M_final_default_words_only_lin_{lin,quad}.rds
+[22:04:28] [PID:338722] fitting: BabyLM-1.3B|final|default|words_only
+[22:04:29] [PID:338724]   -> saved: BabyLM_350M_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:04:29] [PID:338724] fitting: BabyLM-1.3B|final|attn_zeroed|words_only
+[22:04:41] [PID:338723]   -> saved: BabyLM_1_3B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:04:41] [PID:338723] fitting: Pythia-160M|final|attn_zeroed|mean_pooled
+[22:04:41] [PID:338721]   -> saved: BabyLM_1_3B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:04:41] [PID:338721] fitting: Pythia-160M|final|default|mean_pooled
+[22:04:44] [PID:338722]   -> saved: BabyLM_1_3B_final_default_words_only_lin_{lin,quad}.rds
+[22:04:44] [PID:338722] fitting: Pythia-160M|final|default|words_only
+[22:04:44] [PID:338724]   -> saved: BabyLM_1_3B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:04:44] [PID:338724] fitting: Pythia-160M|final|attn_zeroed|words_only
+[22:05:01] [PID:338723]   -> saved: Pythia_160M_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:05:01] [PID:338723] fitting: Pythia-410M|final|attn_zeroed|mean_pooled
+[22:05:01] [PID:338721]   -> saved: Pythia_160M_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:05:01] [PID:338721] fitting: Pythia-410M|final|default|mean_pooled
+[22:05:05] [PID:338722]   -> saved: Pythia_160M_final_default_words_only_lin_{lin,quad}.rds
+[22:05:05] [PID:338722] fitting: Pythia-410M|final|default|words_only
+[22:05:09] [PID:338724]   -> saved: Pythia_160M_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:05:09] [PID:338724] fitting: Pythia-410M|final|attn_zeroed|words_only
+[22:05:19] [PID:338723]   -> saved: Pythia_410M_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:05:19] [PID:338723] fitting: Pythia-1B|final|attn_zeroed|mean_pooled
+[22:05:20] [PID:338721]   -> saved: Pythia_410M_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:05:20] [PID:338721] fitting: Pythia-1B|final|default|mean_pooled
+[22:05:26] [PID:338722]   -> saved: Pythia_410M_final_default_words_only_lin_{lin,quad}.rds
+[22:05:26] [PID:338722] fitting: Pythia-1B|final|default|words_only
+[22:05:31] [PID:338724]   -> saved: Pythia_410M_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:05:31] [PID:338724] fitting: Pythia-1B|final|attn_zeroed|words_only
+[22:05:37] [PID:338723]   -> saved: Pythia_1B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:05:37] [PID:338723] fitting: Pythia-2.8B|final|attn_zeroed|mean_pooled
+[22:05:39] [PID:338721]   -> saved: Pythia_1B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:05:39] [PID:338721] fitting: Pythia-2.8B|final|default|mean_pooled
+[22:05:46] [PID:338722]   -> saved: Pythia_1B_final_default_words_only_lin_{lin,quad}.rds
+[22:05:46] [PID:338722] fitting: Pythia-2.8B|final|default|words_only
+[22:05:49] [PID:338724]   -> saved: Pythia_1B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:05:49] [PID:338724] fitting: Pythia-2.8B|final|attn_zeroed|words_only
+[22:05:56] [PID:338723]   -> saved: Pythia_2_8B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:05:56] [PID:338723] fitting: GPT-2|final|attn_zeroed|mean_pooled
+[22:05:57] [PID:338721]   -> saved: Pythia_2_8B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:05:57] [PID:338721] fitting: GPT-2|final|default|mean_pooled
+[22:06:04] [PID:338722]   -> saved: Pythia_2_8B_final_default_words_only_lin_{lin,quad}.rds
+[22:06:04] [PID:338722] fitting: GPT-2|final|default|words_only
+[22:06:10] [PID:338724]   -> saved: Pythia_2_8B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:06:10] [PID:338724] fitting: GPT-2|final|attn_zeroed|words_only
+[22:06:15] [PID:338723]   -> saved: GPT_2_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:06:15] [PID:338723] fitting: GPT-2-M|final|attn_zeroed|mean_pooled
+[22:06:17] [PID:338721]   -> saved: GPT_2_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:06:17] [PID:338721] fitting: GPT-2-M|final|default|mean_pooled
+[22:06:25] [PID:338722]   -> saved: GPT_2_final_default_words_only_lin_{lin,quad}.rds
+[22:06:25] [PID:338722] fitting: GPT-2-M|final|default|words_only
+[22:06:29] [PID:338724]   -> saved: GPT_2_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:06:29] [PID:338724] fitting: GPT-2-M|final|attn_zeroed|words_only
+[22:06:33] [PID:338723]   -> saved: GPT_2_M_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:06:33] [PID:338723] fitting: GPT-2-L|final|attn_zeroed|mean_pooled
+[22:06:34] [PID:338721]   -> saved: GPT_2_M_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:06:34] [PID:338721] fitting: GPT-2-L|final|default|mean_pooled
+[22:06:43] [PID:338722]   -> saved: GPT_2_M_final_default_words_only_lin_{lin,quad}.rds
+[22:06:43] [PID:338722] fitting: GPT-2-L|final|default|words_only
+[22:06:45] [PID:338724]   -> saved: GPT_2_M_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:06:45] [PID:338724] fitting: GPT-2-L|final|attn_zeroed|words_only
+[22:06:51] [PID:338723]   -> saved: GPT_2_L_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:06:51] [PID:338723] fitting: GPT-2-XL|final|attn_zeroed|mean_pooled
+[22:06:55] [PID:338721]   -> saved: GPT_2_L_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:06:55] [PID:338721] fitting: GPT-2-XL|final|default|mean_pooled
+[22:07:01] [PID:338722]   -> saved: GPT_2_L_final_default_words_only_lin_{lin,quad}.rds
+[22:07:01] [PID:338722] fitting: GPT-2-XL|final|default|words_only
+[22:07:03] [PID:338724]   -> saved: GPT_2_L_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:07:03] [PID:338724] fitting: GPT-2-XL|final|attn_zeroed|words_only
+[22:07:10] [PID:338723]   -> saved: GPT_2_XL_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:07:10] [PID:338723] fitting: OLMo-1B|final|attn_zeroed|mean_pooled
+[22:07:13] [PID:338721]   -> saved: GPT_2_XL_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:07:13] [PID:338721] fitting: OLMo-1B|final|default|mean_pooled
+[22:07:18] [PID:338722]   -> saved: GPT_2_XL_final_default_words_only_lin_{lin,quad}.rds
+[22:07:18] [PID:338722] fitting: OLMo-1B|final|default|words_only
+[22:07:20] [PID:338724]   -> saved: GPT_2_XL_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:07:20] [PID:338724] fitting: OLMo-1B|final|attn_zeroed|words_only
+[22:07:31] [PID:338723]   -> saved: OLMo_1B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:07:31] [PID:338723] fitting: OLMo-7B|final|attn_zeroed|mean_pooled
+[22:07:36] [PID:338721]   -> saved: OLMo_1B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:07:36] [PID:338721] fitting: OLMo-7B|final|default|mean_pooled
+[22:07:38] [PID:338722]   -> saved: OLMo_1B_final_default_words_only_lin_{lin,quad}.rds
+[22:07:38] [PID:338722] fitting: OLMo-7B|final|default|words_only
+[22:07:42] [PID:338724]   -> saved: OLMo_1B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:07:42] [PID:338724] fitting: OLMo-7B|final|attn_zeroed|words_only
+[22:07:53] [PID:338723]   -> saved: OLMo_7B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:07:53] [PID:338723] fitting: OLMo-2-1B|final|attn_zeroed|mean_pooled
+[22:07:56] [PID:338721]   -> saved: OLMo_7B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:07:56] [PID:338721] fitting: OLMo-2-1B|final|default|mean_pooled
+[22:07:58] [PID:338722]   -> saved: OLMo_7B_final_default_words_only_lin_{lin,quad}.rds
+[22:07:58] [PID:338722] fitting: OLMo-2-1B|final|default|words_only
+[22:08:04] [PID:338724]   -> saved: OLMo_7B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:08:04] [PID:338724] fitting: OLMo-2-1B|final|attn_zeroed|words_only
+[22:08:13] [PID:338723]   -> saved: OLMo_2_1B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:08:13] [PID:338723] fitting: OLMo-2-7B|final|attn_zeroed|mean_pooled
+[22:08:15] [PID:338721]   -> saved: OLMo_2_1B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:08:15] [PID:338721] fitting: OLMo-2-7B|final|default|mean_pooled
+[22:08:20] [PID:338722]   -> saved: OLMo_2_1B_final_default_words_only_lin_{lin,quad}.rds
+[22:08:20] [PID:338722] fitting: OLMo-2-7B|final|default|words_only
+[22:08:27] [PID:338724]   -> saved: OLMo_2_1B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:08:27] [PID:338724] fitting: OLMo-2-7B|final|attn_zeroed|words_only
+[22:08:34] [PID:338723]   -> saved: OLMo_2_7B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:08:34] [PID:338723] fitting: Llama-1.3B|final|attn_zeroed|mean_pooled
+[22:08:38] [PID:338721]   -> saved: OLMo_2_7B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:08:38] [PID:338721] fitting: Llama-1.3B|final|default|mean_pooled
+[22:08:41] [PID:338722]   -> saved: OLMo_2_7B_final_default_words_only_lin_{lin,quad}.rds
+[22:08:41] [PID:338722] fitting: Llama-1.3B|final|default|words_only
+[22:08:49] [PID:338724]   -> saved: OLMo_2_7B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:08:49] [PID:338724] fitting: Llama-1.3B|final|attn_zeroed|words_only
+[22:08:55] [PID:338723]   -> saved: Llama_1_3B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:08:55] [PID:338723] fitting: Llama-3-8B|final|attn_zeroed|mean_pooled
+[22:08:56] [PID:338721]   -> saved: Llama_1_3B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:08:56] [PID:338721] fitting: Llama-3-8B|final|default|mean_pooled
+[22:09:01] [PID:338722]   -> saved: Llama_1_3B_final_default_words_only_lin_{lin,quad}.rds
+[22:09:01] [PID:338722] fitting: Llama-3-8B|final|default|words_only
+[22:09:09] [PID:338724]   -> saved: Llama_1_3B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:09:09] [PID:338724] fitting: Llama-3-8B|final|attn_zeroed|words_only
+[22:09:15] [PID:338723]   -> saved: Llama_3_8B_final_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:09:15] [PID:338723] fitting: BabyLM-125M|24|attn_zeroed|mean_pooled
+[22:09:19] [PID:338721]   -> saved: Llama_3_8B_final_default_mean_pooled_lin_{lin,quad}.rds
+[22:09:19] [PID:338721] fitting: BabyLM-125M|24|default|mean_pooled
+[22:09:22] [PID:338722]   -> saved: Llama_3_8B_final_default_words_only_lin_{lin,quad}.rds
+[22:09:22] [PID:338722] fitting: BabyLM-125M|24|default|words_only
+[22:09:28] [PID:338724]   -> saved: Llama_3_8B_final_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:09:28] [PID:338724] fitting: BabyLM-125M|24|attn_zeroed|words_only
+[22:09:29] [PID:338723]   -> saved: BabyLM_125M_24_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:09:29] [PID:338723] fitting: BabyLM-125M|48|attn_zeroed|mean_pooled
+[22:09:32] [PID:338721]   -> saved: BabyLM_125M_24_default_mean_pooled_lin_{lin,quad}.rds
+[22:09:32] [PID:338721] fitting: BabyLM-125M|48|default|mean_pooled
+[22:09:35] [PID:338722]   -> saved: BabyLM_125M_24_default_words_only_lin_{lin,quad}.rds
+[22:09:35] [PID:338722] fitting: BabyLM-125M|48|default|words_only
+[22:09:41] [PID:338724]   -> saved: BabyLM_125M_24_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:09:41] [PID:338724] fitting: BabyLM-125M|48|attn_zeroed|words_only
+[22:09:43] [PID:338723]   -> saved: BabyLM_125M_48_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:09:43] [PID:338723] fitting: BabyLM-125M|144|attn_zeroed|mean_pooled
+[22:09:46] [PID:338721]   -> saved: BabyLM_125M_48_default_mean_pooled_lin_{lin,quad}.rds
+[22:09:46] [PID:338721] fitting: BabyLM-125M|144|default|mean_pooled
+[22:09:50] [PID:338722]   -> saved: BabyLM_125M_48_default_words_only_lin_{lin,quad}.rds
+[22:09:50] [PID:338722] fitting: BabyLM-125M|144|default|words_only
+[22:09:56] [PID:338724]   -> saved: BabyLM_125M_48_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:09:56] [PID:338724] fitting: BabyLM-125M|144|attn_zeroed|words_only
+[22:09:56] [PID:338723]   -> saved: BabyLM_125M_144_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:09:56] [PID:338723] fitting: BabyLM-125M|384|attn_zeroed|mean_pooled
+[22:09:59] [PID:338721]   -> saved: BabyLM_125M_144_default_mean_pooled_lin_{lin,quad}.rds
+[22:09:59] [PID:338721] fitting: BabyLM-125M|384|default|mean_pooled
+[22:10:04] [PID:338722]   -> saved: BabyLM_125M_144_default_words_only_lin_{lin,quad}.rds
+[22:10:04] [PID:338722] fitting: BabyLM-125M|384|default|words_only
+[22:10:09] [PID:338724]   -> saved: BabyLM_125M_144_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:10:09] [PID:338724] fitting: BabyLM-125M|384|attn_zeroed|words_only
+[22:10:10] [PID:338723]   -> saved: BabyLM_125M_384_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:10:10] [PID:338723] fitting: BabyLM-125M|912|attn_zeroed|mean_pooled
+[22:10:13] [PID:338721]   -> saved: BabyLM_125M_384_default_mean_pooled_lin_{lin,quad}.rds
+[22:10:13] [PID:338721] fitting: BabyLM-125M|912|default|mean_pooled
+[22:10:17] [PID:338722]   -> saved: BabyLM_125M_384_default_words_only_lin_{lin,quad}.rds
+[22:10:17] [PID:338722] fitting: BabyLM-125M|912|default|words_only
+[22:10:23] [PID:338724]   -> saved: BabyLM_125M_384_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:10:23] [PID:338724] fitting: BabyLM-125M|912|attn_zeroed|words_only
+[22:10:23] [PID:338723]   -> saved: BabyLM_125M_912_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:10:23] [PID:338723] fitting: BabyLM-125M|2280|attn_zeroed|mean_pooled
+[22:10:26] [PID:338721]   -> saved: BabyLM_125M_912_default_mean_pooled_lin_{lin,quad}.rds
+[22:10:26] [PID:338721] fitting: BabyLM-125M|2280|default|mean_pooled
+[22:10:31] [PID:338722]   -> saved: BabyLM_125M_912_default_words_only_lin_{lin,quad}.rds
+[22:10:31] [PID:338722] fitting: BabyLM-125M|2280|default|words_only
+[22:10:36] [PID:338724]   -> saved: BabyLM_125M_912_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:10:36] [PID:338724] fitting: BabyLM-125M|2280|attn_zeroed|words_only
+[22:10:37] [PID:338723]   -> saved: BabyLM_125M_2280_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:10:37] [PID:338723] fitting: BabyLM-350M|48|attn_zeroed|mean_pooled
+[22:10:40] [PID:338721]   -> saved: BabyLM_125M_2280_default_mean_pooled_lin_{lin,quad}.rds
+[22:10:40] [PID:338721] fitting: BabyLM-350M|48|default|mean_pooled
+[22:10:44] [PID:338722]   -> saved: BabyLM_125M_2280_default_words_only_lin_{lin,quad}.rds
+[22:10:44] [PID:338722] fitting: BabyLM-350M|48|default|words_only
+[22:10:49] [PID:338724]   -> saved: BabyLM_125M_2280_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:10:49] [PID:338724] fitting: BabyLM-350M|48|attn_zeroed|words_only
+[22:10:52] [PID:338723]   -> saved: BabyLM_350M_48_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:10:52] [PID:338723] fitting: BabyLM-350M|96|attn_zeroed|mean_pooled
+[22:10:55] [PID:338721]   -> saved: BabyLM_350M_48_default_mean_pooled_lin_{lin,quad}.rds
+[22:10:55] [PID:338721] fitting: BabyLM-350M|96|default|mean_pooled
+[22:10:59] [PID:338722]   -> saved: BabyLM_350M_48_default_words_only_lin_{lin,quad}.rds
+[22:10:59] [PID:338722] fitting: BabyLM-350M|96|default|words_only
+[22:11:05] [PID:338724]   -> saved: BabyLM_350M_48_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:11:05] [PID:338724] fitting: BabyLM-350M|96|attn_zeroed|words_only
+[22:11:07] [PID:338723]   -> saved: BabyLM_350M_96_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:11:07] [PID:338723] fitting: BabyLM-350M|288|attn_zeroed|mean_pooled
+[22:11:11] [PID:338721]   -> saved: BabyLM_350M_96_default_mean_pooled_lin_{lin,quad}.rds
+[22:11:11] [PID:338721] fitting: BabyLM-350M|288|default|mean_pooled
+[22:11:15] [PID:338722]   -> saved: BabyLM_350M_96_default_words_only_lin_{lin,quad}.rds
+[22:11:15] [PID:338722] fitting: BabyLM-350M|288|default|words_only
+[22:11:20] [PID:338724]   -> saved: BabyLM_350M_96_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:11:20] [PID:338724] fitting: BabyLM-350M|288|attn_zeroed|words_only
+[22:11:23] [PID:338723]   -> saved: BabyLM_350M_288_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:11:23] [PID:338723] fitting: BabyLM-350M|768|attn_zeroed|mean_pooled
+[22:11:25] [PID:338721]   -> saved: BabyLM_350M_288_default_mean_pooled_lin_{lin,quad}.rds
+[22:11:25] [PID:338721] fitting: BabyLM-350M|768|default|mean_pooled
+[22:11:31] [PID:338722]   -> saved: BabyLM_350M_288_default_words_only_lin_{lin,quad}.rds
+[22:11:31] [PID:338722] fitting: BabyLM-350M|768|default|words_only
+[22:11:35] [PID:338724]   -> saved: BabyLM_350M_288_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:11:35] [PID:338724] fitting: BabyLM-350M|768|attn_zeroed|words_only
+[22:11:38] [PID:338723]   -> saved: BabyLM_350M_768_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:11:38] [PID:338723] fitting: BabyLM-350M|1824|attn_zeroed|mean_pooled
+[22:11:41] [PID:338721]   -> saved: BabyLM_350M_768_default_mean_pooled_lin_{lin,quad}.rds
+[22:11:41] [PID:338721] fitting: BabyLM-350M|1824|default|mean_pooled
+[22:11:46] [PID:338722]   -> saved: BabyLM_350M_768_default_words_only_lin_{lin,quad}.rds
+[22:11:46] [PID:338722] fitting: BabyLM-350M|1824|default|words_only
+[22:11:51] [PID:338724]   -> saved: BabyLM_350M_768_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:11:51] [PID:338724] fitting: BabyLM-350M|1824|attn_zeroed|words_only
+[22:11:54] [PID:338723]   -> saved: BabyLM_350M_1824_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:11:54] [PID:338723] fitting: BabyLM-350M|4560|attn_zeroed|mean_pooled
+[22:11:57] [PID:338721]   -> saved: BabyLM_350M_1824_default_mean_pooled_lin_{lin,quad}.rds
+[22:11:57] [PID:338721] fitting: BabyLM-350M|4560|default|mean_pooled
+[22:12:02] [PID:338722]   -> saved: BabyLM_350M_1824_default_words_only_lin_{lin,quad}.rds
+[22:12:02] [PID:338722] fitting: BabyLM-350M|4560|default|words_only
+[22:12:07] [PID:338724]   -> saved: BabyLM_350M_1824_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:12:07] [PID:338724] fitting: BabyLM-350M|4560|attn_zeroed|words_only
+[22:12:09] [PID:338723]   -> saved: BabyLM_350M_4560_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:12:09] [PID:338723] fitting: BabyLM-1.3B|97|attn_zeroed|mean_pooled
+[22:12:12] [PID:338721]   -> saved: BabyLM_350M_4560_default_mean_pooled_lin_{lin,quad}.rds
+[22:12:12] [PID:338721] fitting: BabyLM-1.3B|97|default|mean_pooled
+[22:12:18] [PID:338722]   -> saved: BabyLM_350M_4560_default_words_only_lin_{lin,quad}.rds
+[22:12:18] [PID:338722] fitting: BabyLM-1.3B|97|default|words_only
+[22:12:23] [PID:338724]   -> saved: BabyLM_350M_4560_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:12:23] [PID:338724] fitting: BabyLM-1.3B|97|attn_zeroed|words_only
+[22:12:25] [PID:338723]   -> saved: BabyLM_1_3B_97_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:12:25] [PID:338723] fitting: BabyLM-1.3B|194|attn_zeroed|mean_pooled
+[22:12:27] [PID:338721]   -> saved: BabyLM_1_3B_97_default_mean_pooled_lin_{lin,quad}.rds
+[22:12:27] [PID:338721] fitting: BabyLM-1.3B|194|default|mean_pooled
+[22:12:33] [PID:338722]   -> saved: BabyLM_1_3B_97_default_words_only_lin_{lin,quad}.rds
+[22:12:33] [PID:338722] fitting: BabyLM-1.3B|194|default|words_only
+[22:12:38] [PID:338724]   -> saved: BabyLM_1_3B_97_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:12:38] [PID:338724] fitting: BabyLM-1.3B|194|attn_zeroed|words_only
+[22:12:40] [PID:338723]   -> saved: BabyLM_1_3B_194_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:12:40] [PID:338723] fitting: BabyLM-1.3B|582|attn_zeroed|mean_pooled
+[22:12:43] [PID:338721]   -> saved: BabyLM_1_3B_194_default_mean_pooled_lin_{lin,quad}.rds
+[22:12:43] [PID:338721] fitting: BabyLM-1.3B|582|default|mean_pooled
+[22:12:48] [PID:338722]   -> saved: BabyLM_1_3B_194_default_words_only_lin_{lin,quad}.rds
+[22:12:48] [PID:338722] fitting: BabyLM-1.3B|582|default|words_only
+[22:12:54] [PID:338724]   -> saved: BabyLM_1_3B_194_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:12:54] [PID:338724] fitting: BabyLM-1.3B|582|attn_zeroed|words_only
+[22:12:56] [PID:338723]   -> saved: BabyLM_1_3B_582_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:12:56] [PID:338723] fitting: BabyLM-1.3B|1455|attn_zeroed|mean_pooled
+[22:12:58] [PID:338721]   -> saved: BabyLM_1_3B_582_default_mean_pooled_lin_{lin,quad}.rds
+[22:12:58] [PID:338721] fitting: BabyLM-1.3B|1455|default|mean_pooled
+[22:13:04] [PID:338722]   -> saved: BabyLM_1_3B_582_default_words_only_lin_{lin,quad}.rds
+[22:13:04] [PID:338722] fitting: BabyLM-1.3B|1455|default|words_only
+[22:13:09] [PID:338724]   -> saved: BabyLM_1_3B_582_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:13:09] [PID:338724] fitting: BabyLM-1.3B|1455|attn_zeroed|words_only
+[22:13:12] [PID:338723]   -> saved: BabyLM_1_3B_1455_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:13:12] [PID:338723] fitting: BabyLM-1.3B|3686|attn_zeroed|mean_pooled
+[22:13:14] [PID:338721]   -> saved: BabyLM_1_3B_1455_default_mean_pooled_lin_{lin,quad}.rds
+[22:13:14] [PID:338721] fitting: BabyLM-1.3B|3686|default|mean_pooled
+[22:13:20] [PID:338722]   -> saved: BabyLM_1_3B_1455_default_words_only_lin_{lin,quad}.rds
+[22:13:20] [PID:338722] fitting: BabyLM-1.3B|3686|default|words_only
+[22:13:25] [PID:338724]   -> saved: BabyLM_1_3B_1455_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:13:25] [PID:338724] fitting: BabyLM-1.3B|3686|attn_zeroed|words_only
+[22:13:27] [PID:338723]   -> saved: BabyLM_1_3B_3686_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:13:27] [PID:338723] fitting: BabyLM-1.3B|9021|attn_zeroed|mean_pooled
+[22:13:29] [PID:338721]   -> saved: BabyLM_1_3B_3686_default_mean_pooled_lin_{lin,quad}.rds
+[22:13:29] [PID:338721] fitting: BabyLM-1.3B|9021|default|mean_pooled
+[22:13:35] [PID:338722]   -> saved: BabyLM_1_3B_3686_default_words_only_lin_{lin,quad}.rds
+[22:13:35] [PID:338722] fitting: BabyLM-1.3B|9021|default|words_only
+[22:13:40] [PID:338724]   -> saved: BabyLM_1_3B_3686_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:13:40] [PID:338724] fitting: BabyLM-1.3B|9021|attn_zeroed|words_only
+[22:13:43] [PID:338723]   -> saved: BabyLM_1_3B_9021_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:13:43] [PID:338723] fitting: Pythia-160M|16|attn_zeroed|mean_pooled
+[22:13:45] [PID:338721]   -> saved: BabyLM_1_3B_9021_default_mean_pooled_lin_{lin,quad}.rds
+[22:13:45] [PID:338721] fitting: Pythia-160M|16|default|mean_pooled
+[22:13:51] [PID:338722]   -> saved: BabyLM_1_3B_9021_default_words_only_lin_{lin,quad}.rds
+[22:13:51] [PID:338722] fitting: Pythia-160M|16|default|words_only
+[22:13:57] [PID:338724]   -> saved: BabyLM_1_3B_9021_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:13:57] [PID:338724] fitting: Pythia-160M|16|attn_zeroed|words_only
+[22:14:01] [PID:338723]   -> saved: Pythia_160M_16_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:14:01] [PID:338723] fitting: Pythia-160M|32|attn_zeroed|mean_pooled
+[22:14:04] [PID:338721]   -> saved: Pythia_160M_16_default_mean_pooled_lin_{lin,quad}.rds
+[22:14:04] [PID:338721] fitting: Pythia-160M|32|default|mean_pooled
+[22:14:09] [PID:338722]   -> saved: Pythia_160M_16_default_words_only_lin_{lin,quad}.rds
+[22:14:09] [PID:338722] fitting: Pythia-160M|32|default|words_only
+[22:14:14] [PID:338724]   -> saved: Pythia_160M_16_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:14:14] [PID:338724] fitting: Pythia-160M|32|attn_zeroed|words_only
+[22:14:20] [PID:338723]   -> saved: Pythia_160M_32_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:14:20] [PID:338723] fitting: Pythia-160M|64|attn_zeroed|mean_pooled
+[22:14:22] [PID:338721]   -> saved: Pythia_160M_32_default_mean_pooled_lin_{lin,quad}.rds
+[22:14:22] [PID:338721] fitting: Pythia-160M|64|default|mean_pooled
+[22:14:28] [PID:338722]   -> saved: Pythia_160M_32_default_words_only_lin_{lin,quad}.rds
+[22:14:28] [PID:338722] fitting: Pythia-160M|64|default|words_only
+[22:14:32] [PID:338724]   -> saved: Pythia_160M_32_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:14:32] [PID:338724] fitting: Pythia-160M|64|attn_zeroed|words_only
+[22:14:39] [PID:338723]   -> saved: Pythia_160M_64_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:14:39] [PID:338723] fitting: Pythia-160M|256|attn_zeroed|mean_pooled
+[22:14:40] [PID:338721]   -> saved: Pythia_160M_64_default_mean_pooled_lin_{lin,quad}.rds
+[22:14:40] [PID:338721] fitting: Pythia-160M|256|default|mean_pooled
+[22:14:47] [PID:338722]   -> saved: Pythia_160M_64_default_words_only_lin_{lin,quad}.rds
+[22:14:47] [PID:338722] fitting: Pythia-160M|256|default|words_only
+[22:14:50] [PID:338724]   -> saved: Pythia_160M_64_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:14:50] [PID:338724] fitting: Pythia-160M|256|attn_zeroed|words_only
+[22:15:02] [PID:338723]   -> saved: Pythia_160M_256_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:15:02] [PID:338723] fitting: Pythia-160M|512|attn_zeroed|mean_pooled
+[22:15:03] [PID:338721]   -> saved: Pythia_160M_256_default_mean_pooled_lin_{lin,quad}.rds
+[22:15:03] [PID:338721] fitting: Pythia-160M|512|default|mean_pooled
+[22:15:09] [PID:338722]   -> saved: Pythia_160M_256_default_words_only_lin_{lin,quad}.rds
+[22:15:09] [PID:338722] fitting: Pythia-160M|512|default|words_only
+[22:15:12] [PID:338724]   -> saved: Pythia_160M_256_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:15:12] [PID:338724] fitting: Pythia-160M|512|attn_zeroed|words_only
+[22:15:24] [PID:338723]   -> saved: Pythia_160M_512_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:15:24] [PID:338723] fitting: Pythia-160M|1000|attn_zeroed|mean_pooled
+[22:15:25] [PID:338721]   -> saved: Pythia_160M_512_default_mean_pooled_lin_{lin,quad}.rds
+[22:15:25] [PID:338721] fitting: Pythia-160M|1000|default|mean_pooled
+[22:15:31] [PID:338722]   -> saved: Pythia_160M_512_default_words_only_lin_{lin,quad}.rds
+[22:15:31] [PID:338722] fitting: Pythia-160M|1000|default|words_only
+[22:15:35] [PID:338724]   -> saved: Pythia_160M_512_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:15:35] [PID:338724] fitting: Pythia-160M|1000|attn_zeroed|words_only
+[22:15:43] [PID:338723]   -> saved: Pythia_160M_1000_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:15:43] [PID:338723] fitting: Pythia-410M|16|attn_zeroed|mean_pooled
+[22:15:43] [PID:338721]   -> saved: Pythia_160M_1000_default_mean_pooled_lin_{lin,quad}.rds
+[22:15:43] [PID:338721] fitting: Pythia-410M|16|default|mean_pooled
+[22:15:50] [PID:338722]   -> saved: Pythia_160M_1000_default_words_only_lin_{lin,quad}.rds
+[22:15:50] [PID:338722] fitting: Pythia-410M|16|default|words_only
+[22:15:55] [PID:338724]   -> saved: Pythia_160M_1000_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:15:55] [PID:338724] fitting: Pythia-410M|16|attn_zeroed|words_only
+[22:16:01] [PID:338723]   -> saved: Pythia_410M_16_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:16:01] [PID:338723] fitting: Pythia-410M|32|attn_zeroed|mean_pooled
+[22:16:03] [PID:338721]   -> saved: Pythia_410M_16_default_mean_pooled_lin_{lin,quad}.rds
+[22:16:03] [PID:338721] fitting: Pythia-410M|32|default|mean_pooled
+[22:16:09] [PID:338722]   -> saved: Pythia_410M_16_default_words_only_lin_{lin,quad}.rds
+[22:16:09] [PID:338722] fitting: Pythia-410M|32|default|words_only
+[22:16:15] [PID:338724]   -> saved: Pythia_410M_16_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:16:15] [PID:338724] fitting: Pythia-410M|32|attn_zeroed|words_only
+[22:16:20] [PID:338723]   -> saved: Pythia_410M_32_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:16:20] [PID:338723] fitting: Pythia-410M|64|attn_zeroed|mean_pooled
+[22:16:24] [PID:338721]   -> saved: Pythia_410M_32_default_mean_pooled_lin_{lin,quad}.rds
+[22:16:24] [PID:338721] fitting: Pythia-410M|64|default|mean_pooled
+[22:16:29] [PID:338722]   -> saved: Pythia_410M_32_default_words_only_lin_{lin,quad}.rds
+[22:16:29] [PID:338722] fitting: Pythia-410M|64|default|words_only
+[22:16:34] [PID:338724]   -> saved: Pythia_410M_32_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:16:34] [PID:338724] fitting: Pythia-410M|64|attn_zeroed|words_only
+[22:16:38] [PID:338723]   -> saved: Pythia_410M_64_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:16:38] [PID:338723] fitting: Pythia-410M|256|attn_zeroed|mean_pooled
+[22:16:42] [PID:338721]   -> saved: Pythia_410M_64_default_mean_pooled_lin_{lin,quad}.rds
+[22:16:42] [PID:338721] fitting: Pythia-410M|256|default|mean_pooled
+[22:16:48] [PID:338722]   -> saved: Pythia_410M_64_default_words_only_lin_{lin,quad}.rds
+[22:16:48] [PID:338722] fitting: Pythia-410M|256|default|words_only
+[22:16:51] [PID:338724]   -> saved: Pythia_410M_64_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:16:51] [PID:338724] fitting: Pythia-410M|256|attn_zeroed|words_only
+[22:16:59] [PID:338723]   -> saved: Pythia_410M_256_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:16:59] [PID:338723] fitting: Pythia-410M|512|attn_zeroed|mean_pooled
+[22:17:04] [PID:338721]   -> saved: Pythia_410M_256_default_mean_pooled_lin_{lin,quad}.rds
+[22:17:04] [PID:338721] fitting: Pythia-410M|512|default|mean_pooled
+[22:17:06] [PID:338722]   -> saved: Pythia_410M_256_default_words_only_lin_{lin,quad}.rds
+[22:17:06] [PID:338722] fitting: Pythia-410M|512|default|words_only
+[22:17:12] [PID:338724]   -> saved: Pythia_410M_256_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:17:12] [PID:338724] fitting: Pythia-410M|512|attn_zeroed|words_only
+[22:17:20] [PID:338723]   -> saved: Pythia_410M_512_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:17:20] [PID:338723] fitting: Pythia-410M|1000|attn_zeroed|mean_pooled
+[22:17:26] [PID:338721]   -> saved: Pythia_410M_512_default_mean_pooled_lin_{lin,quad}.rds
+[22:17:26] [PID:338721] fitting: Pythia-410M|1000|default|mean_pooled
+[22:17:27] [PID:338722]   -> saved: Pythia_410M_512_default_words_only_lin_{lin,quad}.rds
+[22:17:27] [PID:338722] fitting: Pythia-410M|1000|default|words_only
+[22:17:34] [PID:338724]   -> saved: Pythia_410M_512_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:17:34] [PID:338724] fitting: Pythia-410M|1000|attn_zeroed|words_only
+[22:17:44] [PID:338723]   -> saved: Pythia_410M_1000_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:17:44] [PID:338723] fitting: Pythia-1B|16|attn_zeroed|mean_pooled
+[22:17:47] [PID:338721]   -> saved: Pythia_410M_1000_default_mean_pooled_lin_{lin,quad}.rds
+[22:17:47] [PID:338721] fitting: Pythia-1B|16|default|mean_pooled
+[22:17:51] [PID:338722]   -> saved: Pythia_410M_1000_default_words_only_lin_{lin,quad}.rds
+[22:17:51] [PID:338722] fitting: Pythia-1B|16|default|words_only
+[22:17:56] [PID:338724]   -> saved: Pythia_410M_1000_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:17:56] [PID:338724] fitting: Pythia-1B|16|attn_zeroed|words_only
+[22:18:02] [PID:338723]   -> saved: Pythia_1B_16_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:18:02] [PID:338723] fitting: Pythia-1B|32|attn_zeroed|mean_pooled
+[22:18:05] [PID:338721]   -> saved: Pythia_1B_16_default_mean_pooled_lin_{lin,quad}.rds
+[22:18:05] [PID:338721] fitting: Pythia-1B|32|default|mean_pooled
+[22:18:09] [PID:338722]   -> saved: Pythia_1B_16_default_words_only_lin_{lin,quad}.rds
+[22:18:09] [PID:338722] fitting: Pythia-1B|32|default|words_only
+[22:18:14] [PID:338724]   -> saved: Pythia_1B_16_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:18:14] [PID:338724] fitting: Pythia-1B|32|attn_zeroed|words_only
+[22:18:23] [PID:338723]   -> saved: Pythia_1B_32_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:18:23] [PID:338723] fitting: Pythia-1B|64|attn_zeroed|mean_pooled
+[22:18:23] [PID:338721]   -> saved: Pythia_1B_32_default_mean_pooled_lin_{lin,quad}.rds
+[22:18:23] [PID:338721] fitting: Pythia-1B|64|default|mean_pooled
+[22:18:28] [PID:338722]   -> saved: Pythia_1B_32_default_words_only_lin_{lin,quad}.rds
+[22:18:28] [PID:338722] fitting: Pythia-1B|64|default|words_only
+[22:18:32] [PID:338724]   -> saved: Pythia_1B_32_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:18:32] [PID:338724] fitting: Pythia-1B|64|attn_zeroed|words_only
+[22:18:43] [PID:338723]   -> saved: Pythia_1B_64_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:18:43] [PID:338723] fitting: Pythia-1B|256|attn_zeroed|mean_pooled
+[22:18:45] [PID:338721]   -> saved: Pythia_1B_64_default_mean_pooled_lin_{lin,quad}.rds
+[22:18:45] [PID:338721] fitting: Pythia-1B|256|default|mean_pooled
+[22:18:47] [PID:338722]   -> saved: Pythia_1B_64_default_words_only_lin_{lin,quad}.rds
+[22:18:47] [PID:338722] fitting: Pythia-1B|256|default|words_only
+[22:18:50] [PID:338724]   -> saved: Pythia_1B_64_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:18:50] [PID:338724] fitting: Pythia-1B|256|attn_zeroed|words_only
+[22:19:05] [PID:338723]   -> saved: Pythia_1B_256_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:19:05] [PID:338723] fitting: Pythia-1B|512|attn_zeroed|mean_pooled
+[22:19:08] [PID:338721]   -> saved: Pythia_1B_256_default_mean_pooled_lin_{lin,quad}.rds
+[22:19:08] [PID:338721] fitting: Pythia-1B|512|default|mean_pooled
+[22:19:10] [PID:338722]   -> saved: Pythia_1B_256_default_words_only_lin_{lin,quad}.rds
+[22:19:10] [PID:338722] fitting: Pythia-1B|512|default|words_only
+[22:19:13] [PID:338724]   -> saved: Pythia_1B_256_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:19:13] [PID:338724] fitting: Pythia-1B|512|attn_zeroed|words_only
+[22:19:27] [PID:338723]   -> saved: Pythia_1B_512_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:19:27] [PID:338723] fitting: Pythia-1B|1000|attn_zeroed|mean_pooled
+[22:19:28] [PID:338721]   -> saved: Pythia_1B_512_default_mean_pooled_lin_{lin,quad}.rds
+[22:19:28] [PID:338721] fitting: Pythia-1B|1000|default|mean_pooled
+[22:19:33] [PID:338722]   -> saved: Pythia_1B_512_default_words_only_lin_{lin,quad}.rds
+[22:19:33] [PID:338722] fitting: Pythia-1B|1000|default|words_only
+[22:19:38] [PID:338724]   -> saved: Pythia_1B_512_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:19:38] [PID:338724] fitting: Pythia-1B|1000|attn_zeroed|words_only
+[22:19:47] [PID:338723]   -> saved: Pythia_1B_1000_attn_zeroed_mean_pooled_lin_{lin,quad}.rds
+[22:19:48] [PID:338721]   -> saved: Pythia_1B_1000_default_mean_pooled_lin_{lin,quad}.rds
+[22:19:54] [PID:338722]   -> saved: Pythia_1B_1000_default_words_only_lin_{lin,quad}.rds
+[22:20:00] [PID:338724]   -> saved: Pythia_1B_1000_attn_zeroed_words_only_lin_{lin,quad}.rds
+[22:20:00] [PID:338401] Done. All models saved to: Data/brms_models
