@@ -185,6 +185,22 @@ fit_job <- function(job_idx) {
     return(invisible(NULL))
   }
 
+  check_convergence <- function(fit, name) {
+    rh       <- rhat(fit)
+    ess      <- neff_ratio(fit)
+    divs     <- tryCatch(
+      sum(nuts_params(fit, pars = "divergent__")$Value),
+      error = function(e) NA_integer_
+    )
+    max_rh   <- max(rh,  na.rm = TRUE)
+    min_ess  <- min(ess, na.rm = TRUE)
+    ok <- max_rh <= 1.01 && min_ess >= 0.1 && (is.na(divs) || divs == 0)
+    tag <- if (ok) "OK" else "WARNING"
+    log_msg(sprintf("  [%s] %s: max_rhat=%.3f  min_ess_ratio=%.3f  divergent=%s",
+                    tag, name, max_rh, min_ess,
+                    ifelse(is.na(divs), "NA", as.character(divs))))
+  }
+
   fit_lin <- tryCatch(
     update(template_lin, newdata = df, recompile = FALSE,
            chains = CHAINS_PER_MODEL, iter = 4000, warmup = 2000,
@@ -193,6 +209,7 @@ fit_job <- function(job_idx) {
     error = function(e) { log_msg("  ERROR (lin): ", conditionMessage(e)); NULL }
   )
   if (is.null(fit_lin)) return(invisible(NULL))
+  check_convergence(fit_lin, "lin")
   rm(fit_lin); gc(verbose = FALSE)
 
   fit_quad <- tryCatch(
@@ -203,6 +220,7 @@ fit_job <- function(job_idx) {
     error = function(e) { log_msg("  ERROR (quad): ", conditionMessage(e)); NULL }
   )
   if (is.null(fit_quad)) return(invisible(NULL))
+  check_convergence(fit_quad, "quad")
   rm(fit_quad); gc(verbose = FALSE)
 
   log_msg(sprintf("  -> saved: %s_{lin,quad}.rds", basename(file_lin)))
