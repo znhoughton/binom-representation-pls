@@ -1,0 +1,63 @@
+1/62                       
+2/62 [setup]               
+3/62                       
+4/62 [libraries]           
+5/62                       
+6/62 [paths]               
+7/62                       
+8/62 [load-data]           
+9/62                       
+10/62 [bayes-correlations]  
+11/62                       
+12/62 [bf-heatmap]          
+13/62                       
+14/62 [bf-table]            
+15/62                       
+16/62 [bf-preference]       
+17/62                       
+18/62 [novel-priors]        
+19/62                       
+20/62 [fit-novel]           
+21/62                       
+22/62 [novel-diagnostics]   
+23/62                       
+24/62 [novel-fixed-effects] 
+25/62                       
+26/62 [novel-fe-plot]       
+27/62                       
+28/62 [novel-icc]           
+29/62                       
+30/62 [novel-r2]            
+31/62                       
+32/62 [fit-corpus]          
+33/62                       
+34/62 [corpus-r2]           
+35/62                       
+36/62 [corpus-icc]          
+37/62                       
+38/62 [load-corpus-wordcv]  
+39/62                       
+40/62 [corpus-wcv-bayes-cor]
+41/62                       
+42/62 [wcv-comparison]      
+43/62                       
+44/62 [wcv-fold-plot]       
+45/62                       
+46/62 [fit-novel-fe-only]   
+47/62                       
+48/62 [compare-fe-re]       
+49/62                       
+50/62 [mlp-load]            
+51/62                       
+52/62 [mlp-vs-pls]          
+53/62                       
+54/62 [mlp-pred-obs]        
+55/62                       
+56/62 [summary-table]       
+57/62                       
+58/62 [pred-vs-obs]         
+59/62                       
+60/62 [binned-pred-vs-obs]  
+61/62                       
+62/62 [session-info]        
+/usr/bin/pandoc +RTS -K512m -RTS bayesian_analysis.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output /home/zhoughton/misc/binom-representation-pls/Results/bayesian_analysis_znhoughton_opt-babylm-1_3b-20eps-seed964_layer_last.html --lua-filter /home/zhoughton/R/aarch64-unknown-linux-gnu-library/4.6/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /home/zhoughton/R/aarch64-unknown-linux-gnu-library/4.6/rmarkdown/rmarkdown/lua/latex-div.lua --embed-resources --standalone --variable bs3=TRUE --section-divs --table-of-contents --toc-depth 3 --variable toc_float=1 --variable toc_selectors=h1,h2,h3 --variable toc_collapsed=1 --variable toc_smooth_scroll=1 --variable toc_print=1 --template /home/zhoughton/R/aarch64-unknown-linux-gnu-library/4.6/rmarkdown/rmd/h/default.html --no-highlight --variable highlightjs=1 --variable theme=flatly --mathjax --variable 'mathjax-url=https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --include-in-header /tmp/RtmpCYVZCv/rmarkdown-str258c1346b05b9c.html --variable code_folding=show --variable code_menu=1 
