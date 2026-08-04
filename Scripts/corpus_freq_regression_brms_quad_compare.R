@@ -88,6 +88,8 @@ build_registry <- function() {
     add(paste0("EleutherAI_pythia-410m_step", s), "Pythia-410M", s, "last", "pile")
   for (s in c(16, 32, 64, 256, 512, 1000))
     add(paste0("EleutherAI_pythia-1b_step", s),   "Pythia-1B",   s, "last", "pile")
+  for (s in c(16, 32, 64, 256, 512, 1000))
+    add(paste0("EleutherAI_pythia-2.8b_step", s), "Pythia-2.8B", s, "last", "pile")
 
   bind_rows(rows)
 }
