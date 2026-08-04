@@ -1,0 +1,761 @@
+---
+title: "Stored or Computed? Abstract and Memorized Binomial Preferences in LLM Representations"
+acl-mode: review
+format:
+  acl-pdf:
+    keep-tex: true
+  html: default
+editor: visual
+author:
+  - name:
+      literal: Zachary N. Houghton
+    email: znh@uoregon.edu
+    affiliations:
+      - name: University of Oregon
+
+abstract: |
+  TODO
+
+bibliography: references.bib
+tbl-cap-location: bottom
+execute:
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+library(kableExtra)
+library(scales)
+library(brms)
+library(loo)
+
+RES       <- "../Results"
+MODEL_DIR <- "../Data/brms_models"
+
+# ── Slug → label map ──────────────────────────────────────────────────────────
+all_slugs <- c(
+  "znhoughton_opt-babylm-125m-20eps-seed964" = "BabyLM-125M",
+  "znhoughton_opt-babylm-350m-20eps-seed964" = "BabyLM-350M",
+  "znhoughton_opt-babylm-1_3b-20eps-seed964" = "BabyLM-1.3B",
+  "EleutherAI_pythia-160m"                   = "Pythia-160M",
+  "EleutherAI_pythia-410m"                   = "Pythia-410M",
+  "EleutherAI_pythia-1b"                     = "Pythia-1B",
+  "EleutherAI_pythia-2.8b"                   = "Pythia-2.8B",
+  "gpt2"                                     = "GPT-2",
+  "gpt2-medium"                              = "GPT-2-M",
+  "gpt2-large"                               = "GPT-2-L",
+  "gpt2-xl"                                  = "GPT-2-XL",
+  "allenai_OLMo-1B-hf"                       = "OLMo-1B",
+  "allenai_OLMo-7B-hf"                       = "OLMo-7B",
+  "allenai_OLMo-2-0425-1B"                   = "OLMo-2-1B",
+  "allenai_OLMo-2-1124-7B"                   = "OLMo-2-7B",
+  "meta-llama_Llama-3.2-1B"                  = "Llama-1.3B",
+  "meta-llama_Meta-Llama-3-8B"               = "Llama-3-8B"
+)
+
+family_map <- c(
+  "BabyLM-125M" = "BabyLM", "BabyLM-350M" = "BabyLM", "BabyLM-1.3B" = "BabyLM",
+  "Pythia-160M" = "Pythia", "Pythia-410M"  = "Pythia", "Pythia-1B"   = "Pythia",
+  "Pythia-2.8B" = "Pythia",
+  "GPT-2"       = "GPT-2",  "GPT-2-M"      = "GPT-2",  "GPT-2-L"     = "GPT-2",
+  "GPT-2-XL"   = "GPT-2",
+  "OLMo-1B"    = "OLMo",   "OLMo-7B"      = "OLMo",   "OLMo-2-1B"   = "OLMo",
+  "OLMo-2-7B"  = "OLMo",
+  "Llama-1.3B" = "Llama",  "Llama-3-8B"   = "Llama"
+)
+
+# ── Training-scale metadata ───────────────────────────────────────────────────
+model_meta <- tribble(
+  ~label,         ~params_M,  ~training_tokens_B,
+  "BabyLM-125M",  125,         0.15,
+  "BabyLM-350M",  350,         0.15,
+  "BabyLM-1.3B",  1300,        0.15,
+  "GPT-2",        117,         8.0,
+  "GPT-2-M",      345,         8.0,
+  "GPT-2-L",      762,         8.0,
+  "GPT-2-XL",     1500,        8.0,
+  "Pythia-160M",  160,         300.0,
+  "Pythia-410M",  410,         300.0,
+  "Pythia-1B",    1000,        300.0,
+  "Pythia-2.8B",  2800,        300.0,
+  "OLMo-1B",      1000,        3000.0,
+  "OLMo-7B",      7000,        2500.0,
+  "OLMo-2-1B",    1000,        4000.0,
+  "OLMo-2-7B",    7000,        4000.0,
+  "Llama-1.3B",   1200,        9000.0,
+  "Llama-3-8B",   8000,        15000.0
+)
+
+# ── Load MLP R² from per-model CSVs ──────────────────────────────────────────
+load_mlp <- function(slug, label, is_control = FALSE) {
+  fname <- if (is_control) "by_layer_mlp_control.csv" else "by_layer_mlp.csv"
+  path  <- file.path(RES, slug, fname)
+  if (!file.exists(path)) return(NULL)
+  read_csv(path, show_col_types = FALSE) |>
+    mutate(model = label, family = family_map[label], is_control = is_control)
+}
+
+all_r2 <- map_dfr(names(all_slugs), function(slug) {
+  bind_rows(
+    load_mlp(slug, all_slugs[[slug]], FALSE),
+    load_mlp(slug, all_slugs[[slug]], TRUE)
+  )
+}) |>
+  filter(split %in% c("pair_novel", "word_novel"))
+
+# ── brms model helpers ────────────────────────────────────────────────────────
+brms_path <- function(label, step = NA_integer_, condition, mode, type = "quad") {
+  step_str   <- if (is.na(step)) "final" else as.character(step)
+  fname_base <- gsub("[^A-Za-z0-9]", "_",
+                     paste(label, step_str, condition, mode, sep = "_"))
+  paste0(file.path(MODEL_DIR, paste0(fname_base, "_", type)), ".rds")
+}
+
+load_brms <- function(label, step = NA_integer_, condition, mode, type = "quad") {
+  path <- brms_path(label, step, condition, mode, type)
+  if (!file.exists(path)) return(NULL)
+  readRDS(path)
+}
+
+# Extract posterior mean + 95% CIs for all fixed effects from one quad fit
+extract_fixef_quad <- function(label, step = NA_integer_, condition, mode) {
+  fit <- load_brms(label, step, condition, mode, "quad")
+  if (is.null(fit)) return(NULL)
+  fx   <- as.data.frame(fixef(fit))
+  sq_nm <- rownames(fx)[!rownames(fx) %in% c("Intercept", "log_freq")]
+  tibble(
+    label            = label,
+    step             = step,
+    condition        = condition,
+    mode             = mode,
+    b_intercept      = fx["Intercept", "Estimate"],
+    b_intercept_lo   = fx["Intercept", "Q2.5"],
+    b_intercept_hi   = fx["Intercept", "Q97.5"],
+    b_quad_linear    = fx["log_freq",  "Estimate"],
+    b_quad_linear_lo = fx["log_freq",  "Q2.5"],
+    b_quad_linear_hi = fx["log_freq",  "Q97.5"],
+    b_quad_sq        = fx[sq_nm, "Estimate"],
+    b_quad_sq_lo     = fx[sq_nm, "Q2.5"],
+    b_quad_sq_hi     = fx[sq_nm, "Q97.5"],
+    vertex           = -fx["log_freq", "Estimate"] / (2 * fx[sq_nm, "Estimate"])
+  )
+}
+
+# LOO comparison: quadratic vs. linear
+extract_loo_compare <- function(label, step = NA_integer_, condition, mode) {
+  fit_l <- load_brms(label, step, condition, mode, "lin")
+  fit_q <- load_brms(label, step, condition, mode, "quad")
+  if (is.null(fit_l) || is.null(fit_q)) return(NULL)
+  loo_l  <- loo(fit_l)
+  loo_q  <- loo(fit_q)
+  cmp    <- loo_compare(list(lin = loo_l, quad = loo_q))
+  tibble(
+    label     = label,
+    step      = step,
+    condition = condition,
+    mode      = mode,
+    elpd_diff           = loo_q$estimates["elpd_loo", "Estimate"] -
+                          loo_l$estimates["elpd_loo", "Estimate"],
+    se_diff             = cmp[2, "se_diff"],
+    pct_pareto_bad_lin  = mean(loo_l$diagnostics$pareto_k > 0.7),
+    pct_pareto_bad_quad = mean(loo_q$diagnostics$pareto_k > 0.7)
+  )
+}
+
+# Fitted quadratic curve with 95% posterior predictive band
+extract_curve <- function(label, step = NA_integer_, condition, mode,
+                           n_points = 150) {
+  fit <- load_brms(label, step, condition, mode, "quad")
+  if (is.null(fit)) return(NULL)
+  lf         <- fit$data$log_freq
+  freq_grid  <- tibble(log_freq = seq(min(lf), max(lf), length.out = n_points))
+  draws      <- posterior_epred(fit, newdata = freq_grid)
+  tibble(
+    label     = label,
+    step      = step,
+    condition = condition,
+    mode      = mode,
+    log_freq  = freq_grid$log_freq,
+    mean_fit  = colMeans(draws),
+    q025      = apply(draws, 2, quantile, 0.025),
+    q975      = apply(draws, 2, quantile, 0.975)
+  )
+}
+
+# ── Family colour palette ──────────────────────────────────────────────────────
+family_colors <- c(
+  "BabyLM" = "#4477AA",
+  "GPT-2"  = "#EE6677",
+  "Pythia" = "#228833",
+  "OLMo"   = "#CCBB44",
+  "Llama"  = "#AA3377"
+)
+
+# ── Factor order for model labels ──────────────────────────────────────────────
+model_order <- c(
+  "BabyLM-125M", "BabyLM-350M", "BabyLM-1.3B",
+  "GPT-2", "GPT-2-M", "GPT-2-L", "GPT-2-XL",
+  "Pythia-160M", "Pythia-410M", "Pythia-1B", "Pythia-2.8B",
+  "OLMo-1B", "OLMo-7B", "OLMo-2-1B", "OLMo-2-7B",
+  "Llama-1.3B", "Llama-3-8B"
+)
+
+condition_labels <- c(
+  "default"     = "Full context",
+  "attn_zeroed" = "Attention-zeroed"
+)
+
+mode_labels <- c(
+  "mean_pooled" = "Binomial-level",
+  "words_only"  = "Word-level"
+)
+
+theme_paper <- function(base_size = 11) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      text             = element_text(color = "black"),
+      axis.text        = element_text(color = "black"),
+      axis.title       = element_text(color = "black"),
+      legend.text      = element_text(color = "black"),
+      legend.title     = element_text(color = "black"),
+      strip.text       = element_text(color = "black", face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+}
+```
+
+# Methods
+
+## Stimuli
+
+We use two complementary datasets of binomial expressions, conjunctions of the form *X and Y* where speakers exhibit a consistent preference for one ordering over the other (e.g., *bread and butter* rather than *butter and bread*). The **novel set** comprises approximately 340,000 binomial pairs selected to be absent from BabyLM's training corpus. Each novel pair carries a human preference score derived from prior norming studies, operationalized as the logit-transformed proportion of participants preferring the $W_1\text{ and }W_2$ ordering. The novel pairs are therefore genuinely novel for the BabyLM models used in Experiment 1 and not for the full-scale models in Experiment 2: frequency estimates from Dolma [@dolma], a corpus comparable in composition to the Pile, indicate that approximately 98% of the novel pairs appear at non-zero frequency in that corpus, with Pile-equivalent counts spanning 14 to 443 occurrences for the middle 50% of items. The implications of this asymmetry for the interpretation of Experiment 2 are addressed in Section \ref{sec:exp2-overlap}.
+
+The **corpus set** comprises approximately 49,000 binomial pairs attested in natural text. For each corpus pair and each model, the ordering preference is operationalized as the model's own log-probability ratio: $y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)$, computed from a standard forward pass. The probe is trained on the novel set and evaluated on the corpus set, so frequency effects measured on corpus items reflect genuine generalization to new data.
+
+## Models
+
+We compare three BabyLM models — OPT-based models trained for 20 epochs on a 150M-token subset of the BabyLM benchmark corpus [@warstadt-etal-2023-findings] — against fourteen full-scale pre-trained language models spanning four model families (Table \ref{tab:models}). The BabyLM models serve as a small-data baseline; the full-scale models provide a cross-family comparison at substantially larger training scales.
+
+```{r}
+#| label: tbl-models
+#| tbl-cap: "Models included in Experiment 1. Training token counts for full-scale models are approximate; GPT-2 counts are estimated from the reported 40GB WebText corpus."
+
+model_table <- tribble(
+  ~Family,  ~Model,          ~Parameters, ~`Training tokens`,
+  "BabyLM", "BabyLM-125M",  "125M",      "150M",
+  "BabyLM", "BabyLM-350M",  "350M",      "150M",
+  "BabyLM", "BabyLM-1.3B",  "1.3B",      "150M",
+  "GPT-2",  "GPT-2",        "117M",      "~8B",
+  "GPT-2",  "GPT-2-medium", "345M",      "~8B",
+  "GPT-2",  "GPT-2-large",  "762M",      "~8B",
+  "GPT-2",  "GPT-2-XL",     "1.5B",      "~8B",
+  "Pythia", "Pythia-160M",  "160M",      "~300B",
+  "Pythia", "Pythia-410M",  "410M",      "~300B",
+  "Pythia", "Pythia-1B",    "1B",         "~300B",
+  "Pythia", "Pythia-2.8B",  "2.8B",      "~300B",
+  "OLMo",   "OLMo-1B",      "1B",        "3T",
+  "OLMo",   "OLMo-7B",      "7B",        "2.5T",
+  "OLMo",   "OLMo-2-1B",    "1B",        "~4T",
+  "OLMo",   "OLMo-2-7B",    "7B",        "~4T",
+  "Llama",  "Llama-1.3B",   "1.2B",      "~9T",
+  "Llama",  "Llama-3-8B",   "8B",        "~15T"
+)
+
+model_table |>
+  kbl(booktabs = TRUE, linesep = "") |>
+  kable_styling(font_size = 9) |>
+  collapse_rows(columns = 1, latex_hline = "major")
+```
+
+## Representation Extraction
+
+For each model, we extract hidden-state representations from the final layer at inference time. Each binomial pair is presented to the model in both orderings (*W*~1~ and *W*~2~ ; *W*~2~ and *W*~1~) within a natural sentence frame. We extract representations under two input modes:
+
+- **Binomial-level** (`mean_pooled`): the input to the probe is $[\bar{h}(W_1\text{ and }W_2); \bar{h}(W_2\text{ and }W_1)]$, where $\bar{h}$ denotes the mean of token representations across all positions in each ordering.
+- **Word-level** (`words_only`): the input is $[h(W_1); h(W_2)]$, where $h(W_k)$ is the hidden state of word $W_k$ extracted from the sentence in which it appears in first position, excluding the conjunction token.
+
+The binomial-level mode captures the model's representation of the full phrase, including the interaction between words mediated by the conjunction. The word-level mode isolates individual word representations without phrase-level composition.
+
+## Attention Conditions
+
+We probe representations under two attention conditions:
+
+- **Full context** (`default`): standard forward pass with full cross-token attention. Each word's representation reflects contextual influences from all other tokens in the sentence.
+- **Attention-zeroed** (`attn_zeroed`): cross-token attention weights are zeroed out at each layer before the output projection. This condition isolates the feed-forward network (FFN) pathway, producing representations driven primarily by positional encoding and token-level FFN transformations rather than cross-word attention.
+
+Crossing attention conditions with input modes yields four representation types per model. We report all four separately throughout and do not collapse across conditions.
+
+## MLP Probe
+
+For each representation type, we train a two-layer MLP classifier (hidden dimension 128, ReLU activation) to predict binomial preference from the extracted representations. The model is trained with Adam (learning rate $10^{-3}$, weight decay $10^{-4}$) with early stopping (patience = 20) and a 10% held-out validation set. Training uses antisymmetric augmentation: for each pair, we add a flipped version (swapped ordering, negated label) with probability 0.5. We report cross-validated Bayesian R² [@gelman2019r2] as our measure of probe performance, averaged across 10 folds.
+
+We evaluate generalization under two cross-validation splits:
+
+- **Pair-held-out** (`pair_novel`): pairs are held out as units; both orderings of a pair appear only in training or only in test.
+- **Word-held-out** (`word_novel`): all pairs containing a test word are excluded from training, testing generalization to completely novel lexical items.
+
+## Control Probes
+
+Following @hewitt-liang-2019-designing, we train a matched control probe on randomly permuted preference labels under the same architecture and hyperparameters. Selectivity — the difference between main probe R² and control probe R² — provides evidence that the probe is extracting genuine linguistic structure rather than exploiting label artifacts or probe capacity. Control results are reported alongside main probe results throughout.
+
+## Frequency-Residual Regression {#sec:methods-freq-regression}
+
+To characterize how corpus frequency relates to probe accuracy, we regress the absolute residual error of the MLP probe on log corpus frequency. Here, $y_{\text{true}}$ is the model's own ordering preference computed from a forward pass: $\log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)$. We fit both a linear specification,
+
+$$|y_{\text{true}} - \hat{y}| \sim \beta_0 + \beta_1 \log(\text{freq})$$
+
+and a quadratic extension,
+
+$$|y_{\text{true}} - \hat{y}| \sim \beta_0 + \beta_1 \log(\text{freq}) + \beta_2 \log(\text{freq})^2$$
+
+and select between them using leave-one-out cross-validated expected log pointwise predictive density [ELPD-LOO; @vehtari2017loo]. For the linear model, $\hat\beta_1 < 0$ indicates that the probe is more accurate for higher-frequency pairs; $\hat\beta_1 > 0$ indicates the opposite. For the quadratic model, $\hat\beta_2 > 0$ implies a U-shaped curve with prediction error lowest at intermediate frequencies and highest at both extremes.
+
+Both specifications are fit using Bayesian linear regression [via **brms**, @burkner2017brms] with default priors, 4 chains, 4000 iterations (2000 warmup), and seed 964. Frequency counts for BabyLM models are drawn from the BabyLM training corpus; for all full-scale models, we use the Pile [@gao2020pile] as a frequency proxy, as most full-scale training corpora are not publicly queryable at scale.
+
+\newpage
+
+# Experiment 1: BabyLM Representations {#sec:exp1}
+
+Experiment 1 focuses on the three BabyLM models (125M, 350M, and 1.3B parameters). Because the novel binomials were selected to be absent from BabyLM's training corpus, this experiment provides the cleanest test of whether a language model encodes abstract binomial ordering preferences: any preference signal the probe recovers must have been generalized from the training distribution rather than read off from direct exposure to the test pairs. We probe the final hidden layer at each model's final training checkpoint, and report results under all four combinations of attention condition and input mode.
+
+```{r}
+#| label: load-brms-babylm
+#| cache: true
+#| include: false
+
+COND_MODE_GRID <- tidyr::expand_grid(
+  label     = c("BabyLM-125M", "BabyLM-350M", "BabyLM-1.3B"),
+  condition = c("default", "attn_zeroed"),
+  mode      = c("mean_pooled", "words_only")
+)
+
+babylm_curves <- map_dfr(seq_len(nrow(COND_MODE_GRID)), function(i) {
+  r <- COND_MODE_GRID[i, ]
+  extract_curve(r$label, NA_integer_, r$condition, r$mode)
+})
+
+babylm_coefs <- map_dfr(seq_len(nrow(COND_MODE_GRID)), function(i) {
+  r <- COND_MODE_GRID[i, ]
+  fx  <- extract_fixef_quad(r$label, NA_integer_, r$condition, r$mode)
+  lc  <- extract_loo_compare(r$label, NA_integer_, r$condition, r$mode)
+  if (is.null(fx)) return(NULL)
+  if (!is.null(lc)) fx <- left_join(fx, lc, by = c("label", "step", "condition", "mode"))
+  fx
+}) |>
+  left_join(model_meta, by = "label") |>
+  mutate(family = family_map[label])
+```
+
+## Probe Performance
+
+```{r}
+#| label: fig-r2-babylm
+#| fig-cap: "Cross-validated R² at the final hidden layer for BabyLM models (125M, 350M, 1.3B), by attention condition and input mode. Solid points = main probe; open points = control probe (shuffled labels). Bars show ±1 SD across folds."
+#| fig-width: 5
+#| fig-height: 4
+#| eval: !expr nrow(all_r2) > 0
+
+all_r2 |>
+  filter(family == "BabyLM") |>
+  mutate(
+    model      = factor(model, levels = model_order),
+    condition  = recode(condition, !!!condition_labels),
+    mode       = recode(mode, !!!mode_labels),
+    probe_type = if_else(is_control, "Control", "Main")
+  ) |>
+  ggplot(aes(x = model, y = mean_r2, color = family,
+             shape = split, alpha = probe_type)) +
+  geom_pointrange(aes(ymin = mean_r2 - sd_r2, ymax = mean_r2 + sd_r2),
+                  position = position_dodge(0.6), linewidth = 0.5, size = 0.4) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels,
+                                 mode      = mode_labels)) +
+  scale_color_manual(values = family_colors) +
+  scale_alpha_manual(values = c("Main" = 1, "Control" = 0.4)) +
+  scale_shape_manual(values = c("pair_novel" = 16, "word_novel" = 1),
+                     labels = c("pair_novel" = "Pair-held-out",
+                                "word_novel" = "Word-held-out")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  labs(x = NULL, y = expression(R^2),
+       color = "Family", shape = "Split", alpha = "Probe") +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: tbl-r2-babylm
+#| tbl-cap: "Probe R² and selectivity (main $-$ control R²) at the final hidden layer for BabyLM models, by attention condition and input mode. P = pair-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
+#| eval: !expr nrow(all_r2) > 0
+
+all_r2 |>
+  filter(family == "BabyLM") |>
+  select(model, condition, mode, split, mean_r2, sd_r2, is_control) |>
+  pivot_wider(names_from  = is_control,
+              values_from = c(mean_r2, sd_r2),
+              names_sep   = "_") |>
+  rename(r2_main = mean_r2_FALSE, sd_main = sd_r2_FALSE,
+         r2_ctrl = mean_r2_TRUE,  sd_ctrl = sd_r2_TRUE) |>
+  mutate(
+    selectivity = r2_main - r2_ctrl,
+    condition   = recode(condition, !!!condition_labels),
+    mode        = recode(mode, !!!mode_labels),
+    model       = factor(model, levels = model_order),
+    Split       = if_else(split == "pair_novel", "P", "W"),
+    `R²`        = sprintf("%.3f (%.3f)", r2_main, sd_main),
+    Ctrl        = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
+    Sel.        = sprintf("%.3f", selectivity)
+  ) |>
+  arrange(model, condition, mode, split) |>
+  select(Model = model, Condition = condition, Mode = mode,
+         Split, `R²`, Ctrl, Sel.) |>
+  kbl(booktabs = TRUE, linesep = "") |>
+  kable_styling(font_size = 8) |>
+  collapse_rows(columns = 1:3, latex_hline = "major")
+```
+
+## Memorization vs. Abstraction
+
+```{r}
+#| label: fig-beta-babylm
+#| fig-cap: "Fitted quadratic frequency-residual curves for BabyLM models at the final layer, by attention condition and input mode. The y-axis is the expected absolute probe residual as a function of log corpus frequency. Shaded ribbons show 95\\% posterior credible bands; lines show posterior means. A U-shaped curve (minimum at intermediate frequency) indicates that the probe is most accurate for mid-frequency pairs."
+#| fig-width: 5
+#| fig-height: 4
+#| eval: !expr nrow(babylm_curves) > 0
+
+babylm_curves |>
+  mutate(
+    model     = factor(label, levels = model_order),
+    condition = recode(condition, !!!condition_labels),
+    mode      = recode(mode, !!!mode_labels),
+    family    = family_map[label]
+  ) |>
+  ggplot(aes(x = log_freq, color = model, fill = model)) +
+  geom_ribbon(aes(ymin = q025, ymax = q975), alpha = 0.12, color = NA) +
+  geom_line(aes(y = mean_fit), linewidth = 0.75) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels,
+                                 mode      = mode_labels)) +
+  scale_color_brewer(palette = "Blues", direction = -1, name = "Model") +
+  scale_fill_brewer(palette  = "Blues", direction = -1, name = "Model") +
+  labs(x = "Log corpus frequency", y = "Fitted |residual|") +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: tbl-beta-babylm
+#| tbl-cap: "Bayesian frequency-residual regression results for BabyLM models (final layer). ELPD-diff = LOO expected log predictive density advantage of the quadratic over the linear model (positive = quadratic better); SE = standard error. 95\\% CIs in brackets. Vertex = $-\\hat\\beta_1 / (2\\hat\\beta_2)$, the log-frequency at which probe error is minimized."
+#| eval: !expr nrow(babylm_coefs) > 0
+
+babylm_coefs |>
+  mutate(
+    model     = factor(label, levels = model_order),
+    condition = recode(condition, !!!condition_labels),
+    mode      = recode(mode, !!!mode_labels),
+    ELPD      = if_else(!is.na(elpd_diff),
+                        sprintf("%.1f (%.1f)", elpd_diff, se_diff), "—"),
+    `β̂₁`    = sprintf("%.4f [%.4f, %.4f]",
+                        b_quad_linear, b_quad_linear_lo, b_quad_linear_hi),
+    `β̂₂`    = sprintf("%.5f [%.5f, %.5f]",
+                        b_quad_sq, b_quad_sq_lo, b_quad_sq_hi),
+    Vertex    = sprintf("%.2f", vertex)
+  ) |>
+  arrange(model, condition, mode) |>
+  select(Model = model, Condition = condition, Mode = mode,
+         `ELPD-diff (SE)` = ELPD, `β̂₁`, `β̂₂`, Vertex) |>
+  kbl(booktabs = TRUE, linesep = "") |>
+  kable_styling(font_size = 7) |>
+  collapse_rows(columns = 1:2, latex_hline = "major")
+```
+
+\newpage
+
+# Experiment 2: Cross-Family Final-Layer Representations {#sec:exp2}
+
+Experiment 2 extends the analysis to all 17 models, spanning BabyLM, Pythia, GPT-2, OLMo, and Llama families (117M to 8B parameters, trained on 150M to approximately 15T tokens). The core questions are whether preference encoding is robust across model families and training scales, and whether the memorization-abstraction pattern observed in Experiment 1 generalizes beyond the small-data regime. Because the novel binomials are not genuinely novel for the full-scale models (Section \ref{sec:exp2-overlap}), the probe design differs in a subtle but important way from Experiment 1: the frequency-residual analysis probes how corpus-attested preferences relate to probe accuracy within model families, not how well the probe generalizes to held-out training data.
+
+## Probe Performance
+
+```{r}
+#| label: fig-r2
+#| fig-cap: "Cross-validated R² at the final hidden layer for all 17 models, by attention condition and input mode. Solid points = main probe; open points = control probe (shuffled labels). Bars show ±1 SD across folds. Models are ordered left-to-right within each family by parameter count."
+#| fig-width: 6.5
+#| fig-height: 4.5
+#| eval: !expr nrow(all_r2) > 0
+
+all_r2 |>
+  mutate(
+    model      = factor(model, levels = model_order),
+    condition  = recode(condition, !!!condition_labels),
+    mode       = recode(mode, !!!mode_labels),
+    probe_type = if_else(is_control, "Control", "Main")
+  ) |>
+  ggplot(aes(x = model, y = mean_r2, color = family,
+             shape = split, alpha = probe_type)) +
+  geom_pointrange(aes(ymin = mean_r2 - sd_r2, ymax = mean_r2 + sd_r2),
+                  position = position_dodge(0.6), linewidth = 0.5, size = 0.4) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels,
+                                 mode      = mode_labels)) +
+  scale_color_manual(values = family_colors) +
+  scale_alpha_manual(values = c("Main" = 1, "Control" = 0.4)) +
+  scale_shape_manual(values = c("pair_novel" = 16, "word_novel" = 1),
+                     labels = c("pair_novel" = "Pair-held-out",
+                                "word_novel" = "Word-held-out")) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  labs(x = NULL, y = expression(R^2),
+       color = "Family", shape = "Split", alpha = "Probe") +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: tbl-r2
+#| tbl-cap: "Probe R² and selectivity (main $-$ control R²) at the final layer, by attention condition and input mode. P = pair-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
+#| eval: !expr nrow(all_r2) > 0
+
+all_r2 |>
+  select(model, family, condition, mode, split, mean_r2, sd_r2, is_control) |>
+  pivot_wider(names_from  = is_control,
+              values_from = c(mean_r2, sd_r2),
+              names_sep   = "_") |>
+  rename(r2_main = mean_r2_FALSE, sd_main = sd_r2_FALSE,
+         r2_ctrl = mean_r2_TRUE,  sd_ctrl = sd_r2_TRUE) |>
+  mutate(
+    selectivity = r2_main - r2_ctrl,
+    condition   = recode(condition, !!!condition_labels),
+    mode        = recode(mode, !!!mode_labels),
+    model       = factor(model, levels = model_order),
+    Split       = if_else(split == "pair_novel", "P", "W"),
+    `R²`        = sprintf("%.3f (%.3f)", r2_main, sd_main),
+    Ctrl        = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
+    Sel.        = sprintf("%.3f", selectivity)
+  ) |>
+  arrange(model, condition, mode, split) |>
+  select(Model = model, Condition = condition, Mode = mode,
+         Split, `R²`, Ctrl, Sel.) |>
+  kbl(booktabs = TRUE, linesep = "") |>
+  kable_styling(font_size = 8) |>
+  collapse_rows(columns = 1:3, latex_hline = "major")
+```
+
+```{r}
+#| label: load-brms-all
+#| cache: true
+#| include: false
+
+ALL_LABELS <- model_order  # all 17 final models
+
+COND_MODE_GRID_ALL <- tidyr::expand_grid(
+  label     = ALL_LABELS,
+  condition = c("default", "attn_zeroed"),
+  mode      = c("mean_pooled", "words_only")
+)
+
+all_coefs <- map_dfr(seq_len(nrow(COND_MODE_GRID_ALL)), function(i) {
+  r  <- COND_MODE_GRID_ALL[i, ]
+  fx <- extract_fixef_quad(r$label, NA_integer_, r$condition, r$mode)
+  lc <- extract_loo_compare(r$label, NA_integer_, r$condition, r$mode)
+  if (is.null(fx)) return(NULL)
+  if (!is.null(lc)) fx <- left_join(fx, lc, by = c("label", "step", "condition", "mode"))
+  fx
+}) |>
+  left_join(model_meta, by = "label") |>
+  mutate(family = family_map[label])
+```
+
+## Memorization vs. Abstraction
+
+```{r}
+#| label: fig-beta
+#| fig-cap: "Quadratic curvature ($\\hat{\\beta}_2$) of the frequency-residual relationship at the final hidden layer, by attention condition and input mode. Positive values indicate that probe error is U-shaped: lowest at intermediate corpus frequencies, highest at extremes. Points show posterior means; bars show 95\\% credible intervals. Models are ordered by training token count (x-axis, log scale)."
+#| fig-width: 6.5
+#| fig-height: 4.5
+#| eval: !expr nrow(all_coefs) > 0
+
+all_coefs |>
+  mutate(
+    model     = factor(label, levels = model_order),
+    condition = recode(condition, !!!condition_labels),
+    mode      = recode(mode, !!!mode_labels)
+  ) |>
+  ggplot(aes(x = log10(training_tokens_B * 1e9), y = b_quad_sq,
+             color = family, shape = family)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.4) +
+  geom_linerange(aes(ymin = b_quad_sq_lo, ymax = b_quad_sq_hi),
+                 linewidth = 0.5, position = position_dodge(0.05)) +
+  geom_point(size = 2, position = position_dodge(0.05)) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels,
+                                 mode      = mode_labels)) +
+  scale_color_manual(values = family_colors) +
+  scale_shape_manual(values = c(
+    "BabyLM" = 15, "GPT-2" = 16, "Pythia" = 17, "OLMo" = 18, "Llama" = 19
+  )) +
+  scale_x_continuous(
+    name   = "Training tokens (log scale)",
+    breaks = log10(c(1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15)),
+    labels = c("100M", "1B", "10B", "100B", "1T", "10T", "100T", "1P")
+  ) +
+  labs(y = expression(hat(beta)[2]~"(quadratic curvature)"),
+       color = "Family", shape = "Family") +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: tbl-beta
+#| tbl-cap: "Bayesian frequency-residual regression results for all 17 final-layer models. ELPD-diff = LOO expected log predictive density advantage of the quadratic over the linear model; SE = standard error. 95\\% CIs in brackets. Vertex = $-\\hat\\beta_1 / (2\\hat\\beta_2)$, the log-frequency at minimum probe error."
+#| eval: !expr nrow(all_coefs) > 0
+
+all_coefs |>
+  mutate(
+    model     = factor(label, levels = model_order),
+    condition = recode(condition, !!!condition_labels),
+    mode      = recode(mode, !!!mode_labels),
+    ELPD      = if_else(!is.na(elpd_diff),
+                        sprintf("%.1f (%.1f)", elpd_diff, se_diff), "—"),
+    `β̂₁`    = sprintf("%.4f [%.4f, %.4f]",
+                        b_quad_linear, b_quad_linear_lo, b_quad_linear_hi),
+    `β̂₂`    = sprintf("%.5f [%.5f, %.5f]",
+                        b_quad_sq, b_quad_sq_lo, b_quad_sq_hi),
+    Vertex    = sprintf("%.2f", vertex)
+  ) |>
+  arrange(model, condition, mode) |>
+  select(Model = model, Condition = condition, Mode = mode,
+         `ELPD-diff (SE)` = ELPD, `β̂₁`, `β̂₂`, Vertex) |>
+  kbl(booktabs = TRUE, linesep = "") |>
+  kable_styling(font_size = 7) |>
+  collapse_rows(columns = 1:2, latex_hline = "major")
+```
+
+## Validity of Experiment 2 Results {#sec:exp2-validity}
+
+### Frequency Regression {#sec:exp2-freq-validity}
+
+Although the novel binomials were selected to be absent from BabyLM's training corpus, they are not novel for Pile-trained models: Dolma frequency estimates place approximately 98% of the novel pairs at non-zero frequency in that corpus, with Pile-equivalent counts spanning 14 to 443 occurrences for the middle 50% of items. One might therefore worry that the U-shaped relationship between corpus frequency and probe error reflects calibration of the probe to the low-to-medium frequency regime of its training data rather than a genuine property of LLM representations. We address this in two ways.
+
+First, the model's ordering preference ($y_{\text{true}}$) is not correlated with corpus frequency for any of the 17 models (all $|r| < 0.03$; Table S\ref{tbl-ytrue-cor}), ruling out range restriction: since the signal the probe must predict is equally distributed across frequency levels, any accuracy advantage at mid-range frequencies cannot be attributed to what the probe needs to predict there. Second, the word-held-out cross-validation (Section \ref{sec:exp1}) demonstrates that the probe generalizes to lexical items absent from probe training, showing that the 91% word-level overlap between the novel and attested binomial vocabularies does not itself drive probe performance.
+
+### Probe R² {#sec:exp2-r2-validity}
+
+A related concern is whether the R² values for Pile-trained models reflect genuine preference learning or merely the probe decoding pair-specific encodings that the model has memorized during training. The word-held-out cross-validation split provides direct evidence against this: when all pairs sharing a word with any test pair are excluded from probe training, the probe is evaluated on pairs composed of words it has never encountered during probe learning. High R² under this split, closely matching pair-held-out performance across all 14 non-BabyLM models, indicates that the probe has learned a generalizable mapping from representation to preference rather than a lookup over memorized pairs. Additionally, if the probe were reading off pair-specific frequency-weighted memory traces, prediction accuracy should increase monotonically with corpus frequency. Instead, the U-shaped pattern described above shows that high-frequency pairs are among the hardest to predict — inconsistent with a pure memorization account, and consistent with representations that encode an abstract preference structure that competes with idiom-level memorization at high frequencies.
+
+## Predicted vs. Observed
+
+```{r}
+#| label: fig-scatter
+#| fig-cap: "Predicted vs. observed binomial preference for representative models at the final hidden layer, full-context condition, binomial-level input mode. Each point is a corpus binomial pair colored by log-frequency tertile (low/medium/high). Perfect prediction falls on the diagonal."
+#| fig-width: 6.5
+#| fig-height: 4.5
+
+# One model per family (largest in each); default/mean_pooled only.
+SCATTER_MODELS <- tribble(
+  ~slug,                               ~label,
+  "znhoughton_opt-babylm-1_3b-20eps-seed964", "BabyLM-1.3B",
+  "gpt2-xl",                                  "GPT-2-XL",
+  "EleutherAI_pythia-2.8b",                   "Pythia-2.8B",
+  "allenai_OLMo-7B-hf",                       "OLMo-7B",
+  "meta-llama_Meta-Llama-3-8B",               "Llama-3-8B"
+)
+
+freq_pile <- read_csv(
+  file.path(RES, "corpus_binomials_infinigram_piletrain.csv"),
+  show_col_types = FALSE
+) |> select(word1, word2, freq_total)
+
+freq_babylm <- read_csv(
+  "../Data/corpus_binomials.csv",
+  show_col_types = FALSE
+) |>
+  mutate(freq_total = freq_w1_w2 + freq_w2_w1) |>
+  select(word1, word2, freq_total)
+
+load_scatter <- function(slug, label) {
+  xz  <- file.path(RES, slug, "by_layer_corpus_pred.csv.xz")
+  csv <- file.path(RES, slug, "by_layer_corpus_pred.csv")
+  if (!file.exists(xz) && !file.exists(csv)) return(NULL)
+  pred <- if (file.exists(xz)) {
+    con <- xzfile(xz, "rb"); d <- read_csv(con, show_col_types = FALSE); close(con); d
+  } else {
+    read_csv(csv, show_col_types = FALSE)
+  }
+  last_layer <- as.character(max(suppressWarnings(as.integer(unique(pred$layer))), na.rm = TRUE))
+  freq_df <- if (grepl("babylm", slug)) freq_babylm else freq_pile
+  pred |>
+    filter(as.character(layer) == last_layer,
+           condition == "default", mode == "mean_pooled") |>
+    left_join(freq_df, by = c("word1", "word2")) |>
+    filter(!is.na(freq_total), freq_total > 0) |>
+    mutate(
+      label    = label,
+      log_freq = log(freq_total),
+      freq_bin = cut(log_freq, breaks = 3,
+                     labels = c("Low frequency", "Medium frequency", "High frequency"))
+    )
+}
+
+scatter_data <- map_dfr(seq_len(nrow(SCATTER_MODELS)), function(i) {
+  load_scatter(SCATTER_MODELS$slug[i], SCATTER_MODELS$label[i])
+})
+
+if (nrow(scatter_data) > 0) {
+  scatter_data |>
+    mutate(label = factor(label, levels = SCATTER_MODELS$label)) |>
+    ggplot(aes(x = y_true, y = y_pred, color = freq_bin)) +
+    geom_point(size = 0.3, alpha = 0.15) +
+    geom_abline(slope = 1, intercept = 0,
+                linetype = "dashed", color = "gray40", linewidth = 0.4) +
+    facet_wrap(~label, nrow = 1) +
+    scale_color_manual(
+      values = c(
+        "Low frequency"    = "#4477AA",
+        "Medium frequency" = "#CCBB44",
+        "High frequency"   = "#EE6677"
+      )
+    ) +
+    labs(x = "Observed preference (log-odds)",
+         y = "Predicted preference",
+         color = "Corpus frequency") +
+    theme_paper() +
+    theme(legend.position = "bottom")
+}
+```
+
+\newpage
+
+# Experiment 3: Developmental Trajectories {#sec:exp3}
+
+Experiments 1 and 2 establish that language models encode binomial preferences at the end of training, but they leave open when during training these representations emerge, and whether the memorization-abstraction tradeoff is present from early on or crystallizes with additional exposure. Experiment 3 addresses this by examining the same probe at multiple training checkpoints. We ask two questions: (1) Does probe accuracy increase monotonically with training, or does it plateau early, suggesting that preference representations are rapidly acquired? (2) Does the U-shaped frequency-residual relationship hold from early checkpoints, or does it only emerge as training progresses and memorization of high-frequency items accumulates?
+
+## Methods
+
+We probe six BabyLM checkpoints per model size (125M, 350M, 1.3B), sampled at approximately even intervals across training. For Pythia, we use the publicly released intermediate checkpoints at steps 16, 32, 64, 256, 512, and 1000 for the 160M and 410M models, and steps 16, 32, 64, 256, 512, and 1000 for the 1B model. Pythia steps are indexed to gradient updates; each step corresponds to approximately 2.1M tokens, so step 1000 represents approximately 2.1B tokens of total training. BabyLM and Pythia checkpoints are selected to span comparable proportional stages of training (roughly 1%, 2%, 6%, 17%, 40%, and 100% of total token exposure), allowing trajectory comparisons across the two training regimes.
+
+The probe, input modes, attention conditions, and cross-validation splits are identical to those of Experiments 1 and 2. For the frequency-residual analysis, we fit the quadratic Bayesian regression from Section \ref{sec:methods-freq-regression} at each checkpoint and report $\hat\beta_2$ (the curvature of the U-shape) and the vertex log-frequency (the point at which probe error is minimized) as a function of training step.
+
+## Results
+
+*[Results to be added once checkpoint brms fits complete.]*
+
+\newpage
+
+# Experiment 4: Layer-by-Layer Analysis {#sec:exp4}
+
+The final-layer probe in Experiments 1 and 2 collapses across all the representational work that happens inside the model. Experiment 4 opens this up: by probing every hidden layer, we can identify where in the network binomial preference information is concentrated, and whether the two attention conditions — full context and attention-zeroed — converge at similar depths or diverge throughout the network. The attention-zeroed condition is particularly informative here: because it isolates the FFN pathway at each layer independently of any cross-token attention at that layer or any preceding one, differences between the two conditions as a function of depth reveal the relative contributions of the attention and FFN sublayers to preference encoding.
+
+## Methods
+
+We probe all hidden layers (layers 1 through $N$, where $N$ is the total number of transformer blocks) for one representative model per family: BabyLM-125M, Pythia-160M, GPT-2, OLMo-1B, and Llama-3.2-1B. The probe, input modes, and cross-validation splits are identical to those of Experiments 1 and 2. To keep the analysis tractable, we report only pair-held-out R² (the primary generalization measure) and do not fit the frequency-residual regression at each layer.
+
+One interpretive note: in RoPE-based models (Pythia, OLMo, Llama), the attention-zeroed condition removes position information carried by attention patterns in addition to removing cross-token context, since RoPE encodes position into the query-key product that is zeroed out. For GPT-2, which uses learned absolute position embeddings added to the input, zeroing attention does not remove positional information in the same way. We flag this difference in the results where relevant.
+
+## Results
+
+*[Results to be added once by-layer analysis completes.]*
