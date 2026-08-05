@@ -1,18 +1,19 @@
 # prepare_results.R
-# Loads all brms model pairs (lin + quad) once, extracts fixef summaries,
-# posterior beta2 stats, LOO comparisons, and fitted quadratic curves.
-# Saves two lightweight files:
-#   Data/brms_summary.rds  -- one row per model×cond×mode (fixef + LOO + beta2)
+# Loads all brms quad models once, extracts fixef summaries, posterior beta2
+# stats, and fitted quadratic curves.  Saves two lightweight files:
+#   Data/brms_summary.rds  -- one row per model×cond×mode
 #   Data/brms_curves.rds   -- 100-point curve grid per model×cond×mode
 #
-# The writeup loads only these files — no brms models are loaded at render time.
+# LOO comparison is NOT computed here (it requires ~3 GB RAM per model pair).
+# Run Scripts/compute_loo.R separately if ELPD-diff is needed.
 #
 # Usage (from project root):
 #   Rscript Scripts/prepare_results.R
+#
+# Progress is written to Results/prepare_results.log — tail -f it on the server.
 
 suppressPackageStartupMessages({
   library(brms)
-  library(loo)
   library(dplyr)
   library(tidyr)
   library(parallel)
@@ -21,11 +22,14 @@ suppressPackageStartupMessages({
 MODEL_DIR    <- file.path("Data", "brms_models")
 OUT_SUMMARY  <- file.path("Data", "brms_summary.rds")
 OUT_CURVES   <- file.path("Data", "brms_curves.rds")
+LOG          <- file.path("Results", "prepare_results.log")
 N_PARALLEL   <- 4
 N_CURVE_PTS  <- 100
 
 log_msg <- function(...) {
-  cat(paste0("[", format(Sys.time(), "%H:%M:%S"), "] ", ..., "\n"))
+  msg <- paste0("[", format(Sys.time(), "%H:%M:%S"), "] [PID:", Sys.getpid(), "] ", ..., "\n")
+  cat(msg)
+  cat(msg, file = LOG, append = TRUE)
 }
 
 # ── Filename convention (matches fitting script and writeup) ──────────────────
@@ -77,13 +81,11 @@ process_job <- function(job_idx) {
   lbl  <- reg$label;    stp  <- reg$step
   cond <- cm$condition; mode <- cm$mode
 
-  path_lin  <- make_fname(lbl, stp, cond, mode, "lin")
   path_quad <- make_fname(lbl, stp, cond, mode, "quad")
-  if (!file.exists(path_lin) || !file.exists(path_quad)) return(NULL)
+  if (!file.exists(path_quad)) return(NULL)
 
-  fit_lin  <- tryCatch(readRDS(path_lin),  error = function(e) NULL)
   fit_quad <- tryCatch(readRDS(path_quad), error = function(e) NULL)
-  if (is.null(fit_lin) || is.null(fit_quad)) return(NULL)
+  if (is.null(fit_quad)) return(NULL)
 
   # ── fixef ──────────────────────────────────────────────────────────────────
   fx    <- as.data.frame(fixef(fit_quad))
@@ -95,19 +97,6 @@ process_job <- function(job_idx) {
   b0_draws <- draws$b_Intercept
   b1_draws <- draws$b_log_freq
   b2_draws <- draws[[b2_col]]
-
-  # ── LOO ───────────────────────────────────────────────────────────────────
-  elpd_diff <- se_diff <- pct_pareto_bad_lin <- pct_pareto_bad_quad <- NA_real_
-  loo_l <- tryCatch(loo(fit_lin),  error = function(e) NULL)
-  loo_q <- tryCatch(loo(fit_quad), error = function(e) NULL)
-  if (!is.null(loo_l) && !is.null(loo_q)) {
-    elpd_diff <- loo_q$estimates["elpd_loo", "Estimate"] -
-                 loo_l$estimates["elpd_loo",  "Estimate"]
-    cmp       <- loo_compare(list(lin = loo_l, quad = loo_q))
-    se_diff   <- cmp[2, "se_diff"]
-    pct_pareto_bad_lin  <- mean(loo_l$diagnostics$pareto_k > 0.7)
-    pct_pareto_bad_quad <- mean(loo_q$diagnostics$pareto_k > 0.7)
-  }
 
   # ── fitted curve grid (from full posterior) ────────────────────────────────
   lf_range  <- range(fit_quad$data$log_freq)
@@ -125,7 +114,10 @@ process_job <- function(job_idx) {
     q975      = apply(curve_mat, 2, quantile, 0.975)
   )
 
-  rm(fit_lin, fit_quad, draws, curve_mat); gc(verbose = FALSE)
+  rm(fit_quad, draws, curve_mat); gc(verbose = FALSE)
+
+  log_msg(sprintf("done: %s | %s | %s | %s",
+                  lbl, ifelse(is.na(stp), "final", stp), cond, mode))
 
   list(
     summary = tibble(
@@ -140,15 +132,15 @@ process_job <- function(job_idx) {
       b_quad_sq_lo     = fx[sq_nm, "Q2.5"],
       b_quad_sq_hi     = fx[sq_nm, "Q97.5"],
       vertex           = -fx["log_freq", "Estimate"] / (2 * fx[sq_nm, "Estimate"]),
-      beta2_mean        = mean(b2_draws),
-      beta2_se          = sd(b2_draws),
-      beta2_ci025       = quantile(b2_draws, 0.025),
-      beta2_ci975       = quantile(b2_draws, 0.975),
-      beta2_pct_gt0     = mean(b2_draws > 0) * 100,
-      elpd_diff           = elpd_diff,
-      se_diff             = se_diff,
-      pct_pareto_bad_lin  = pct_pareto_bad_lin,
-      pct_pareto_bad_quad = pct_pareto_bad_quad
+      beta2_mean    = mean(b2_draws),
+      beta2_se      = sd(b2_draws),
+      beta2_ci025   = quantile(b2_draws, 0.025),
+      beta2_ci975   = quantile(b2_draws, 0.975),
+      beta2_pct_gt0 = mean(b2_draws > 0) * 100,
+      elpd_diff           = NA_real_,
+      se_diff             = NA_real_,
+      pct_pareto_bad_lin  = NA_real_,
+      pct_pareto_bad_quad = NA_real_
     ),
     curve = curve_tbl
   )
