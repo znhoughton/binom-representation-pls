@@ -32,8 +32,6 @@ library(tidyverse)
 library(patchwork)
 library(kableExtra)
 library(scales)
-library(brms)
-library(loo)
 
 RES       <- "../Results"
 MODEL_DIR <- "../Data/brms_models"
@@ -109,84 +107,47 @@ all_r2 <- map_dfr(names(all_slugs), function(slug) {
 }) |>
   filter(split %in% c("pair_novel", "word_novel"))
 
-# ── brms model helpers ────────────────────────────────────────────────────────
-brms_path <- function(label, step = NA_integer_, condition, mode, type = "quad") {
-  step_str   <- if (is.na(step)) "final" else as.character(step)
-  fname_base <- gsub("[^A-Za-z0-9]", "_",
-                     paste(label, step_str, condition, mode, sep = "_"))
-  paste0(file.path(MODEL_DIR, paste0(fname_base, "_", type)), ".rds")
-}
+# ── Precomputed brms summaries (from Scripts/prepare_results.R) ───────────────
+brms_summary <- readRDS(file.path(MODEL_DIR, "..", "brms_summary.rds"))
+brms_curves  <- readRDS(file.path(MODEL_DIR, "..", "brms_curves.rds"))
 
-load_brms <- function(label, step = NA_integer_, condition, mode, type = "quad") {
-  path <- brms_path(label, step, condition, mode, type)
-  if (!file.exists(path)) return(NULL)
-  readRDS(path)
-}
+# ── Checkpoint slug registries ────────────────────────────────────────────────
+babylm_ckpt_registry <- bind_rows(
+  tibble(slug  = paste0("znhoughton_opt-babylm-125m-20eps-seed964_step",
+                        c(24, 48, 144, 384, 912, 2280)),
+         label = "BabyLM-125M",
+         step  = c(24, 48, 144, 384, 912, 2280),
+         tokens_M = c(24, 48, 144, 384, 912, 2280) / 2280 * 150),
+  tibble(slug  = paste0("znhoughton_opt-babylm-350m-20eps-seed964_step",
+                        c(48, 96, 288, 768, 1824, 4560)),
+         label = "BabyLM-350M",
+         step  = c(48, 96, 288, 768, 1824, 4560),
+         tokens_M = c(48, 96, 288, 768, 1824, 4560) / 4560 * 150),
+  tibble(slug  = paste0("znhoughton_opt-babylm-1.3b-20eps-seed964_step",
+                        c(97, 194, 582, 1455, 3686, 9021)),
+         label = "BabyLM-1.3B",
+         step  = c(97, 194, 582, 1455, 3686, 9021),
+         tokens_M = c(97, 194, 582, 1455, 3686, 9021) / 9021 * 150)
+)
 
-# Extract posterior mean + 95% CIs for all fixed effects from one quad fit
-extract_fixef_quad <- function(label, step = NA_integer_, condition, mode) {
-  fit <- load_brms(label, step, condition, mode, "quad")
-  if (is.null(fit)) return(NULL)
-  fx   <- as.data.frame(fixef(fit))
-  sq_nm <- rownames(fx)[!rownames(fx) %in% c("Intercept", "log_freq")]
-  tibble(
-    label            = label,
-    step             = step,
-    condition        = condition,
-    mode             = mode,
-    b_intercept      = fx["Intercept", "Estimate"],
-    b_intercept_lo   = fx["Intercept", "Q2.5"],
-    b_intercept_hi   = fx["Intercept", "Q97.5"],
-    b_quad_linear    = fx["log_freq",  "Estimate"],
-    b_quad_linear_lo = fx["log_freq",  "Q2.5"],
-    b_quad_linear_hi = fx["log_freq",  "Q97.5"],
-    b_quad_sq        = fx[sq_nm, "Estimate"],
-    b_quad_sq_lo     = fx[sq_nm, "Q2.5"],
-    b_quad_sq_hi     = fx[sq_nm, "Q97.5"],
-    vertex           = -fx["log_freq", "Estimate"] / (2 * fx[sq_nm, "Estimate"])
-  )
-}
-
-# LOO comparison: quadratic vs. linear
-extract_loo_compare <- function(label, step = NA_integer_, condition, mode) {
-  fit_l <- load_brms(label, step, condition, mode, "lin")
-  fit_q <- load_brms(label, step, condition, mode, "quad")
-  if (is.null(fit_l) || is.null(fit_q)) return(NULL)
-  loo_l  <- loo(fit_l)
-  loo_q  <- loo(fit_q)
-  cmp    <- loo_compare(list(lin = loo_l, quad = loo_q))
-  tibble(
-    label     = label,
-    step      = step,
-    condition = condition,
-    mode      = mode,
-    elpd_diff           = loo_q$estimates["elpd_loo", "Estimate"] -
-                          loo_l$estimates["elpd_loo", "Estimate"],
-    se_diff             = cmp[2, "se_diff"],
-    pct_pareto_bad_lin  = mean(loo_l$diagnostics$pareto_k > 0.7),
-    pct_pareto_bad_quad = mean(loo_q$diagnostics$pareto_k > 0.7)
-  )
-}
-
-# Fitted quadratic curve with 95% posterior predictive band
-extract_curve <- function(label, step = NA_integer_, condition, mode,
-                           n_points = 150) {
-  fit <- load_brms(label, step, condition, mode, "quad")
-  if (is.null(fit)) return(NULL)
-  lf         <- fit$data$log_freq
-  freq_grid  <- tibble(log_freq = seq(min(lf), max(lf), length.out = n_points))
-  draws      <- posterior_epred(fit, newdata = freq_grid)
-  tibble(
-    label     = label,
-    step      = step,
-    condition = condition,
-    mode      = mode,
-    log_freq  = freq_grid$log_freq,
-    mean_fit  = colMeans(draws),
-    q025      = apply(draws, 2, quantile, 0.025),
-    q975      = apply(draws, 2, quantile, 0.975)
-  )
-}
+pythia_ckpt_registry <- bind_rows(
+  tibble(slug  = paste0("EleutherAI_pythia-160m_step", c(16, 32, 64, 256, 512, 1000)),
+         label = "Pythia-160M",
+         step  = c(16, 32, 64, 256, 512, 1000),
+         tokens_M = c(16, 32, 64, 256, 512, 1000) * 2.097152),
+  tibble(slug  = paste0("EleutherAI_pythia-410m_step", c(16, 32, 64, 256, 512, 1000)),
+         label = "Pythia-410M",
+         step  = c(16, 32, 64, 256, 512, 1000),
+         tokens_M = c(16, 32, 64, 256, 512, 1000) * 2.097152),
+  tibble(slug  = paste0("EleutherAI_pythia-1b_step",   c(16, 32, 64, 256, 512, 1000)),
+         label = "Pythia-1B",
+         step  = c(16, 32, 64, 256, 512, 1000),
+         tokens_M = c(16, 32, 64, 256, 512, 1000) * 2.097152),
+  tibble(slug  = paste0("EleutherAI_pythia-2.8b_step", c(16, 32, 64, 256, 512, 1000)),
+         label = "Pythia-2.8B",
+         step  = c(16, 32, 64, 256, 512, 1000),
+         tokens_M = c(16, 32, 64, 256, 512, 1000) * 2.097152)
+)
 
 # ── Family colour palette ──────────────────────────────────────────────────────
 family_colors <- c(
@@ -234,7 +195,7 @@ theme_paper <- function(base_size = 11) {
 
 ## Stimuli
 
-We use two complementary datasets of binomial expressions, conjunctions of the form *X and Y* where speakers exhibit a consistent preference for one ordering over the other (e.g., *bread and butter* rather than *butter and bread*). The **novel set** comprises approximately 340,000 binomial pairs selected to be absent from BabyLM's training corpus. Each novel pair carries a human preference score derived from prior norming studies, operationalized as the logit-transformed proportion of participants preferring the $W_1\text{ and }W_2$ ordering. The novel pairs are therefore genuinely novel for the BabyLM models used in Experiment 1 and not for the full-scale models in Experiment 2: frequency estimates from Dolma [@dolma], a corpus comparable in composition to the Pile, indicate that approximately 98% of the novel pairs appear at non-zero frequency in that corpus, with Pile-equivalent counts spanning 14 to 443 occurrences for the middle 50% of items. The implications of this asymmetry for the interpretation of Experiment 2 are addressed in Section \ref{sec:exp2-overlap}.
+We use two complementary datasets of binomial expressions, conjunctions of the form *X and Y* where speakers exhibit a consistent preference for one ordering over the other (e.g., *bread and butter* rather than *butter and bread*). The **novel set** comprises approximately 340,000 binomial pairs selected to be absent from BabyLM's training corpus. Each novel pair carries a human preference score derived from prior norming studies, operationalized as the logit-transformed proportion of participants preferring the $W_1\text{ and }W_2$ ordering. The novel pairs are therefore genuinely novel for the BabyLM models used in Experiment 1 and not for the full-scale models in Experiment 2: frequency estimates from Dolma [@dolma], a corpus comparable in composition to the Pile, indicate that approximately 98% of the novel pairs appear at non-zero frequency in that corpus, with Pile-equivalent counts spanning 14 to 443 occurrences for the middle 50% of items. The implications of this asymmetry for the interpretation of Experiment 2 are addressed in Section \ref{sec:exp2-validity}.
 
 The **corpus set** comprises approximately 49,000 binomial pairs attested in natural text. For each corpus pair and each model, the ordering preference is operationalized as the model's own log-probability ratio: $y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)$, computed from a standard forward pass. The probe is trained on the novel set and evaluated on the corpus set, so frequency effects measured on corpus items reflect genuine generalization to new data.
 
@@ -326,28 +287,15 @@ Experiment 1 focuses on the three BabyLM models (125M, 350M, and 1.3B parameters
 
 ```{r}
 #| label: load-brms-babylm
-#| cache: true
 #| include: false
 
-COND_MODE_GRID <- tidyr::expand_grid(
-  label     = c("BabyLM-125M", "BabyLM-350M", "BabyLM-1.3B"),
-  condition = c("default", "attn_zeroed"),
-  mode      = c("mean_pooled", "words_only")
-)
+babylm_labels <- c("BabyLM-125M", "BabyLM-350M", "BabyLM-1.3B")
 
-babylm_curves <- map_dfr(seq_len(nrow(COND_MODE_GRID)), function(i) {
-  r <- COND_MODE_GRID[i, ]
-  extract_curve(r$label, NA_integer_, r$condition, r$mode)
-})
+babylm_curves <- brms_curves |>
+  filter(label %in% babylm_labels, is.na(step))
 
-babylm_coefs <- map_dfr(seq_len(nrow(COND_MODE_GRID)), function(i) {
-  r <- COND_MODE_GRID[i, ]
-  fx  <- extract_fixef_quad(r$label, NA_integer_, r$condition, r$mode)
-  lc  <- extract_loo_compare(r$label, NA_integer_, r$condition, r$mode)
-  if (is.null(fx)) return(NULL)
-  if (!is.null(lc)) fx <- left_join(fx, lc, by = c("label", "step", "condition", "mode"))
-  fx
-}) |>
+babylm_coefs <- brms_summary |>
+  filter(label %in% babylm_labels, is.na(step)) |>
   left_join(model_meta, by = "label") |>
   mutate(family = family_map[label])
 ```
@@ -478,7 +426,7 @@ babylm_coefs |>
 
 # Experiment 2: Cross-Family Final-Layer Representations {#sec:exp2}
 
-Experiment 2 extends the analysis to all 17 models, spanning BabyLM, Pythia, GPT-2, OLMo, and Llama families (117M to 8B parameters, trained on 150M to approximately 15T tokens). The core questions are whether preference encoding is robust across model families and training scales, and whether the memorization-abstraction pattern observed in Experiment 1 generalizes beyond the small-data regime. Because the novel binomials are not genuinely novel for the full-scale models (Section \ref{sec:exp2-overlap}), the probe design differs in a subtle but important way from Experiment 1: the frequency-residual analysis probes how corpus-attested preferences relate to probe accuracy within model families, not how well the probe generalizes to held-out training data.
+Experiment 2 extends the analysis to all 17 models, spanning BabyLM, Pythia, GPT-2, OLMo, and Llama families (117M to 8B parameters, trained on 150M to approximately 15T tokens). The core questions are whether preference encoding is robust across model families and training scales, and whether the memorization-abstraction pattern observed in Experiment 1 generalizes beyond the small-data regime. Because the novel binomials are not genuinely novel for the full-scale models (Section \ref{sec:exp2-validity}), the probe design differs in a subtle but important way from Experiment 1: the frequency-residual analysis probes how corpus-attested preferences relate to probe accuracy within model families, not how well the probe generalizes to held-out training data.
 
 ## Probe Performance
 
@@ -547,25 +495,10 @@ all_r2 |>
 
 ```{r}
 #| label: load-brms-all
-#| cache: true
 #| include: false
 
-ALL_LABELS <- model_order  # all 17 final models
-
-COND_MODE_GRID_ALL <- tidyr::expand_grid(
-  label     = ALL_LABELS,
-  condition = c("default", "attn_zeroed"),
-  mode      = c("mean_pooled", "words_only")
-)
-
-all_coefs <- map_dfr(seq_len(nrow(COND_MODE_GRID_ALL)), function(i) {
-  r  <- COND_MODE_GRID_ALL[i, ]
-  fx <- extract_fixef_quad(r$label, NA_integer_, r$condition, r$mode)
-  lc <- extract_loo_compare(r$label, NA_integer_, r$condition, r$mode)
-  if (is.null(fx)) return(NULL)
-  if (!is.null(lc)) fx <- left_join(fx, lc, by = c("label", "step", "condition", "mode"))
-  fx
-}) |>
+all_coefs <- brms_summary |>
+  filter(is.na(step)) |>
   left_join(model_meta, by = "label") |>
   mutate(family = family_map[label])
 ```
@@ -736,13 +669,343 @@ Experiments 1 and 2 establish that language models encode binomial preferences a
 
 ## Methods
 
-We probe six BabyLM checkpoints per model size (125M, 350M, 1.3B), sampled at approximately even intervals across training. For Pythia, we use the publicly released intermediate checkpoints at steps 16, 32, 64, 256, 512, and 1000 for the 160M and 410M models, and steps 16, 32, 64, 256, 512, and 1000 for the 1B model. Pythia steps are indexed to gradient updates; each step corresponds to approximately 2.1M tokens, so step 1000 represents approximately 2.1B tokens of total training. BabyLM and Pythia checkpoints are selected to span comparable proportional stages of training (roughly 1%, 2%, 6%, 17%, 40%, and 100% of total token exposure), allowing trajectory comparisons across the two training regimes.
+We probe six BabyLM checkpoints per model size (125M, 350M, 1.3B), sampled at approximately even intervals across training. For Pythia, we use the publicly released intermediate checkpoints at steps 16, 32, 64, 256, 512, and 1000 for the 160M, 410M, 1B, and 2.8B models. Pythia steps are indexed to gradient updates; each step corresponds to approximately 2.1M tokens, so these six checkpoints span roughly 34M to 2.1B tokens of exposure — approximately the first 0.7% of the full 300B-token training run. Because no later intermediate checkpoints are publicly released for Pythia, the Pythia trajectory analysis is limited to this early-training window; the fully trained models analyzed in Experiments 1 and 2 represent the end of 300B tokens of training. BabyLM checkpoints, by contrast, span the complete training arc: steps 24–2280 (125M), 48–4560 (350M), and 97–9021 (1.3B) correspond to approximately 1% to 100% of the 150M-token training run for each model size.
 
 The probe, input modes, attention conditions, and cross-validation splits are identical to those of Experiments 1 and 2. For the frequency-residual analysis, we fit the quadratic Bayesian regression from Section \ref{sec:methods-freq-regression} at each checkpoint and report $\hat\beta_2$ (the curvature of the U-shape) and the vertex log-frequency (the point at which probe error is minimized) as a function of training step.
 
 ## Results
 
-*[Results to be added once checkpoint brms fits complete.]*
+```{r}
+#| label: load-r2-checkpoints
+#| cache: true
+#| include: false
+
+load_ckpt_r2 <- function(registry) {
+  map_dfr(seq_len(nrow(registry)), function(i) {
+    slug  <- registry$slug[i]
+    label <- registry$label[i]
+    step  <- registry$step[i]
+    tok   <- registry$tokens_M[i]
+    bind_rows(
+      load_mlp(slug, label, FALSE),
+      load_mlp(slug, label, TRUE)
+    ) |>
+      mutate(step = step, tokens_M = tok)
+  }) |>
+    filter(split %in% c("pair_novel", "word_novel"))
+}
+
+babylm_ckpt_r2  <- load_ckpt_r2(babylm_ckpt_registry)
+pythia_ckpt_r2  <- load_ckpt_r2(pythia_ckpt_registry)
+```
+
+```{r}
+#| label: load-brms-checkpoints
+#| include: false
+
+babylm_ckpt_coefs <- brms_summary |>
+  filter(label %in% c("BabyLM-125M", "BabyLM-350M", "BabyLM-1.3B"), !is.na(step)) |>
+  left_join(babylm_ckpt_registry |> select(label, step, tokens_M),
+            by = c("label", "step"))
+
+pythia_ckpt_coefs <- brms_summary |>
+  filter(label %in% c("Pythia-160M", "Pythia-410M", "Pythia-1B", "Pythia-2.8B"),
+         !is.na(step)) |>
+  left_join(pythia_ckpt_registry |> select(label, step, tokens_M),
+            by = c("label", "step"))
+```
+
+### Probe Accuracy Over Training
+
+```{r}
+#| label: fig-r2-checkpoints-babylm
+#| fig-cap: "Probe R² at the final hidden layer across BabyLM training checkpoints, by attention condition and input mode. Lines connect successive checkpoints for each model size; x-axis is millions of training tokens (proportional within each size). Solid lines = main probe; dashed = control probe."
+#| fig-width: 6
+#| fig-height: 4
+#| eval: !expr nrow(babylm_ckpt_r2) > 0
+
+babylm_ckpt_r2 |>
+  mutate(
+    model      = factor(model, levels = model_order),
+    condition  = recode(condition, !!!condition_labels),
+    mode       = recode(mode, !!!mode_labels),
+    probe_type = if_else(is_control, "Control", "Main"),
+    split_lbl  = if_else(split == "pair_novel", "Pair-held-out", "Word-held-out")
+  ) |>
+  ggplot(aes(x = tokens_M, y = mean_r2,
+             color = model, linetype = probe_type, group = interaction(model, is_control, split))) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.2) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels, mode = mode_labels)) +
+  scale_x_log10(labels = label_number(accuracy = 1)) +
+  scale_color_brewer(palette = "Blues", direction = -1, name = "Model") +
+  scale_linetype_manual(values = c("Main" = "solid", "Control" = "dashed"),
+                        name = "Probe") +
+  labs(x = "Training tokens (M, log scale)", y = expression(R^2)) +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-r2-checkpoints-pythia
+#| fig-cap: "Probe R² at the final hidden layer across Pythia training checkpoints, by attention condition and input mode. X-axis is millions of training tokens (step × 2.097M). Solid lines = main probe; dashed = control probe."
+#| fig-width: 6
+#| fig-height: 4
+#| eval: !expr nrow(pythia_ckpt_r2) > 0
+
+pythia_ckpt_r2 |>
+  mutate(
+    model      = factor(model, levels = model_order),
+    condition  = recode(condition, !!!condition_labels),
+    mode       = recode(mode, !!!mode_labels),
+    probe_type = if_else(is_control, "Control", "Main")
+  ) |>
+  ggplot(aes(x = tokens_M, y = mean_r2,
+             color = model, linetype = probe_type, group = interaction(model, is_control, split))) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.2) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels, mode = mode_labels)) +
+  scale_x_log10(labels = label_number(accuracy = 1)) +
+  scale_color_brewer(palette = "Greens", direction = -1, name = "Model") +
+  scale_linetype_manual(values = c("Main" = "solid", "Control" = "dashed"),
+                        name = "Probe") +
+  labs(x = "Training tokens (M, log scale)", y = expression(R^2)) +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-babylm-default-mean
+#| tbl-cap: "BabyLM checkpoint probe R² — full context, binomial-level. P = pair-held-out; W = word-held-out. SD in parentheses."
+
+make_ckpt_r2_tbl <- function(df, cond_val, mode_val) {
+  df |>
+    filter(condition == cond_val, mode == mode_val,
+           split %in% c("pair_novel", "word_novel")) |>
+    select(model, step, tokens_M, split, mean_r2, sd_r2, is_control) |>
+    pivot_wider(names_from = is_control, values_from = c(mean_r2, sd_r2),
+                names_sep = "_") |>
+    rename(r2_main = mean_r2_FALSE, sd_main = sd_r2_FALSE,
+           r2_ctrl = mean_r2_TRUE,  sd_ctrl = sd_r2_TRUE) |>
+    mutate(
+      model  = factor(model, levels = model_order),
+      Split  = if_else(split == "pair_novel", "P", "W"),
+      Tokens = sprintf("%.0f M", tokens_M),
+      `R²`   = sprintf("%.3f (%.3f)", r2_main, sd_main),
+      Ctrl   = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
+      Sel.   = sprintf("%.3f", r2_main - r2_ctrl)
+    ) |>
+    arrange(model, step, split) |>
+    select(Model = model, Step = step, Tokens, Split, `R²`, Ctrl, Sel.) |>
+    kbl(booktabs = TRUE, linesep = "") |>
+    kable_styling(font_size = 8) |>
+    collapse_rows(columns = 1:2, latex_hline = "major")
+}
+
+if (nrow(babylm_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(babylm_ckpt_r2, "default", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-babylm-default-words
+#| tbl-cap: "BabyLM checkpoint probe R² — full context, word-level."
+
+if (nrow(babylm_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(babylm_ckpt_r2, "default", "words_only")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-babylm-attn-mean
+#| tbl-cap: "BabyLM checkpoint probe R² — attention-zeroed, binomial-level."
+
+if (nrow(babylm_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(babylm_ckpt_r2, "attn_zeroed", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-babylm-attn-words
+#| tbl-cap: "BabyLM checkpoint probe R² — attention-zeroed, word-level."
+
+if (nrow(babylm_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(babylm_ckpt_r2, "attn_zeroed", "words_only")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-pythia-default-mean
+#| tbl-cap: "Pythia checkpoint probe R² — full context, binomial-level."
+
+if (nrow(pythia_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(pythia_ckpt_r2, "default", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-pythia-default-words
+#| tbl-cap: "Pythia checkpoint probe R² — full context, word-level."
+
+if (nrow(pythia_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(pythia_ckpt_r2, "default", "words_only")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-pythia-attn-mean
+#| tbl-cap: "Pythia checkpoint probe R² — attention-zeroed, binomial-level."
+
+if (nrow(pythia_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(pythia_ckpt_r2, "attn_zeroed", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-r2-checkpoints-pythia-attn-words
+#| tbl-cap: "Pythia checkpoint probe R² — attention-zeroed, word-level."
+
+if (nrow(pythia_ckpt_r2) > 0)
+  make_ckpt_r2_tbl(pythia_ckpt_r2, "attn_zeroed", "words_only")
+```
+
+### Frequency-Residual Curvature Over Training
+
+```{r}
+#| label: fig-beta-checkpoints-babylm
+#| fig-cap: "Quadratic curvature ($\\hat{\\beta}_2$) of the frequency-residual relationship across BabyLM training checkpoints, by attention condition and input mode. Points show posterior means; bars show 95\\% credible intervals. Positive values indicate a U-shaped residual curve (lowest error at intermediate frequencies)."
+#| fig-width: 6
+#| fig-height: 4
+#| eval: !expr nrow(babylm_ckpt_coefs) > 0
+
+babylm_ckpt_coefs |>
+  mutate(
+    model     = factor(label, levels = model_order),
+    condition = recode(condition, !!!condition_labels),
+    mode      = recode(mode, !!!mode_labels)
+  ) |>
+  ggplot(aes(x = tokens_M, y = beta2_mean, color = model, group = model)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.4) +
+  geom_ribbon(aes(ymin = beta2_ci025, ymax = beta2_ci975, fill = model), alpha = 0.15, color = NA) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.5) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels, mode = mode_labels)) +
+  scale_x_log10(labels = label_number(accuracy = 1)) +
+  scale_color_brewer(palette = "Blues", direction = -1, name = "Model") +
+  scale_fill_brewer(palette  = "Blues", direction = -1, name = "Model") +
+  labs(x = "Training tokens (M, log scale)",
+       y = expression(hat(beta)[2]~"(quadratic curvature)")) +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-beta-checkpoints-pythia
+#| fig-cap: "Quadratic curvature ($\\hat{\\beta}_2$) of the frequency-residual relationship across Pythia training checkpoints, by attention condition and input mode."
+#| fig-width: 6
+#| fig-height: 4
+#| eval: !expr nrow(pythia_ckpt_coefs) > 0
+
+pythia_ckpt_coefs |>
+  mutate(
+    model     = factor(label, levels = model_order),
+    condition = recode(condition, !!!condition_labels),
+    mode      = recode(mode, !!!mode_labels)
+  ) |>
+  ggplot(aes(x = tokens_M, y = beta2_mean, color = model, group = model)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.4) +
+  geom_ribbon(aes(ymin = beta2_ci025, ymax = beta2_ci975, fill = model), alpha = 0.15, color = NA) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.5) +
+  facet_grid(mode ~ condition,
+             labeller = labeller(condition = condition_labels, mode = mode_labels)) +
+  scale_x_log10(labels = label_number(accuracy = 1)) +
+  scale_color_brewer(palette = "Greens", direction = -1, name = "Model") +
+  scale_fill_brewer(palette  = "Greens", direction = -1, name = "Model") +
+  labs(x = "Training tokens (M, log scale)",
+       y = expression(hat(beta)[2]~"(quadratic curvature)")) +
+  theme_paper() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-babylm-default-mean
+#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, binomial-level. SE = posterior SD; CI = 95\\% credible interval; P(>0) = percentage of posterior samples with $\\hat{\\beta}_2 > 0$."
+
+make_ckpt_beta_tbl <- function(df, cond_val, mode_val) {
+  df |>
+    filter(condition == cond_val, mode == mode_val) |>
+    mutate(
+      model = factor(label, levels = model_order),
+      `$\\hat{\\beta}_2$` = sprintf("%.4f", beta2_mean),
+      SE      = sprintf("%.4f", beta2_se),
+      CI      = sprintf("[%.4f, %.4f]", beta2_ci025, beta2_ci975),
+      `P(>0)` = sprintf("%.1f%%", beta2_pct_gt0)
+    ) |>
+    arrange(model, tokens_M) |>
+    mutate(Tokens = sprintf("%.0f M", tokens_M)) |>
+    select(Model = model, Step = step, Tokens,
+           `$\\hat{\\beta}_2$`, SE, CI, `P(>0)`) |>
+    kbl(booktabs = TRUE, linesep = "", escape = FALSE) |>
+    kable_styling(font_size = 8) |>
+    collapse_rows(columns = 1, latex_hline = "major")
+}
+
+if (nrow(babylm_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(babylm_ckpt_coefs, "default", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-babylm-default-words
+#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, word-level."
+
+if (nrow(babylm_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(babylm_ckpt_coefs, "default", "words_only")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-babylm-attn-mean
+#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — attention-zeroed, binomial-level."
+
+if (nrow(babylm_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(babylm_ckpt_coefs, "attn_zeroed", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-babylm-attn-words
+#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — attention-zeroed, word-level."
+
+if (nrow(babylm_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(babylm_ckpt_coefs, "attn_zeroed", "words_only")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-pythia-default-mean
+#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, binomial-level."
+
+if (nrow(pythia_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(pythia_ckpt_coefs, "default", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-pythia-default-words
+#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, word-level."
+
+if (nrow(pythia_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(pythia_ckpt_coefs, "default", "words_only")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-pythia-attn-mean
+#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — attention-zeroed, binomial-level."
+
+if (nrow(pythia_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(pythia_ckpt_coefs, "attn_zeroed", "mean_pooled")
+```
+
+```{r}
+#| label: tbl-beta-checkpoints-pythia-attn-words
+#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — attention-zeroed, word-level."
+
+if (nrow(pythia_ckpt_coefs) > 0)
+  make_ckpt_beta_tbl(pythia_ckpt_coefs, "attn_zeroed", "words_only")
+```
 
 \newpage
 
