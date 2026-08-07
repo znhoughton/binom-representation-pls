@@ -44,6 +44,9 @@ Results/bayesian_analysis_*_files/
 # ── Personal notes ────────────────────────────────────────────────────────────
 math_notes.md
 
+# ── Saved experiments (not part of current paper; saved for follow-up work) ───
+Writeup/_experiment4_saved.qmd
+
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
