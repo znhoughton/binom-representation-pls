@@ -369,9 +369,10 @@ Full numerical results are in Appendix @tbl-r2; @fig-r2 visualizes the pair-held
 
 ```{r}
 #| label: fig-r2
-#| fig-cap: "Cross-validated R² at the final hidden layer for all 16 models (binomial-level), by attention condition (columns) and cross-validation split (shape). Circles = pair-held-out; triangles = word-held-out. Bars = 95\\% CI across 10 folds ($t$-distribution, $df = 9$). Models ordered by parameter count within each family. Control R² $\\approx$ 0 (Appendix [-@sec-appendix-exp2])."
-#| fig-width: 3.3
-#| fig-height: 6.5
+#| fig-cap: "Cross-validated R² at the final hidden layer for all 16 models (binomial-level), by attention condition (columns) and cross-validation split (shape). Circles = pair-held-out; triangles = word-held-out. Bars = 95\\% CI across 10 folds ($t$-distribution, $df = 9$). Models ordered by parameter count within each family and colored by family. Control R² $\\approx$ 0 (Appendix [-@sec-appendix-exp2])."
+#| fig-width: 6.5
+#| fig-height: 2.8
+#| fig-env: "figure*"
 #| eval: !expr nrow(all_r2) > 0
 
 size_labels <- c(
@@ -400,16 +401,18 @@ all_r2 |>
   geom_linerange(aes(ymin = r2_lo, ymax = r2_hi), linewidth = 0.7,
                  position = position_dodge(width = 0.6)) +
   geom_point(size = 2.0, position = position_dodge(width = 0.6)) +
-  facet_grid(family ~ condition, scales = "free_x", space = "free_x") +
-  scale_color_manual(values = family_colors, guide = "none") +
-  scale_shape_manual(values = c("Pair-held-out" = 19, "Word-held-out" = 17), name = NULL) +
+  facet_wrap(~condition, nrow = 1) +
+  scale_color_manual(values = family_colors, name = "Family",
+                     guide = guide_legend(nrow = 1, order = 1)) +
+  scale_shape_manual(values = c("Pair-held-out" = 19, "Word-held-out" = 17), name = NULL,
+                     guide = guide_legend(nrow = 1, order = 2)) +
   scale_x_discrete(labels = size_labels) +
+  scale_y_continuous(breaks = c(0.25, 0.5, 0.75)) +
   labs(y = expression(R^2), x = NULL) +
   theme_paper(base_size = 9) +
-  theme(strip.text.y  = element_text(size = 7, angle = 0),
-        panel.spacing = unit(0.3, "lines"),
+  theme(panel.spacing  = unit(0.8, "lines"),
         legend.position = "bottom",
-        axis.text.x = element_text(angle = 30, hjust = 1, size = 7))
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
 ```
 
 ```{r}
@@ -629,6 +632,8 @@ All 16 models encode decodable binomial ordering preferences in their final-laye
 
 # Model Details {#sec-appendix-models}
 
+Table \ref{tbl-models} lists all 16 models used across experiments, organized by family, with approximate parameter counts and training token counts.
+
 ```{r}
 #| label: tbl-models
 #| tbl-cap: "Models used across experiments. Training token counts for full-scale models are approximate; GPT-2 counts are estimated from the reported 40GB WebText corpus. BabyLM models train for 20 epochs over 150M tokens (3B effective token exposures)."
@@ -662,6 +667,8 @@ model_table |>
 \clearpage
 
 # Experiment 1: Supplementary Results {#sec-appendix-exp1}
+
+This appendix provides supplementary materials for Experiment 1 (§\ref{sec-exp1}), which examined final-layer probe performance and frequency-residual curvature for the three BabyLM models. Subsections report full R² tables, control probe results, a word-level replication, and the frequency-residual regression coefficients.
 
 ## Full Probe R² {#sec-appendix-full-r2-babylm}
 
@@ -782,6 +789,8 @@ babylm_coefs |>
 \clearpage
 
 # Experiment 2: Supplementary Results {#sec-appendix-exp2}
+
+This appendix provides supplementary materials for Experiment 2 (§\ref{sec-exp2}), which examined final-layer representations across all 16 models from five families. Subsections report full R² tables, control probe results, a word-level replication, frequency-residual regression coefficients for all models, and a predicted-vs.-observed scatter plot.
 
 ## Full Probe R² {#sec-appendix-full-r2}
 
@@ -979,6 +988,8 @@ if (nrow(scatter_data) > 0) {
 
 # Experiment 3: Supplementary Results {#sec-appendix-exp3}
 
+This appendix provides supplementary materials for Experiment 3 (§\ref{sec-exp3}), which tracked probe R² and frequency-residual curvature across training checkpoints for BabyLM and Pythia. Subsections report full numerical checkpoint tables and a word-level replication.
+
 ## Checkpoint Probe Tables {#sec-appendix-ckpt-tables}
 
 Full numerical results for the Experiment 3 checkpoint analysis. Tables report probe R² (pair-held-out and word-held-out) and frequency-residual regression coefficients ($\hat{\beta}_2$) for BabyLM and Pythia across training checkpoints, for the binomial-level (mean-pooled) representation under full-context and attention-zeroed conditions.
@@ -1133,6 +1144,8 @@ if (nrow(pythia_ckpt_coefs) > 0)
 \clearpage
 
 # Corpus Frequency Distributions {#sec-appendix-corpus-freq}
+
+The figure below compares the frequency distributions of the approximately 47,000 corpus binomials in the BabyLM training corpus (150M tokens, 20 epochs) and the Pile, illustrating the stark difference in lexical coverage between the two training regimes. BabyLM's distribution is dominated by singleton pairs (70.7% appear exactly once), while Pile frequencies span several orders of magnitude.
 
 ```{r}
 #| label: fig-corpus-freq
