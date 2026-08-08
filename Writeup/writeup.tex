@@ -1,0 +1,2406 @@
+\documentclass[11pt]{article}
+
+% Mode is controlled by the `acl-mode` YAML field:
+%   review   — anonymous, line numbers (default for submission)
+%   final    — camera-ready, authors shown
+%   preprint — non-anonymous, page numbers
+% acl.sty handles: geometry (a4, 2.5cm margins), twocolumn, natbib,
+%   caption, hyperref, bibliographystyle{acl_natbib}.
+% Do NOT load those packages again here.
+\usepackage[review]{acl}
+
+% Packages from the official ACL template (acl_latex.tex) — safe to load after acl.sty
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp}   % euro sign and other symbols
+\usepackage{microtype}
+\usepackage{inconsolata}
+
+% Math
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% Tables — all three needed for pandoc's longtable output
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}     % pandoc uses >{\raggedright\arraybackslash}p{} column types
+\usepackage{calc}      % pandoc uses \real{} expressions for column widths
+\usepackage{multirow}  % multi-row table cells
+
+% longtable is incompatible with twocolumn mode (enforced by acl.sty).
+% Use etoolbox hooks to temporarily switch to onecolumn around each longtable.
+% The table will appear full-width on its own page segment.
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{longtable}{\onecolumn}
+\AfterEndEnvironment{longtable}{\twocolumn}
+
+% Fix table caption numbering for longtable
+\def\fnum@table{\tablename~\thetable}
+
+% Float placement — [H] pins floats exactly where defined
+\usepackage{float}
+\floatplacement{table}{H}
+\usepackage[section]{placeins}
+
+% Graphics
+\usepackage{graphicx}
+\makeatletter
+% pandoc uses \maxwidth and \maxheight when including images
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+% Default figure placement
+\def\fps@figure{htbp}
+\makeatother
+
+% Code blocks and inline code
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}  % straight quotes in verbatim
+\usepackage{fancyvrb}
+\newcommand{\passthrough}[1]{#1}  % pandoc inline code
+
+% Suppress date (ACL papers do not display a date)
+\date{}
+
+% pandoc: scale images to fit column width, preserving aspect ratio
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{%
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}\else#1\fi%
+}
+\makeatother
+
+% pandoc: tight lists (no extra space between items)
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\title{Stored or Computed? Abstract and Memorized Binomial Preferences
+in LLM Representations}
+
+% In review mode, acl.sty replaces the author block with
+% "Anonymous ACL submission" automatically.
+\author{
+  Zachary Nicholas Houghton \\
+      University of Oregon \\ Vail Systems, Inc. \\
+        \texttt{znh@uoregon.edu}
+    }
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+TODO
+\end{abstract}
+
+\section{Introduction}\label{introduction}
+
+\section{Experiment 1: BabyLM Representations}\label{sec-exp1}
+
+\subsection{Methods}\label{methods}
+
+We probe the three BabyLM models (125M, 350M, and 1.3B parameters) at
+their final training checkpoint. Because the novel binomials were
+selected to be absent from BabyLM's training corpus, this experiment
+provides the cleanest test of whether a language model encodes abstract
+binomial ordering preferences: any preference signal the probe recovers
+must have been generalized from the training distribution rather than
+read off from direct exposure to the test pairs.
+
+\subsubsection{Stimuli}\label{stimuli}
+
+We use two complementary datasets of binomial expressions, conjunctions
+of the form \emph{X and Y} where speakers exhibit a consistent
+preference for one ordering over the other (e.g., \emph{bread and
+butter} rather than \emph{butter and bread}). The \textbf{novel set}
+comprises approximately 340,000 binomial pairs selected to be absent
+from BabyLM's training corpus. Each novel pair carries a human
+preference score derived from prior norming studies, operationalized as
+the logit-transformed proportion of participants preferring the
+\(W_1\text{ and }W_2\) ordering. The novel pairs are therefore genuinely
+novel for the BabyLM models used in Experiment 1 and not for the
+full-scale models in Experiment 2: frequency estimates from Dolma
+\citep{dolma}, a corpus comparable in composition to the Pile, indicate
+that approximately 98\% of the novel pairs appear at non-zero frequency
+in that corpus, with Pile-equivalent counts spanning 14 to 443
+occurrences for the middle 50\% of items. The implications of this
+asymmetry for the interpretation of Experiment 2 are addressed in
+Section~\ref{sec-exp2-validity}.
+
+The \textbf{corpus set} comprises approximately 49,000 binomial pairs
+attested in natural text. For each corpus pair and each model, the
+ordering preference is operationalized as the model's own
+log-probability ratio:
+\(y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)\),
+computed from a standard forward pass. The probe is trained on the novel
+set and evaluated on the corpus set, so frequency effects measured on
+corpus items reflect genuine generalization to new data. The corpus set
+is used in Experiment 2; Experiment 1 uses only the novel set.
+
+\subsubsection{Models}\label{models}
+
+We compare three BabyLM models --- OPT-based models trained for 20
+epochs on a 150M-token subset of the BabyLM benchmark corpus
+\citep{warstadt-etal-2023-findings} --- against fourteen full-scale
+pre-trained language models spanning four model families (Appendix
+Table~\ref{tbl-models}). The BabyLM models serve as a small-data
+baseline; the full-scale models provide a cross-family comparison at
+substantially larger training scales. Experiment 1 uses only the three
+BabyLM models; all sixteen models are included in Experiment 2.
+
+\subsubsection{Representation
+Extraction}\label{representation-extraction}
+
+For each model, we extract hidden-state representations from the final
+layer at inference time. Each binomial pair is presented to the model in
+both orderings (\emph{W}\textsubscript{1} and \emph{W}\textsubscript{2}
+; \emph{W}\textsubscript{2} and \emph{W}\textsubscript{1}) within a
+natural sentence frame. We extract representations under two input
+modes:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Binomial-level} (\texttt{mean\_pooled}): the input to the
+  probe is
+  \([\bar{h}(W_1\text{ and }W_2); \bar{h}(W_2\text{ and }W_1)]\), where
+  \(\bar{h}\) denotes the mean of token representations across all
+  positions in each ordering.
+\item
+  \textbf{Word-level} (\texttt{words\_only}): the input is
+  \([h(W_1); h(W_2)]\), where \(h(W_k)\) is the hidden state of word
+  \(W_k\) extracted from the sentence in which it appears in first
+  position, excluding the conjunction token.
+\end{itemize}
+
+The binomial-level mode captures the model's representation of the full
+phrase, including the interaction between words mediated by the
+conjunction. The word-level mode isolates individual word
+representations without phrase-level composition.
+
+\subsubsection{Attention Conditions}\label{attention-conditions}
+
+We probe representations under two attention conditions:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Full context} (\texttt{default}): standard forward pass with
+  full cross-token attention. Each word's representation reflects
+  contextual influences from all other tokens in the sentence.
+\item
+  \textbf{Attention-zeroed} (\texttt{attn\_zeroed}): attention from the
+  second word and the conjunction to the first word is blocked by
+  setting the corresponding attention logits to \(-\infty\) before the
+  softmax, while all other attention --- including each word's attention
+  to the preceding sentence context --- remains intact. This condition
+  tests whether the second word's representation is specifically shaped
+  by direct cross-word attention to the first word.
+\end{itemize}
+
+Because the word-level mode extracts each word from the sentence in
+which it occupies first position, its representation depends only on the
+preceding sentence context and is not influenced by any later token's
+attention --- so the attention-zeroed manipulation is vacuous for that
+mode. We therefore report three representation types per model:
+full-context binomial-level, attention-zeroed binomial-level, and
+full-context word-level.
+
+\subsubsection{MLP Probe}\label{mlp-probe}
+
+For each representation type, we train a two-layer MLP classifier
+(hidden dimension 128, ReLU activation) to predict binomial preference
+from the extracted representations. The model is trained with Adam
+(learning rate \(10^{-3}\), weight decay \(10^{-4}\)) with early
+stopping (patience = 20) and a 10\% held-out validation set. Training
+uses antisymmetric augmentation: for each pair, we add a flipped version
+(swapped ordering, negated label) with probability 0.5. We report
+cross-validated Bayesian R² \citep{gelman2019r2} as our measure of probe
+performance, averaged across 10 folds.
+
+We evaluate generalization under two cross-validation splits:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Pair-held-out} (\texttt{pair\_novel}): pairs are held out as
+  units; both orderings of a pair appear only in training or only in
+  test.
+\item
+  \textbf{Word-held-out} (\texttt{word\_novel}): all pairs containing a
+  test word are excluded from training, testing generalization to
+  completely novel lexical items.
+\end{itemize}
+
+\subsubsection{Control Probes}\label{control-probes}
+
+Following \citet{hewitt-liang-2019-designing}, we train a matched
+control probe on randomly permuted preference labels under the same
+architecture and hyperparameters. Near-zero control R² provides evidence
+that the probe is extracting genuine linguistic structure rather than
+exploiting label artifacts or probe capacity. Full control R² results
+are reported in appendix sections alongside each experiment.
+
+\subsubsection{Frequency-Residual
+Regression}\label{sec-methods-freq-regression}
+
+To characterize how corpus frequency relates to probe accuracy, we
+regress the absolute residual error of the MLP probe on log corpus
+frequency using a Bayesian quadratic regression. Here,
+\(y_{\text{true}}\) is the model's own ordering preference computed from
+a forward pass:
+\(\log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)\). We fit:
+
+\begin{equation}\phantomsection\label{eq-freq-regression}{|y_{\text{true}} - \hat{y}| \sim \beta_0 + \beta_1 \log(\text{freq}) + \beta_2 \log(\text{freq})^2}\end{equation}
+
+where \(\hat\beta_2 > 0\) implies a U-shaped curve with prediction error
+lowest at intermediate frequencies and highest at both extremes; the
+vertex \(-\hat\beta_1 / (2\hat\beta_2)\) gives the log-frequency at
+which probe error is minimized.
+
+Both specifications are fit using Bayesian linear regression \citep[via
+\textbf{brms},][]{burkner2017brms} with default priors, 4 chains, 4000
+iterations (2000 warmup), and seed 964. Frequency counts for BabyLM
+models are drawn from the BabyLM training corpus; for all full-scale
+models, we use the Pile \citep{gao2020pile} as a frequency proxy, as
+most full-scale training corpora are not publicly queryable at scale.
+
+\subsection{Results}\label{results}
+
+\subsubsection{Probe Performance}\label{probe-performance}
+
+Results are visualized in Figure~\ref{fig-r2-babylm}; full numerical
+results are in Appendix Table~\ref{tbl-r2-babylm}. Control probe R² was
+consistently near zero across all conditions and all three models (mean
+± SD = 0.0001 ± 0.0001; full control results in Appendix
+\ref{sec-appendix-exp1}), confirming that the probe doesn't recover
+spurious signal from label noise.
+
+These conditions differ in what information reaches the probe, which
+constrains how they can be compared. The two binomial-level conditions
+(full-context and attention-zeroed) both feed the probe a mean-pooled
+phrase representation and differ only in whether cross-word attention is
+permitted; they are directly comparable. The word-level condition feeds
+the probe a concatenation of two individual word vectors extracted from
+isolated sentence contexts, bypassing phrase-level mean pooling
+entirely. Because mean pooling can itself destroy information by
+averaging across tokens --- and because words\_only provides two
+separate word vectors where mean\_pooled provides one blended vector ---
+the information available to the probe is structurally different across
+modes, making direct R² comparisons across them difficult to interpret.
+We therefore treat the word-level condition as a separate analysis;
+word-level results replicating the key findings are provided in Appendix
+\ref{sec-appendix-exp1}.
+
+For the binomial-level conditions, pair-held-out R² ranges from 0.24 to
+0.34; word-held-out R² is consistently lower, ranging from 0.12 to 0.23.
+The drop from pair-held-out to word-held-out reflects a lexical
+generalization cost: the probe is more accurate when the words in a test
+pair appeared in other pairs during probe training than when both words
+are entirely novel, suggesting that some preference signal is tied to
+word identity rather than being fully abstract. Probe accuracy is
+non-monotonic with model size: BabyLM-350M achieves the highest
+pair-held-out R² across most conditions, with BabyLM-125M and
+BabyLM-1.3B lower by similar margins. The full-context condition yields
+higher pair-held-out R² than attention-zeroed, indicating that
+cross-word attention contributes positively to preference encoding for
+these novel binomials.
+
+\begin{figure}
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-r2-babylm-1.pdf}}
+
+}
+
+\caption{\label{fig-r2-babylm}Cross-validated R² at the final hidden
+layer for BabyLM models, at the binomial level by attention condition.
+Circles = pair-held-out; triangles = word-held-out. Bars = ±1 SD
+(minimum width enforced for visibility).}
+
+\end{figure}%
+
+\subsubsection{Memorization
+vs.~Abstraction}\label{memorization-vs.-abstraction}
+
+Full numerical results and fitted curves are in Appendix
+\ref{sec-appendix-exp1}. Under the full-context condition, the quadratic
+coefficient \(\hat\beta_2\) is positive for all three models, with 95\%
+credible intervals excluding zero. This indicates a U-shaped
+relationship between corpus frequency and probe error: the probe makes
+the smallest errors for pairs at intermediate log-frequency values, with
+errors increasing toward both the low- and high-frequency tails. Under
+the attention-zeroed condition, the curvature is attenuated relative to
+full context and remains reliably positive for BabyLM-125M and
+BabyLM-350M; BabyLM-1.3B is a marginal exception
+(\(\hat\beta_2 = 0.008\); 75\% of posterior above zero). The vertex of
+the quadratic --- the log-frequency value at which probe error is
+minimized --- falls within the intermediate range of the observed
+frequency distribution across all models and conditions. The attenuation
+under the attention-zeroed condition indicates that the high-frequency
+penalty on probe accuracy is driven in part by cross-word attention:
+blocking the second word's attention to the first flattens the
+frequency-residual relationship, suggesting that this cross-word
+interaction contributes specifically to the pair-specific encoding that
+degrades probe accuracy at high frequencies.
+
+\section{Experiment 2: Cross-Family Final-Layer
+Representations}\label{sec-exp2}
+
+\subsection{Methods}\label{methods-1}
+
+We probe all 16 models spanning BabyLM, Pythia, GPT-2, OLMo, and Llama
+families (117M to 8B parameters, trained on 150M to approximately 15T
+tokens) at their final training checkpoints. One design consideration
+differs from Experiment 1: the novel binomials were selected to be
+absent from BabyLM's training corpus, but they are not truly novel for
+the Pile-trained models --- approximately 98\% appear in the Pile at
+non-zero frequency, most at low-to-medium exposure (Pile-equivalent
+counts spanning 14 to 443 occurrences for the middle 50\% of items). The
+probe R² results for these models therefore reflect how representations
+of low-frequency attested pairs compare to higher-frequency ones within
+each family, rather than generalization from attested to genuinely
+unseen items; validity checks are discussed in
+Section~\ref{sec-exp2-validity}. Probe architecture, attention
+conditions, and frequency regression are identical to Experiment 1.
+
+\subsection{Results}\label{results-1}
+
+\subsubsection{Probe Performance}\label{probe-performance-1}
+
+Full numerical results are in Appendix Table~\ref{tbl-r2};
+Figure~\ref{fig-r2} visualizes the pair-held-out results. Control probe
+R² was consistently near zero across all models and conditions (mean ±
+SD = 0.0002 ± 0.0002; full control results in Appendix
+\ref{sec-appendix-exp2}). As in Experiment 1, the binomial-level
+conditions (full-context and attention-zeroed) are directly comparable;
+word-level results are provided in Appendix \ref{sec-appendix-exp2}. All
+Pile-trained models substantially outperform BabyLM: pair-held-out R²
+under the full-context, binomial-level condition ranges from 0.43 to
+0.65 across the four Pile-trained families, compared to 0.29--0.34 for
+BabyLM. Word-held-out R² is consistently lower than pair-held-out R² for
+every model and condition, matching the pattern in Experiment 1. GPT-2
+shows the most striking result: under the attention-zeroed condition,
+pair-held-out R² reaches 0.79 for GPT-2 (117M) --- substantially higher
+than its full-context value of 0.65 --- with attention-condition
+advantages across all four GPT-2 models: GPT-2-M (0.76 vs.~0.53),
+GPT-2-L (0.67 vs.~0.52), and GPT-2-XL (0.73 vs.~0.49). Pythia, OLMo, and
+Llama-1.3B show the same direction: attention-zeroed outperforms full
+context at the binomial level. Llama-3-8B is an exception, matching the
+BabyLM pattern with full context slightly outperforming attention-zeroed
+(0.54 vs.~0.52). Scale effects within families are non-monotonic: in
+GPT-2, R² decreases with model size under full context (117M highest at
+0.65, XL lowest at 0.49); in Pythia, the pattern is non-monotonic (160M
+highest at 0.59, 410M lowest at 0.53, 1B at 0.55); OLMo's 7B models
+slightly outperform 1B counterparts; Llama's 8B model outperforms 1.3B.
+
+\begin{figure*}
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-r2-1.pdf}}
+
+}
+
+\caption{\label{fig-r2}Cross-validated R² at the final hidden layer for
+all 16 models (binomial-level), by attention condition (columns) and
+cross-validation split (shape). Circles = pair-held-out; triangles =
+word-held-out. Bars = 95\% CI across 10 folds (\(t\)-distribution,
+\(df = 9\)). Models ordered by parameter count within each family and
+colored by family. Control R² \(\approx\) 0 (Appendix
+\ref{sec-appendix-exp2}).}
+
+\end{figure*}%
+
+\subsubsection{Memorization
+vs.~Abstraction}\label{memorization-vs.-abstraction-1}
+
+Full numerical results are in Appendix Table~\ref{tbl-beta} and
+visualized in Figure~\ref{fig-beta}. \(\hat{\beta}_2\) is positive for
+all 16 models under both attention conditions, with 95\% credible
+intervals excluding zero in all cases except BabyLM-1.3B under the
+attention-zeroed condition (\(\hat{\beta}_2 = 0.008\); 75\% of posterior
+above zero). The U-shaped frequency-residual relationship is therefore a
+robust finding across model families, training corpora, and parameter
+scales. Two patterns stand out. First, BabyLM models show larger
+\(\hat{\beta}_2\) magnitudes under full context (0.064--0.073) than any
+Pile-trained family (0.007--0.018), despite far less training --- an
+effect likely driven by BabyLM's extreme frequency distribution (70\%
+singleton pairs), which creates a sharper contrast between low- and
+high-frequency items in the regression. Second, under the
+attention-zeroed condition, \(\hat{\beta}_2\) is consistently attenuated
+relative to full context across all families, confirming that cross-word
+attention contributes to the high-frequency memorization effect
+regardless of model family or scale.
+
+\begin{figure}
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-beta-1.pdf}}
+
+}
+
+\caption{\label{fig-beta}Quadratic curvature (\(\hat{\beta}_2\)) of the
+frequency-residual relationship at the final hidden layer,
+binomial-level by attention condition. Circles = full context; triangles
+= attention-zeroed. Positive values indicate that probe error is
+U-shaped: lowest at intermediate corpus frequencies, highest at
+extremes. Points = posterior mean; bars = 95\% credible intervals
+(minimum bar enforced for visibility).}
+
+\end{figure}%
+
+\subsection{Validity}\label{sec-exp2-validity}
+
+Two validity concerns arise for the Experiment 2 frequency-residual
+results. First, the model's own ordering preference
+(\(y_{\text{true}}\)) is uncorrelated with corpus frequency for all 16
+models (all \(|r| < 0.03\)), ruling out range restriction as an
+explanation for the U-shape: the signal the probe must predict is
+equally distributed across frequency levels. Second, word-held-out R²
+closely matches pair-held-out R² for all 14 Pile-trained models
+(Appendix \ref{sec-appendix-exp2}), demonstrating that the high R²
+values reflect a generalizable mapping from representation to preference
+rather than a lookup over memorized pairs. Figure~\ref{fig-scatter}
+(Appendix) corroborates this visually: mid-frequency pairs cluster
+tightly around the prediction diagonal, while low- and high-frequency
+pairs scatter in opposite directions --- precisely the pattern implied
+by positive \(\hat{\beta}_2\).
+
+Experiments 1 and 2 establish what models encode at the end of training.
+Experiment 3 turns to training dynamics: we ask when during training
+these representations emerge, and how the frequency-residual
+relationship evolves with additional exposure.
+
+\section{Experiment 3: Developmental Trajectories}\label{sec-exp3}
+
+Experiments 1 and 2 establish that language models encode binomial
+preferences at the end of training, but they leave open when during
+training these representations emerge, and whether the
+memorization-abstraction tradeoff is present from early on or
+crystallizes with additional exposure. Experiment 3 addresses this by
+examining the same probe at multiple training checkpoints. We ask two
+questions: (1) Does probe accuracy increase monotonically with training,
+or does it plateau early, suggesting that preference representations are
+rapidly acquired? (2) Does the U-shaped frequency-residual relationship
+hold from early checkpoints, or does it only emerge as training
+progresses and memorization of high-frequency items accumulates?
+
+\subsection{Methods}\label{methods-2}
+
+We probe six BabyLM checkpoints per model size (125M, 350M, 1.3B),
+sampled at approximately even intervals across training. For Pythia, we
+use the publicly released intermediate checkpoints at steps 16, 32, 64,
+256, 512, and 1000 for the 160M, 410M, and 1B models. Pythia steps are
+indexed to gradient updates; each step corresponds to approximately 2.1M
+tokens, so these six checkpoints span roughly 34M to 2.1B tokens of
+exposure --- approximately the first 0.7\% of the full 300B-token
+training run. Because no later intermediate checkpoints are publicly
+released for Pythia, the Pythia trajectory analysis is limited to this
+early-training window; the fully trained models analyzed in Experiments
+1 and 2 represent the end of 300B tokens of training. BabyLM checkpoints
+span steps 24--2280 (125M), 48--4560 (350M), and 97--9021 (1.3B),
+corresponding to approximately 20M to 1.9B effective training tokens for
+each model size (each step processes a fixed number of tokens: 819K for
+125M, 410K for 350M, 205K for 1.3B).
+
+The probe, input modes, attention conditions, and cross-validation
+splits are identical to Experiment 1. For the frequency-residual
+analysis, we fit the quadratic Bayesian regression described in
+Experiment 1 at each checkpoint and report \(\hat\beta_2\) (the
+curvature of the U-shape) and the vertex log-frequency (the point at
+which probe error is minimized) as a function of training step.
+
+\subsection{Results}\label{results-2}
+
+BabyLM pair-held-out R² is already high at the earliest checkpoint
+(\textasciitilde20M tokens: 0.67--0.72) and broadly declines to
+0.32--0.38 by the end of training. At the earliest checkpoint, the
+attention-zeroed condition outperforms full context (0.78--0.80
+vs.~0.67--0.72); this ordering reverses between \textasciitilde120M and
+\textasciitilde750M tokens, so that full context exceeds
+attention-zeroed at the final checkpoint for all three model sizes.
+Pythia shows an inverted-U trajectory instead: R² rises from 0.68--0.74
+at 33.6M tokens to a peak of 0.80--0.86 at 537M tokens, then declines to
+0.71--0.76 at 1074M--2097M tokens --- consistent with Pile-trained
+models still consolidating preference representations during this early
+window (the first 0.7\% of 300B tokens). The attention condition flip
+for Pythia follows the same qualitative pattern as BabyLM. Full
+numerical results are in Appendix \ref{sec-appendix-exp3}; word-level
+results are in Appendix \ref{sec-appendix-exp3}.
+
+For \(\hat{\beta}_2\), BabyLM starts negative at all sizes (-0.013 to
+-0.029), remains negative until approximately 750M tokens, and reaches
+0.045--0.093 at the final checkpoint, matching the positive curvature
+from Experiment 1. Pythia's \(\hat{\beta}_2\) is positive from its
+earliest checkpoint (33.6M tokens), with credible intervals confidently
+excluding zero by 537M tokens. As discussed in Appendix
+\ref{sec-appendix-corpus-freq}, this contrast reflects the far greater
+absolute token exposure per pair in the Pile relative to BabyLM. Full
+numerical results are in Appendix \ref{sec-appendix-exp3}.
+
+\begin{figure}
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-checkpoints-1.pdf}}
+
+}
+
+\caption{\label{fig-checkpoints}Probe R² (top) and quadratic
+frequency-residual curvature (\(\hat{\beta}_2\), bottom) across BabyLM
+and Pythia training checkpoints, binomial-level by attention condition.
+BabyLM spans \textasciitilde20M--1.9B effective training tokens; Pythia
+spans \textasciitilde34M--2.1B tokens (\textasciitilde0.7\% of the full
+300B training run). Ribbons show 95\% credible intervals.
+\(\hat{\beta}_2\) y-axes are free per family row (BabyLM and Pythia have
+very different scales). Control R² \(\approx\) 0 (Appendix).}
+
+\end{figure}%
+
+\section{Discussion}\label{sec-discussion}
+
+All 16 models encode decodable binomial ordering preferences in their
+final-layer representations, with probe R² well above near-zero control
+values in every condition. BabyLM models produce lower R² (0.24--0.34)
+than their Pile-trained counterparts (0.43--0.79), consistent with their
+smaller training corpora, and scale effects within families are
+non-monotonic. Across Pile-trained families, attention-zeroed
+outperforms full-context at the binomial level --- indicating that
+cross-token attention in data-rich models encodes pair-specific,
+idiosyncratic representations that reduce probe generalizability ---
+while BabyLM shows the reverse, consistent with attention computing
+abstract compositional features rather than retrieving memorized pair
+orderings. Positive quadratic curvature of probe error over
+log-frequency (\(\hat{\beta}_2 > 0\)) holds across all models and
+conditions, revealing a mid-frequency advantage in which pairs at
+intermediate frequencies are easiest to decode, with both rare pairs
+(insufficient signal) and highly frequent pairs (idiosyncratic
+memorization) producing elevated prediction error.
+
+\bibliography{references}
+
+\clearpage
+\onecolumn
+
+\appendix
+
+\clearpage
+
+\section{Model Details}\label{sec-appendix-models}
+
+Table \ref{tbl-models} lists all 16 models used across experiments,
+organized by family, with approximate parameter counts and training
+token counts.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{9}{11}\selectfont
+
+\begin{tabular}[t]{llll}
+\toprule
+Family & Model & Parameters & Tokens\\
+\midrule
+ & BabyLM-125M & 125M & 150M\\
+
+ & BabyLM-350M & 350M & 150M\\
+
+\multirow{-3}{*}{\raggedright\arraybackslash BabyLM} & BabyLM-1.3B & 1.3B & 150M\\
+\cmidrule{1-4}
+ & GPT-2 & 117M & \textasciitilde{}8B\\
+
+ & GPT-2-medium & 345M & \textasciitilde{}8B\\
+
+ & GPT-2-large & 762M & \textasciitilde{}8B\\
+
+\multirow{-4}{*}{\raggedright\arraybackslash GPT-2} & GPT-2-XL & 1.5B & \textasciitilde{}8B\\
+\cmidrule{1-4}
+ & Pythia-160M & 160M & \textasciitilde{}300B\\
+
+ & Pythia-410M & 410M & \textasciitilde{}300B\\
+
+\multirow{-3}{*}{\raggedright\arraybackslash Pythia} & Pythia-1B & 1B & \textasciitilde{}300B\\
+\cmidrule{1-4}
+ & OLMo-1B & 1B & 3T\\
+
+ & OLMo-7B & 7B & 2.5T\\
+
+ & OLMo-2-1B & 1B & \textasciitilde{}4T\\
+
+\multirow{-4}{*}{\raggedright\arraybackslash OLMo} & OLMo-2-7B & 7B & \textasciitilde{}4T\\
+\cmidrule{1-4}
+ & Llama-1.3B & 1.2B & \textasciitilde{}9T\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash Llama} & Llama-3-8B & 8B & \textasciitilde{}15T\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-models}Models used across experiments. Training
+token counts for full-scale models are approximate; GPT-2 counts are
+estimated from the reported 40GB WebText corpus. BabyLM models train for
+20 epochs over 150M tokens (3B effective token exposures).}
+
+\end{table}%
+
+\clearpage
+
+\section{Experiment 1: Supplementary Results}\label{sec-appendix-exp1}
+
+This appendix provides supplementary materials for Experiment 1
+(§\ref{sec-exp1}), which examined final-layer probe performance and
+frequency-residual curvature for the three BabyLM models. Subsections
+report full R² tables, control probe results, a word-level replication,
+and the frequency-residual regression coefficients.
+
+\subsection{Full Probe R²}\label{sec-appendix-full-r2-babylm}
+
+Probe R² at the final hidden layer for BabyLM models, at the binomial
+level by attention condition. P = pair-held-out; W = word-held-out. SD
+across 10 folds in parentheses.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lllll}
+\toprule
+Model & Condition & Split & R² & Ctrl\\
+\midrule
+ &  & P & 0.314 (0.010) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.000 (0.000)\\
+
+ &  & P & 0.244 (0.025) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.343 (0.019) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.225 (0.018) & 0.000 (0.000)\\
+
+ &  & P & 0.301 (0.019) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.152 (0.028) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.294 (0.004) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.000 (0.000)\\
+
+ &  & P & 0.263 (0.012) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.000 (0.000)\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-babylm}Probe R² at the final hidden layer for
+BabyLM models, at the binomial level by attention condition. P =
+pair-held-out split; W = word-held-out split. SD across 10 folds in
+parentheses.}
+
+\end{table}%
+
+\subsection{Control Probe R²}\label{sec-appendix-ctrl-exp1}
+
+Control probe R² for BabyLM models at the final hidden layer, at the
+binomial level by attention condition. Labels are randomly permuted;
+values near zero confirm the main probe recovers genuine linguistic
+structure rather than label artifacts or probe capacity.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{llll}
+\toprule
+Model & Condition & Split & Control R²\\
+\midrule
+ &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0005 (0.0005)\\
+
+ &  & P & 0.0001 (0.0001)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+\cmidrule{1-4}
+ &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+
+ &  & P & 0.0000 (0.0000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+\cmidrule{1-4}
+ &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+
+ &  & P & 0.0000 (0.0001)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-ctrl-r2-babylm}Control probe R² for BabyLM models
+(final layer), at the binomial level by attention condition. SD across
+10 folds in parentheses. P = pair-held-out; W = word-held-out.}
+
+\end{table}%
+
+\subsection{Word-Level Replication}\label{sec-appendix-words-only-exp1}
+
+We trained the MLP probe using word-level representations
+(\texttt{words\_only}) for the three BabyLM models to verify that the
+preference signal is not an artifact of mean pooling across the full
+binomial phrase. Under this condition the probe receives a concatenation
+of two word vectors extracted from isolated sentence contexts
+(``\emph{the bread}'', ``\emph{the butter}''), so it cannot rely on any
+co-occurrence signal from the two words' shared sentence context.
+
+Pair-held-out R² ranges from 0.31 to 0.33 --- within a few percentage
+points of the corresponding binomial-level values (0.29--0.34). The
+generalization pattern is preserved: word-held-out R² is consistently
+lower than pair-held-out R² for all three models (word-held-out
+0.18--0.20; pair-minus-word gap 0.127--0.129), confirming that the
+lexical generalization cost seen at the binomial level is a property of
+the preference encoding itself rather than an artifact of the
+mean-pooled representation. \(\hat{\beta}_2\) is positive and credible
+intervals exclude zero for all three models, matching the curvature
+found at the binomial level (words-only \(\hat{\beta}_2\): 0.039--0.079;
+full-context binomial-level: 0.064--0.073). Full results are in
+Table~\ref{tbl-r2-babylm-words-only}.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{llllll}
+\toprule
+Model & Mode & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  & P & 0.312 (0.012) & 0.000 (0.000) & 0.312\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} &  & W & 0.185 (0.015) & 0.000 (0.000) & 0.184\\
+
+ &  & P & 0.326 (0.010) & 0.000 (0.000) & 0.326\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} &  & W & 0.199 (0.016) & 0.000 (0.000) & 0.198\\
+
+ &  & P & 0.306 (0.003) & 0.000 (0.000) & 0.306\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-6}{*}{\raggedright\arraybackslash Word-level} & W & 0.177 (0.023) & 0.000 (0.000) & 0.177\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-babylm-words-only}Word-level probe R² and
+selectivity (main \(-\) control R²) for BabyLM models (final layer). P =
+pair-held-out split; W = word-held-out split. SD across 10 folds in
+parentheses.}
+
+\end{table}%
+
+\subsection{Frequency-Residual Regression: BabyLM
+Models}\label{sec-appendix-beta-babylm}
+
+Bayesian frequency-residual regression results for BabyLM models (final
+layer), at the binomial level by attention condition. 95\% CIs in
+brackets. Vertex = \(-\hat\beta_1 / (2\hat\beta_2)\), the log-frequency
+at which probe error is minimized.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{9}{11}\selectfont
+
+\begin{tabular}[t]{lllll}
+\toprule
+Model & Condition & $\hat{\beta}_1$ & $\hat{\beta}_2$ & Vertex\\
+\midrule
+ & Full context & -0.1198 [-0.1654, -0.0729] & 0.07301 [0.05623, 0.08976] & 0.82\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} & Attention-zeroed & -0.1369 [-0.1812, -0.0924] & 0.02445 [0.00866, 0.04039] & 2.80\\
+\cmidrule{1-5}
+ & Full context & -0.1032 [-0.1480, -0.0596] & 0.06413 [0.04885, 0.08010] & 0.80\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} & Attention-zeroed & -0.1157 [-0.1586, -0.0726] & 0.02049 [0.00508, 0.03584] & 2.82\\
+\cmidrule{1-5}
+ & Full context & -0.1320 [-0.2088, -0.0545] & 0.06877 [0.04099, 0.09704] & 0.96\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & Attention-zeroed & -0.1770 [-0.2450, -0.1066] & 0.00847 [-0.01671, 0.03332] & 10.45\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta-babylm}Bayesian frequency-residual regression
+results for BabyLM models (final layer), at the binomial level by
+attention condition. 95\% CIs in brackets. Vertex =
+\(-\hat\beta_1 / (2\hat\beta_2)\), the log-frequency at which probe
+error is minimized.}
+
+\end{table}%
+
+\clearpage
+
+\section{Experiment 2: Supplementary Results}\label{sec-appendix-exp2}
+
+This appendix provides supplementary materials for Experiment 2
+(§\ref{sec-exp2}), which examined final-layer representations across all
+16 models from five families. Subsections report full R² tables, control
+probe results, a word-level replication, frequency-residual regression
+coefficients for all models, and a predicted-vs.-observed scatter plot.
+
+\subsection{Full Probe R²}\label{sec-appendix-full-r2}
+
+Probe R² for all 16 models at the final hidden layer, binomial-level
+input mode, by attention condition and cross-validation split. P =
+pair-held-out; W = word-held-out. SD across 10 folds in parentheses.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{7}{9}\selectfont
+
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\begin{tabular}[t]{lllll}
+\toprule
+Model & Condition & Split & R² & Ctrl\\
+\midrule
+ &  & P & 0.314 (0.010) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.000 (0.000)\\
+
+ &  & P & 0.244 (0.025) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.343 (0.019) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.225 (0.018) & 0.000 (0.000)\\
+
+ &  & P & 0.301 (0.019) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.152 (0.028) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.294 (0.004) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.000 (0.000)\\
+
+ &  & P & 0.263 (0.012) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.648 (0.004) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.601 (0.033) & 0.001 (0.001)\\
+
+ &  & P & 0.786 (0.006) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.718 (0.024) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.533 (0.005) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.453 (0.028) & 0.000 (0.000)\\
+
+ &  & P & 0.756 (0.016) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.670 (0.036) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.519 (0.006) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.449 (0.036) & 0.000 (0.000)\\
+
+ &  & P & 0.668 (0.006) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.571 (0.020) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.487 (0.007) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.420 (0.033) & 0.000 (0.000)\\
+
+ &  & P & 0.726 (0.008) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.641 (0.034) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.587 (0.005) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.522 (0.021) & 0.000 (0.000)\\
+
+ &  & P & 0.604 (0.005) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.527 (0.022) & 0.001 (0.001)\\
+\cmidrule{1-5}
+ &  & P & 0.532 (0.004) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.461 (0.035) & 0.000 (0.000)\\
+
+ &  & P & 0.552 (0.006) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.477 (0.019) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.554 (0.007) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.029) & 0.000 (0.000)\\
+
+ &  & P & 0.567 (0.005) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.496 (0.027) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.575 (0.005) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.505 (0.021) & 0.000 (0.000)\\
+
+ &  & P & 0.597 (0.008) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.514 (0.021) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.621 (0.008) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.561 (0.023) & 0.000 (0.000)\\
+
+ &  & P & 0.658 (0.008) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.580 (0.027) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.557 (0.007) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.017) & 0.000 (0.000)\\
+
+ &  & P & 0.583 (0.005) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.518 (0.021) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.614 (0.005) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.554 (0.022) & 0.000 (0.000)\\
+
+ &  & P & 0.642 (0.006) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.570 (0.012) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.433 (0.008) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.373 (0.035) & 0.000 (0.000)\\
+
+ &  & P & 0.443 (0.011) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.370 (0.040) & 0.000 (0.000)\\
+\cmidrule{1-5}
+ &  & P & 0.545 (0.008) & 0.000 (0.000)\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.510 (0.035) & 0.001 (0.001)\\
+
+ &  & P & 0.521 (0.016) & 0.000 (0.000)\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.470 (0.024) & 0.000 (0.000)\\
+\bottomrule
+\end{tabular}}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2}Probe R² at the final hidden layer for all 16
+models, at the binomial level by attention condition. P = pair-held-out
+split; W = word-held-out split. SD across 10 folds in parentheses.}
+
+\end{table}%
+
+\subsection{Control Probe R²}\label{sec-appendix-ctrl-exp2}
+
+Control probe R² for all 16 models at the final hidden layer, at the
+binomial level by attention condition.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lllll}
+\toprule
+Family & Model & Condition & Split & Control R²\\
+\midrule
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0005 (0.0005)\\
+
+ &  &  & P & 0.0001 (0.0001)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+
+ &  &  & P & 0.0000 (0.0001)\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+\cmidrule{1-5}
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0005 (0.0006)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0003)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0004 (0.0005)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0004)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0004)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+\multirow{-16}{*}[3.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0003)\\
+\cmidrule{1-5}
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0003)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0004)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0002)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0007 (0.0006)\\
+\cmidrule{1-5}
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0004)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0004)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0002)\\
+
+ &  &  & P & 0.0000 (0.0001)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0004 (0.0005)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0004 (0.0003)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0001 (0.0003)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0004)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+\multirow{-16}{*}[3.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0004 (0.0004)\\
+\cmidrule{1-5}
+ &  &  & P & 0.0001 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0007 (0.0005)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0003)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0005)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0003)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+ &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+
+ &  &  & P & 0.0000 (0.0000)\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0003)\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-ctrl-r2}Control probe R² for all 16 models (final
+layer), at the binomial level by attention condition. SD across 10 folds
+in parentheses. P = pair-held-out; W = word-held-out.}
+
+\end{table}%
+
+\subsection{Word-Level Replication}\label{sec-appendix-words-only-exp2}
+
+Across all 16 models, word-level probing reproduces the main findings
+from Experiment 2. Pair-held-out R² is slightly lower than the
+corresponding binomial-level values --- by roughly 5--10 percentage
+points for most Pile-trained models --- but rank order across families
+and the generalization pattern (pair-held-out \textgreater{}
+word-held-out) are preserved in every case. For GPT-2, pair-held-out R²
+under word-level probing ranges from 0.46 to 0.62 (vs.~0.49--0.65 at the
+binomial level); for Pythia, 0.51--0.57 (vs.~0.53--0.59); for OLMo,
+0.52--0.57 (vs.~0.56--0.62); for Llama, 0.36--0.45 (vs.~0.43--0.55). The
+generalization gaps (pair-held-out minus word-held-out) range from 0.044
+to 0.073 across Pile-trained models, closely matching the corresponding
+binomial-level gaps (0.035--0.080). \(\hat{\beta}_2\) is positive for
+all 16 models, with magnitudes similar to the full-context
+binomial-level condition. Full results are in
+Table~\ref{tbl-r2-words-only}.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lllllll}
+\toprule
+Family & Model & Mode & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  &  & P & 0.312 (0.012) & 0.000 (0.000) & 0.312\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} &  & W & 0.185 (0.015) & 0.000 (0.000) & 0.184\\
+
+ &  &  & P & 0.326 (0.010) & 0.000 (0.000) & 0.326\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} &  & W & 0.199 (0.016) & 0.000 (0.000) & 0.198\\
+
+ &  &  & P & 0.306 (0.003) & 0.000 (0.000) & 0.306\\
+
+\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM} & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} &  & W & 0.177 (0.023) & 0.000 (0.000) & 0.177\\
+
+ &  &  & P & 0.618 (0.003) & 0.000 (0.000) & 0.618\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2} &  & W & 0.574 (0.032) & 0.000 (0.000) & 0.573\\
+
+ &  &  & P & 0.521 (0.006) & 0.000 (0.000) & 0.521\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} &  & W & 0.448 (0.022) & 0.000 (0.000) & 0.447\\
+
+ &  &  & P & 0.487 (0.005) & 0.000 (0.000) & 0.487\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} &  & W & 0.425 (0.027) & 0.000 (0.000) & 0.425\\
+
+ &  &  & P & 0.458 (0.005) & 0.000 (0.000) & 0.458\\
+
+\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} &  & W & 0.391 (0.034) & 0.000 (0.000) & 0.390\\
+
+ &  &  & P & 0.357 (0.010) & 0.000 (0.000) & 0.357\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} &  & W & 0.293 (0.036) & 0.000 (0.001) & 0.292\\
+
+ &  &  & P & 0.448 (0.010) & 0.000 (0.000) & 0.448\\
+
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama} & \multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} &  & W & 0.402 (0.027) & 0.000 (0.001) & 0.401\\
+
+ &  &  & P & 0.537 (0.004) & 0.000 (0.000) & 0.537\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} &  & W & 0.471 (0.021) & 0.000 (0.000) & 0.471\\
+
+ &  &  & P & 0.566 (0.004) & 0.000 (0.000) & 0.566\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} &  & W & 0.503 (0.026) & 0.000 (0.000) & 0.502\\
+
+ &  &  & P & 0.520 (0.008) & 0.000 (0.000) & 0.520\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} &  & W & 0.453 (0.018) & 0.000 (0.000) & 0.453\\
+
+ &  &  & P & 0.549 (0.008) & 0.000 (0.000) & 0.549\\
+
+\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo} & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} &  & W & 0.478 (0.023) & 0.000 (0.001) & 0.478\\
+
+ &  &  & P & 0.570 (0.006) & 0.000 (0.000) & 0.570\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} &  & W & 0.507 (0.021) & 0.000 (0.001) & 0.507\\
+
+ &  &  & P & 0.514 (0.005) & 0.000 (0.000) & 0.514\\
+
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} &  & W & 0.458 (0.025) & 0.000 (0.000) & 0.457\\
+
+ &  &  & P & 0.523 (0.006) & 0.000 (0.000) & 0.523\\
+
+\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia} & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & \multirow{-32}{*}{\raggedright\arraybackslash Word-level} & W & 0.454 (0.024) & 0.000 (0.000) & 0.454\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-words-only}Word-level probe R² and selectivity
+(main \(-\) control R²) for all 16 models (final layer). P =
+pair-held-out split; W = word-held-out split. SD across 10 folds in
+parentheses.}
+
+\end{table}%
+
+\subsection{Frequency-Residual Regression: All
+Models}\label{sec-appendix-full-beta}
+
+Bayesian frequency-residual regression results for all 16 final-layer
+models, binomial-level input mode. 95\% CIs in brackets. Vertex =
+\(-\hat\beta_1 / (2\hat\beta_2)\), the log-frequency at which probe
+error is minimized.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{7}{9}\selectfont
+
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\begin{tabular}[t]{lllll}
+\toprule
+Model & Condition & $\hat{\beta}_1$ & $\hat{\beta}_2$ & Vertex\\
+\midrule
+ & Full context & -0.1198 [-0.1654, -0.0729] & 0.07301 [0.05623, 0.08976] & 0.82\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} & Attention-zeroed & -0.1369 [-0.1812, -0.0924] & 0.02445 [0.00866, 0.04039] & 2.80\\
+\cmidrule{1-5}
+ & Full context & -0.1032 [-0.1480, -0.0596] & 0.06413 [0.04885, 0.08010] & 0.80\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} & Attention-zeroed & -0.1157 [-0.1586, -0.0726] & 0.02049 [0.00508, 0.03584] & 2.82\\
+\cmidrule{1-5}
+ & Full context & -0.1320 [-0.2088, -0.0545] & 0.06877 [0.04099, 0.09704] & 0.96\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & Attention-zeroed & -0.1770 [-0.2450, -0.1066] & 0.00847 [-0.01671, 0.03332] & 10.45\\
+\cmidrule{1-5}
+ & Full context & -0.2265 [-0.2480, -0.2049] & 0.01838 [0.01657, 0.02019] & 6.16\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2} & Attention-zeroed & -0.1145 [-0.1393, -0.0894] & 0.00398 [0.00185, 0.00603] & 14.40\\
+\cmidrule{1-5}
+ & Full context & -0.2268 [-0.2495, -0.2057] & 0.01788 [0.01607, 0.01977] & 6.34\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} & Attention-zeroed & -0.1383 [-0.1614, -0.1145] & 0.00567 [0.00371, 0.00762] & 12.20\\
+\cmidrule{1-5}
+ & Full context & -0.1905 [-0.2120, -0.1691] & 0.01442 [0.01260, 0.01623] & 6.60\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} & Attention-zeroed & -0.1214 [-0.1437, -0.0993] & 0.00501 [0.00315, 0.00691] & 12.11\\
+\cmidrule{1-5}
+ & Full context & -0.1600 [-0.1812, -0.1382] & 0.01161 [0.00975, 0.01339] & 6.89\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} & Attention-zeroed & -0.1240 [-0.1462, -0.1018] & 0.00492 [0.00302, 0.00680] & 12.60\\
+\cmidrule{1-5}
+ & Full context & -0.2168 [-0.2388, -0.1954] & 0.01652 [0.01471, 0.01833] & 6.56\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} & Attention-zeroed & -0.1370 [-0.1566, -0.1166] & 0.00534 [0.00358, 0.00703] & 12.83\\
+\cmidrule{1-5}
+ & Full context & -0.1950 [-0.2176, -0.1727] & 0.01405 [0.01219, 0.01593] & 6.94\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} & Attention-zeroed & -0.1055 [-0.1265, -0.0844] & 0.00380 [0.00201, 0.00561] & 13.88\\
+\cmidrule{1-5}
+ & Full context & -0.1384 [-0.1607, -0.1166] & 0.00937 [0.00755, 0.01125] & 7.39\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & Attention-zeroed & -0.0782 [-0.0988, -0.0566] & 0.00217 [0.00036, 0.00392] & 18.02\\
+\cmidrule{1-5}
+ & Full context & -0.1426 [-0.1617, -0.1234] & 0.00929 [0.00767, 0.01090] & 7.68\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} & Attention-zeroed & -0.0989 [-0.1173, -0.0812] & 0.00352 [0.00198, 0.00509] & 14.03\\
+\cmidrule{1-5}
+ & Full context & -0.1361 [-0.1542, -0.1178] & 0.00882 [0.00731, 0.01036] & 7.72\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} & Attention-zeroed & -0.1030 [-0.1204, -0.0863] & 0.00436 [0.00291, 0.00579] & 11.82\\
+\cmidrule{1-5}
+ & Full context & -0.1707 [-0.1925, -0.1499] & 0.01108 [0.00932, 0.01293] & 7.70\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} & Attention-zeroed & -0.1317 [-0.1528, -0.1103] & 0.00585 [0.00407, 0.00764] & 11.26\\
+\cmidrule{1-5}
+ & Full context & -0.1356 [-0.1556, -0.1161] & 0.00704 [0.00538, 0.00872] & 9.63\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} & Attention-zeroed & -0.0882 [-0.1083, -0.0686] & 0.00253 [0.00089, 0.00422] & 17.44\\
+\cmidrule{1-5}
+ & Full context & -0.1666 [-0.1870, -0.1463] & 0.01130 [0.00958, 0.01299] & 7.37\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} & Attention-zeroed & -0.1036 [-0.1223, -0.0846] & 0.00356 [0.00196, 0.00512] & 14.57\\
+\cmidrule{1-5}
+ & Full context & -0.1344 [-0.1545, -0.1148] & 0.00793 [0.00624, 0.00960] & 8.48\\
+
+\multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} & Attention-zeroed & -0.1038 [-0.1232, -0.0845] & 0.00377 [0.00214, 0.00538] & 13.77\\
+\bottomrule
+\end{tabular}}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta}Bayesian frequency-residual regression results
+for all 16 final-layer models, at the binomial level by attention
+condition. 95\% CIs in brackets. Vertex =
+\(-\hat\beta_1 / (2\hat\beta_2)\), the log-frequency at minimum probe
+error.}
+
+\end{table}%
+
+\subsection{Predicted vs.~Observed}\label{sec-appendix-scatter}
+
+Predicted vs.~observed binomial preference for all 16 models at the
+final hidden layer, full-context condition, binomial-level input mode.
+Each point is a corpus binomial pair colored by log-frequency tertile
+(low/medium/high). Perfect prediction falls on the diagonal. Models are
+ordered by family (BabyLM, GPT-2, Pythia, OLMo, Llama) and then by size
+within family.
+
+\begin{figure}
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-scatter-1.pdf}}
+
+}
+
+\caption{\label{fig-scatter}Predicted vs.~observed binomial preference
+for all 16 models at the final hidden layer, full-context condition,
+binomial-level input mode. Each point is a corpus binomial pair colored
+by log-frequency tertile (low/medium/high). Perfect prediction falls on
+the diagonal.}
+
+\end{figure}%
+
+\clearpage
+
+\section{Experiment 3: Supplementary Results}\label{sec-appendix-exp3}
+
+This appendix provides supplementary materials for Experiment 3
+(§\ref{sec-exp3}), which tracked probe R² and frequency-residual
+curvature across training checkpoints for BabyLM and Pythia. Subsections
+report full numerical checkpoint tables and a word-level replication.
+
+\subsection{Checkpoint Probe Tables}\label{sec-appendix-ckpt-tables}
+
+Full numerical results for the Experiment 3 checkpoint analysis. Tables
+report probe R² (pair-held-out and word-held-out) and frequency-residual
+regression coefficients (\(\hat{\beta}_2\)) for BabyLM and Pythia across
+training checkpoints, for the binomial-level (mean-pooled)
+representation under full-context and attention-zeroed conditions.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  & 20 M & P & 0.671 (0.022) & 0.000 (0.000) & 0.671\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.434 (0.054) & 0.000 (0.000) & 0.434\\
+
+ &  & 39 M & P & 0.579 (0.041) & 0.000 (0.000) & 0.579\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.353 (0.045) & 0.000 (0.001) & 0.353\\
+
+ &  & 118 M & P & 0.620 (0.023) & 0.000 (0.000) & 0.620\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.439 (0.035) & 0.000 (0.000) & 0.439\\
+
+ &  & 315 M & P & 0.610 (0.016) & 0.000 (0.000) & 0.610\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.476 (0.038) & 0.000 (0.000) & 0.476\\
+
+ &  & 747 M & P & 0.505 (0.034) & 0.000 (0.000) & 0.505\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.346 (0.055) & 0.000 (0.000) & 0.346\\
+
+ &  & 1868 M & P & 0.342 (0.013) & 0.000 (0.000) & 0.342\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.227 (0.030) & 0.000 (0.000) & 0.227\\
+\cmidrule{1-7}
+ &  & 20 M & P & 0.684 (0.031) & 0.000 (0.000) & 0.684\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.582 (0.041) & 0.000 (0.000) & 0.582\\
+
+ &  & 39 M & P & 0.640 (0.050) & 0.000 (0.000) & 0.640\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.575 (0.029) & 0.000 (0.000) & 0.575\\
+
+ &  & 118 M & P & 0.661 (0.027) & 0.000 (0.000) & 0.661\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.592 (0.033) & 0.000 (0.000) & 0.592\\
+
+ &  & 315 M & P & 0.640 (0.024) & 0.000 (0.000) & 0.640\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.532 (0.040) & 0.000 (0.000) & 0.532\\
+
+ &  & 747 M & P & 0.503 (0.026) & 0.000 (0.000) & 0.503\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.361 (0.048) & 0.000 (0.000) & 0.361\\
+
+ &  & 1868 M & P & 0.382 (0.013) & 0.000 (0.000) & 0.382\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.240 (0.025) & 0.000 (0.000) & 0.239\\
+\cmidrule{1-7}
+ &  & 20 M & P & 0.718 (0.020) & 0.000 (0.000) & 0.718\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.527 (0.045) & 0.001 (0.001) & 0.527\\
+
+ &  & 40 M & P & 0.635 (0.029) & 0.000 (0.000) & 0.635\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.434 (0.064) & 0.001 (0.000) & 0.433\\
+
+ &  & 119 M & P & 0.653 (0.017) & 0.000 (0.000) & 0.653\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.553 (0.035) & 0.000 (0.000) & 0.553\\
+
+ &  & 298 M & P & 0.555 (0.023) & 0.000 (0.000) & 0.555\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.426 (0.044) & 0.000 (0.000) & 0.426\\
+
+ &  & 755 M & P & 0.394 (0.011) & 0.000 (0.000) & 0.394\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.248 (0.020) & 0.000 (0.000) & 0.247\\
+
+ &  & 1848 M & P & 0.315 (0.007) & 0.000 (0.000) & 0.315\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.180 (0.024) & 0.000 (0.000) & 0.179\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-checkpoints-babylm-default-mean}BabyLM checkpoint
+probe R² --- full context, binomial-level. P = pair-held-out; W =
+word-held-out. SD in parentheses.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  & 20 M & P & 0.799 (0.019) & 0.000 (0.000) & 0.799\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.712 (0.041) & 0.000 (0.000) & 0.711\\
+
+ &  & 39 M & P & 0.770 (0.012) & 0.000 (0.000) & 0.770\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.659 (0.041) & 0.001 (0.001) & 0.658\\
+
+ &  & 118 M & P & 0.691 (0.017) & 0.000 (0.000) & 0.691\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.588 (0.041) & 0.000 (0.000) & 0.588\\
+
+ &  & 315 M & P & 0.612 (0.013) & 0.000 (0.000) & 0.612\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.512 (0.032) & 0.000 (0.000) & 0.511\\
+
+ &  & 747 M & P & 0.458 (0.015) & 0.000 (0.000) & 0.458\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.320 (0.047) & 0.001 (0.001) & 0.319\\
+
+ &  & 1868 M & P & 0.283 (0.019) & 0.000 (0.000) & 0.283\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.150 (0.029) & 0.000 (0.001) & 0.150\\
+\cmidrule{1-7}
+ &  & 20 M & P & 0.784 (0.011) & 0.000 (0.000) & 0.784\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.738 (0.021) & 0.000 (0.001) & 0.737\\
+
+ &  & 39 M & P & 0.847 (0.011) & 0.000 (0.000) & 0.847\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.813 (0.022) & 0.000 (0.000) & 0.813\\
+
+ &  & 118 M & P & 0.730 (0.047) & 0.000 (0.000) & 0.730\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.711 (0.025) & 0.000 (0.000) & 0.710\\
+
+ &  & 315 M & P & 0.598 (0.040) & 0.000 (0.000) & 0.598\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.515 (0.041) & 0.000 (0.000) & 0.515\\
+
+ &  & 747 M & P & 0.477 (0.019) & 0.000 (0.000) & 0.477\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.318 (0.042) & 0.000 (0.000) & 0.318\\
+
+ &  & 1868 M & P & 0.327 (0.016) & 0.000 (0.000) & 0.327\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.167 (0.031) & 0.000 (0.000) & 0.167\\
+\cmidrule{1-7}
+ &  & 20 M & P & 0.803 (0.016) & 0.000 (0.000) & 0.803\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.755 (0.025) & 0.000 (0.001) & 0.755\\
+
+ &  & 40 M & P & 0.734 (0.025) & 0.000 (0.000) & 0.734\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.665 (0.033) & 0.000 (0.001) & 0.665\\
+
+ &  & 119 M & P & 0.672 (0.015) & 0.000 (0.000) & 0.672\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.602 (0.031) & 0.000 (0.000) & 0.601\\
+
+ &  & 298 M & P & 0.527 (0.014) & 0.000 (0.000) & 0.527\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.410 (0.060) & 0.000 (0.000) & 0.410\\
+
+ &  & 755 M & P & 0.347 (0.019) & 0.000 (0.000) & 0.347\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.193 (0.020) & 0.000 (0.000) & 0.193\\
+
+ &  & 1848 M & P & 0.268 (0.007) & 0.000 (0.000) & 0.268\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.131 (0.026) & 0.000 (0.000) & 0.131\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-checkpoints-babylm-attn-mean}BabyLM checkpoint
+probe R² --- attention-zeroed, binomial-level.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  & 34 M & P & 0.681 (0.005) & 0.000 (0.000) & 0.681\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.380 (0.032) & 0.000 (0.000) & 0.380\\
+
+ &  & 67 M & P & 0.695 (0.004) & 0.000 (0.000) & 0.695\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.398 (0.034) & 0.000 (0.000) & 0.398\\
+
+ &  & 134 M & P & 0.670 (0.010) & 0.000 (0.000) & 0.670\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.415 (0.034) & 0.000 (0.000) & 0.415\\
+
+ &  & 537 M & P & 0.799 (0.008) & 0.000 (0.000) & 0.799\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.649 (0.035) & 0.000 (0.000) & 0.648\\
+
+ &  & 1074 M & P & 0.770 (0.006) & 0.000 (0.000) & 0.770\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.644 (0.019) & 0.000 (0.000) & 0.644\\
+
+ &  & 2097 M & P & 0.715 (0.007) & 0.000 (0.000) & 0.715\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.632 (0.019) & 0.000 (0.001) & 0.632\\
+\cmidrule{1-7}
+ &  & 34 M & P & 0.692 (0.007) & 0.000 (0.000) & 0.691\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.405 (0.035) & 0.000 (0.000) & 0.405\\
+
+ &  & 67 M & P & 0.700 (0.007) & 0.000 (0.000) & 0.700\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.426 (0.035) & 0.000 (0.000) & 0.426\\
+
+ &  & 134 M & P & 0.687 (0.007) & 0.000 (0.000) & 0.687\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.443 (0.039) & 0.000 (0.000) & 0.443\\
+
+ &  & 537 M & P & 0.814 (0.008) & 0.000 (0.000) & 0.814\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.719 (0.019) & 0.000 (0.000) & 0.719\\
+
+ &  & 1074 M & P & 0.801 (0.007) & 0.000 (0.000) & 0.801\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.714 (0.018) & 0.000 (0.000) & 0.713\\
+
+ &  & 2097 M & P & 0.758 (0.002) & 0.000 (0.000) & 0.757\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.690 (0.011) & 0.000 (0.000) & 0.689\\
+\cmidrule{1-7}
+ &  & 34 M & P & 0.737 (0.004) & 0.000 (0.000) & 0.737\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.440 (0.026) & 0.000 (0.000) & 0.440\\
+
+ &  & 67 M & P & 0.755 (0.004) & 0.000 (0.000) & 0.755\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.470 (0.033) & 0.000 (0.000) & 0.470\\
+
+ &  & 134 M & P & 0.747 (0.007) & 0.000 (0.000) & 0.747\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.500 (0.018) & 0.000 (0.001) & 0.499\\
+
+ &  & 537 M & P & 0.864 (0.006) & 0.000 (0.000) & 0.864\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.754 (0.025) & 0.000 (0.000) & 0.754\\
+
+ &  & 1074 M & P & 0.781 (0.005) & 0.000 (0.000) & 0.781\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.664 (0.028) & 0.000 (0.001) & 0.664\\
+
+ &  & 2097 M & P & 0.764 (0.005) & 0.000 (0.000) & 0.764\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.683 (0.016) & 0.000 (0.000) & 0.683\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-checkpoints-pythia-default-mean}Pythia checkpoint
+probe R² --- full context, binomial-level.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  & 34 M & P & 0.692 (0.009) & 0.000 (0.000) & 0.692\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.326 (0.058) & 0.000 (0.000) & 0.326\\
+
+ &  & 67 M & P & 0.720 (0.009) & 0.000 (0.000) & 0.720\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.357 (0.062) & 0.000 (0.000) & 0.357\\
+
+ &  & 134 M & P & 0.677 (0.014) & 0.000 (0.000) & 0.677\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.309 (0.057) & 0.000 (0.000) & 0.309\\
+
+ &  & 537 M & P & 0.749 (0.014) & 0.000 (0.000) & 0.749\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.503 (0.043) & 0.000 (0.000) & 0.503\\
+
+ &  & 1074 M & P & 0.752 (0.008) & 0.000 (0.000) & 0.752\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.579 (0.031) & 0.000 (0.000) & 0.578\\
+
+ &  & 2097 M & P & 0.716 (0.007) & 0.000 (0.000) & 0.716\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.611 (0.020) & 0.001 (0.001) & 0.611\\
+\cmidrule{1-7}
+ &  & 34 M & P & 0.731 (0.005) & 0.000 (0.000) & 0.731\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.378 (0.030) & 0.000 (0.000) & 0.377\\
+
+ &  & 67 M & P & 0.711 (0.015) & 0.000 (0.000) & 0.711\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.352 (0.019) & 0.000 (0.000) & 0.351\\
+
+ &  & 134 M & P & 0.676 (0.014) & 0.000 (0.000) & 0.676\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.334 (0.053) & 0.000 (0.000) & 0.334\\
+
+ &  & 537 M & P & 0.745 (0.017) & 0.000 (0.000) & 0.745\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.505 (0.036) & 0.000 (0.000) & 0.505\\
+
+ &  & 1074 M & P & 0.769 (0.020) & 0.000 (0.000) & 0.769\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.618 (0.023) & 0.000 (0.000) & 0.618\\
+
+ &  & 2097 M & P & 0.751 (0.009) & 0.000 (0.000) & 0.751\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.659 (0.015) & 0.000 (0.000) & 0.659\\
+\cmidrule{1-7}
+ &  & 34 M & P & 0.797 (0.011) & 0.000 (0.000) & 0.797\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.494 (0.033) & 0.000 (0.000) & 0.493\\
+
+ &  & 67 M & P & 0.804 (0.010) & 0.000 (0.000) & 0.804\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.495 (0.028) & 0.000 (0.000) & 0.494\\
+
+ &  & 134 M & P & 0.749 (0.015) & 0.000 (0.000) & 0.749\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.360 (0.063) & 0.000 (0.000) & 0.360\\
+
+ &  & 537 M & P & 0.827 (0.011) & 0.000 (0.000) & 0.827\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.622 (0.021) & 0.001 (0.001) & 0.621\\
+
+ &  & 1074 M & P & 0.773 (0.010) & 0.000 (0.000) & 0.773\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.589 (0.027) & 0.000 (0.000) & 0.588\\
+
+ &  & 2097 M & P & 0.760 (0.007) & 0.000 (0.000) & 0.760\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.660 (0.017) & 0.000 (0.000) & 0.660\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-checkpoints-pythia-attn-mean}Pythia checkpoint
+probe R² --- attention-zeroed, binomial-level.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & $\hat{\beta}_2$ & SE & CI & P(>0)\\
+\midrule
+ & 24 & 20 M & -0.0082 & 0.0079 & {}[-0.0236, 0.0071] & 15.2\%\\
+
+ & 48 & 39 M & -0.0108 & 0.0074 & {}[-0.0253, 0.0035] & 7.3\%\\
+
+ & 144 & 118 M & -0.0105 & 0.0060 & {}[-0.0222, 0.0013] & 4.0\%\\
+
+ & 384 & 315 M & -0.0056 & 0.0064 & {}[-0.0183, 0.0068] & 19.2\%\\
+
+ & 912 & 747 M & 0.0152 & 0.0074 & {}[0.0010, 0.0299] & 98.1\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-125M} & 2280 & 1868 M & 0.0563 & 0.0080 & {}[0.0402, 0.0717] & 100.0\%\\
+\cmidrule{1-7}
+ & 48 & 20 M & -0.0287 & 0.0078 & {}[-0.0443, -0.0136] & 0.0\%\\
+
+ & 96 & 39 M & -0.0093 & 0.0069 & {}[-0.0229, 0.0041] & 8.7\%\\
+
+ & 288 & 118 M & -0.0000 & 0.0052 & {}[-0.0101, 0.0104] & 49.5\%\\
+
+ & 768 & 315 M & -0.0035 & 0.0058 & {}[-0.0146, 0.0080] & 27.1\%\\
+
+ & 1824 & 747 M & 0.0065 & 0.0071 & {}[-0.0074, 0.0204] & 82.0\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-350M} & 4560 & 1868 M & 0.0450 & 0.0078 & {}[0.0296, 0.0600] & 100.0\%\\
+\cmidrule{1-7}
+ & 97 & 20 M & -0.0134 & 0.0069 & {}[-0.0268, 0.0002] & 2.6\%\\
+
+ & 194 & 40 M & -0.0067 & 0.0067 & {}[-0.0194, 0.0067] & 15.3\%\\
+
+ & 582 & 119 M & -0.0035 & 0.0064 & {}[-0.0162, 0.0090] & 29.5\%\\
+
+ & 1455 & 298 M & -0.0024 & 0.0070 & {}[-0.0160, 0.0114] & 36.5\%\\
+
+ & 3686 & 755 M & 0.0599 & 0.0084 & {}[0.0435, 0.0762] & 100.0\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-1.3B} & 9021 & 1848 M & 0.0934 & 0.0117 & {}[0.0703, 0.1159] & 100.0\%\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta-checkpoints-babylm-default-mean}BabyLM
+checkpoint frequency-residual regression (\(\hat{\beta}_2\)) --- full
+context, binomial-level. SE = posterior SD; CI = 95\% credible interval;
+P(\textgreater0) = percentage of posterior samples with
+\(\hat{\beta}_2 > 0\).}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & $\hat{\beta}_2$ & SE & CI & P(>0)\\
+\midrule
+ & 24 & 20 M & -0.0052 & 0.0057 & {}[-0.0163, 0.0058] & 18.0\%\\
+
+ & 48 & 39 M & -0.0048 & 0.0053 & {}[-0.0154, 0.0055] & 18.3\%\\
+
+ & 144 & 118 M & -0.0096 & 0.0056 & {}[-0.0207, 0.0017] & 4.7\%\\
+
+ & 384 & 315 M & -0.0085 & 0.0064 & {}[-0.0211, 0.0039] & 9.0\%\\
+
+ & 912 & 747 M & 0.0052 & 0.0069 & {}[-0.0084, 0.0189] & 77.4\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-125M} & 2280 & 1868 M & 0.0191 & 0.0079 & {}[0.0037, 0.0346] & 99.2\%\\
+\cmidrule{1-7}
+ & 48 & 20 M & -0.0012 & 0.0057 & {}[-0.0124, 0.0100] & 42.1\%\\
+
+ & 96 & 39 M & -0.0037 & 0.0047 & {}[-0.0129, 0.0054] & 21.3\%\\
+
+ & 288 & 118 M & 0.0028 & 0.0051 & {}[-0.0075, 0.0128] & 71.4\%\\
+
+ & 768 & 315 M & 0.0039 & 0.0060 & {}[-0.0078, 0.0157] & 73.7\%\\
+
+ & 1824 & 747 M & 0.0088 & 0.0065 & {}[-0.0038, 0.0215] & 91.1\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-350M} & 4560 & 1868 M & 0.0218 & 0.0072 & {}[0.0074, 0.0358] & 99.9\%\\
+\cmidrule{1-7}
+ & 97 & 20 M & -0.0067 & 0.0052 & {}[-0.0170, 0.0036] & 10.4\%\\
+
+ & 194 & 40 M & -0.0033 & 0.0051 & {}[-0.0133, 0.0068] & 26.0\%\\
+
+ & 582 & 119 M & 0.0069 & 0.0062 & {}[-0.0051, 0.0190] & 86.9\%\\
+
+ & 1455 & 298 M & -0.0019 & 0.0066 & {}[-0.0149, 0.0110] & 38.0\%\\
+
+ & 3686 & 755 M & 0.0148 & 0.0078 & {}[-0.0008, 0.0301] & 97.0\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-1.3B} & 9021 & 1848 M & 0.0210 & 0.0106 & {}[0.0003, 0.0412] & 97.7\%\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta-checkpoints-babylm-attn-mean}BabyLM checkpoint
+frequency-residual regression (\(\hat{\beta}_2\)) --- attention-zeroed,
+binomial-level.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & $\hat{\beta}_2$ & SE & CI & P(>0)\\
+\midrule
+ & 16 & 34 M & 0.0005 & 0.0010 & {}[-0.0015, 0.0025] & 68.7\%\\
+
+ & 32 & 67 M & 0.0011 & 0.0010 & {}[-0.0007, 0.0031] & 88.9\%\\
+
+ & 64 & 134 M & 0.0013 & 0.0009 & {}[-0.0005, 0.0032] & 91.9\%\\
+
+ & 256 & 537 M & 0.0016 & 0.0006 & {}[0.0004, 0.0028] & 99.6\%\\
+
+ & 512 & 1074 M & 0.0016 & 0.0007 & {}[0.0002, 0.0030] & 98.7\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-160M} & 1000 & 2097 M & 0.0076 & 0.0008 & {}[0.0060, 0.0093] & 100.0\%\\
+\cmidrule{1-7}
+ & 16 & 34 M & 0.0008 & 0.0010 & {}[-0.0012, 0.0028] & 79.6\%\\
+
+ & 32 & 67 M & 0.0011 & 0.0010 & {}[-0.0008, 0.0030] & 85.8\%\\
+
+ & 64 & 134 M & 0.0018 & 0.0010 & {}[-0.0000, 0.0037] & 97.2\%\\
+
+ & 256 & 537 M & 0.0003 & 0.0006 & {}[-0.0010, 0.0015] & 67.6\%\\
+
+ & 512 & 1074 M & 0.0019 & 0.0007 & {}[0.0006, 0.0031] & 99.7\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-410M} & 1000 & 2097 M & 0.0059 & 0.0008 & {}[0.0045, 0.0074] & 100.0\%\\
+\cmidrule{1-7}
+ & 16 & 34 M & 0.0013 & 0.0009 & {}[-0.0005, 0.0030] & 92.4\%\\
+
+ & 32 & 67 M & 0.0012 & 0.0009 & {}[-0.0006, 0.0029] & 90.8\%\\
+
+ & 64 & 134 M & 0.0009 & 0.0009 & {}[-0.0008, 0.0026] & 84.7\%\\
+
+ & 256 & 537 M & 0.0012 & 0.0006 & {}[0.0001, 0.0024] & 98.0\%\\
+
+ & 512 & 1074 M & 0.0032 & 0.0007 & {}[0.0019, 0.0045] & 100.0\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & 2097 M & 0.0102 & 0.0007 & {}[0.0087, 0.0116] & 100.0\%\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta-checkpoints-pythia-default-mean}Pythia
+checkpoint frequency-residual regression (\(\hat{\beta}_2\)) --- full
+context, binomial-level.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & $\hat{\beta}_2$ & SE & CI & P(>0)\\
+\midrule
+ & 16 & 34 M & 0.0005 & 0.0010 & {}[-0.0014, 0.0025] & 71.0\%\\
+
+ & 32 & 67 M & -0.0002 & 0.0009 & {}[-0.0020, 0.0016] & 41.0\%\\
+
+ & 64 & 134 M & 0.0013 & 0.0009 & {}[-0.0004, 0.0031] & 92.5\%\\
+
+ & 256 & 537 M & 0.0010 & 0.0007 & {}[-0.0003, 0.0024] & 93.8\%\\
+
+ & 512 & 1074 M & 0.0008 & 0.0007 & {}[-0.0006, 0.0022] & 87.1\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-160M} & 1000 & 2097 M & -0.0001 & 0.0008 & {}[-0.0017, 0.0015] & 45.6\%\\
+\cmidrule{1-7}
+ & 16 & 34 M & 0.0004 & 0.0009 & {}[-0.0014, 0.0023] & 66.2\%\\
+
+ & 32 & 67 M & 0.0003 & 0.0010 & {}[-0.0016, 0.0023] & 61.8\%\\
+
+ & 64 & 134 M & 0.0008 & 0.0009 & {}[-0.0011, 0.0026] & 79.5\%\\
+
+ & 256 & 537 M & 0.0006 & 0.0007 & {}[-0.0008, 0.0020] & 79.6\%\\
+
+ & 512 & 1074 M & 0.0003 & 0.0007 & {}[-0.0011, 0.0017] & 66.9\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-410M} & 1000 & 2097 M & 0.0010 & 0.0008 & {}[-0.0004, 0.0026] & 91.8\%\\
+\cmidrule{1-7}
+ & 16 & 34 M & 0.0004 & 0.0008 & {}[-0.0012, 0.0021] & 68.9\%\\
+
+ & 32 & 67 M & -0.0003 & 0.0008 & {}[-0.0019, 0.0012] & 33.5\%\\
+
+ & 64 & 134 M & 0.0014 & 0.0009 & {}[-0.0004, 0.0031] & 94.0\%\\
+
+ & 256 & 537 M & 0.0020 & 0.0007 & {}[0.0007, 0.0033] & 99.8\%\\
+
+ & 512 & 1074 M & 0.0013 & 0.0007 & {}[0.0000, 0.0026] & 97.6\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & 2097 M & 0.0016 & 0.0007 & {}[0.0001, 0.0030] & 98.4\%\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta-checkpoints-pythia-attn-mean}Pythia checkpoint
+frequency-residual regression (\(\hat{\beta}_2\)) --- attention-zeroed,
+binomial-level.}
+
+\end{table}%
+
+\subsection{Word-Level Replication}\label{sec-appendix-words-only-exp3}
+
+Word-level probe results across BabyLM and Pythia checkpoints replicate
+the key patterns from the binomial-level analysis. The generalization
+gap (pair-held-out minus word-held-out) is largest at the earliest
+checkpoints and shrinks over the course of training. For BabyLM, the gap
+at the first checkpoint ranges from 0.15 to 0.36 across model sizes,
+narrowing to 0.13--0.14 by the final checkpoint --- the same qualitative
+trajectory observed at the binomial level. \(\hat{\beta}_2\) shows the
+same sign trajectory as in the main analysis: negative early in BabyLM
+training, transitioning to positive after approximately 750M tokens.
+Full R² results are in
+Table~\ref{tbl-r2-checkpoints-babylm-default-words} and
+Table~\ref{tbl-r2-checkpoints-pythia-default-words}; frequency-residual
+regression results are in
+Table~\ref{tbl-beta-checkpoints-babylm-default-words} and
+Table~\ref{tbl-beta-checkpoints-pythia-default-words}.
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  & 20 M & P & 0.450 (0.056) & 0.000 (0.000) & 0.450\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.205 (0.041) & 0.000 (0.001) & 0.205\\
+
+ &  & 39 M & P & 0.384 (0.055) & 0.000 (0.000) & 0.384\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.158 (0.031) & 0.001 (0.001) & 0.158\\
+
+ &  & 118 M & P & 0.355 (0.072) & 0.000 (0.000) & 0.355\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.129 (0.035) & 0.000 (0.000) & 0.129\\
+
+ &  & 315 M & P & 0.403 (0.052) & 0.000 (0.000) & 0.403\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.213 (0.024) & 0.000 (0.000) & 0.212\\
+
+ &  & 747 M & P & 0.400 (0.034) & 0.000 (0.000) & 0.400\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.231 (0.027) & 0.001 (0.001) & 0.231\\
+
+ &  & 1868 M & P & 0.335 (0.020) & 0.000 (0.000) & 0.335\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.208 (0.017) & 0.000 (0.000) & 0.208\\
+\cmidrule{1-7}
+ &  & 20 M & P & 0.340 (0.050) & 0.000 (0.000) & 0.340\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.188 (0.036) & 0.000 (0.001) & 0.187\\
+
+ &  & 39 M & P & 0.232 (0.027) & 0.000 (0.000) & 0.232\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.137 (0.052) & 0.000 (0.000) & 0.136\\
+
+ &  & 118 M & P & 0.167 (0.030) & 0.000 (0.000) & 0.167\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.092 (0.038) & 0.000 (0.000) & 0.091\\
+
+ &  & 315 M & P & 0.372 (0.043) & 0.000 (0.000) & 0.372\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.199 (0.041) & 0.000 (0.000) & 0.199\\
+
+ &  & 747 M & P & 0.399 (0.041) & 0.000 (0.000) & 0.399\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.246 (0.040) & 0.000 (0.000) & 0.245\\
+
+ &  & 1868 M & P & 0.343 (0.035) & 0.000 (0.000) & 0.343\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.208 (0.017) & 0.000 (0.000) & 0.207\\
+\cmidrule{1-7}
+ &  & 20 M & P & 0.570 (0.032) & 0.000 (0.000) & 0.570\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.215 (0.052) & 0.000 (0.000) & 0.214\\
+
+ &  & 40 M & P & 0.444 (0.037) & 0.000 (0.000) & 0.444\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.127 (0.047) & 0.000 (0.000) & 0.127\\
+
+ &  & 119 M & P & 0.421 (0.032) & 0.000 (0.000) & 0.421\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.187 (0.024) & 0.000 (0.000) & 0.186\\
+
+ &  & 298 M & P & 0.462 (0.026) & 0.000 (0.000) & 0.462\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.283 (0.052) & 0.000 (0.000) & 0.283\\
+
+ &  & 755 M & P & 0.394 (0.009) & 0.000 (0.000) & 0.394\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.236 (0.019) & 0.000 (0.000) & 0.235\\
+
+ &  & 1848 M & P & 0.320 (0.004) & 0.000 (0.000) & 0.320\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.185 (0.022) & 0.000 (0.000) & 0.184\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-checkpoints-babylm-default-words}BabyLM
+checkpoint probe R² --- full context, word-level. P = pair-held-out; W =
+word-held-out. SD in parentheses.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
+\midrule
+ &  & 34 M & P & 0.563 (0.009) & 0.000 (0.000) & 0.562\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.226 (0.033) & 0.000 (0.000) & 0.226\\
+
+ &  & 67 M & P & 0.577 (0.007) & 0.000 (0.000) & 0.577\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.238 (0.026) & 0.000 (0.000) & 0.238\\
+
+ &  & 134 M & P & 0.565 (0.006) & 0.000 (0.000) & 0.565\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.239 (0.033) & 0.000 (0.000) & 0.239\\
+
+ &  & 537 M & P & 0.615 (0.013) & 0.000 (0.000) & 0.615\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.332 (0.034) & 0.000 (0.000) & 0.332\\
+
+ &  & 1074 M & P & 0.689 (0.004) & 0.000 (0.000) & 0.689\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.527 (0.016) & 0.000 (0.000) & 0.527\\
+
+ &  & 2097 M & P & 0.667 (0.006) & 0.000 (0.000) & 0.667\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.562 (0.020) & 0.000 (0.001) & 0.561\\
+\cmidrule{1-7}
+ &  & 34 M & P & 0.576 (0.006) & 0.000 (0.000) & 0.576\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.235 (0.021) & 0.000 (0.000) & 0.235\\
+
+ &  & 67 M & P & 0.574 (0.009) & 0.000 (0.000) & 0.574\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.241 (0.030) & 0.000 (0.000) & 0.241\\
+
+ &  & 134 M & P & 0.577 (0.008) & 0.000 (0.000) & 0.577\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.251 (0.027) & 0.000 (0.000) & 0.251\\
+
+ &  & 537 M & P & 0.589 (0.016) & 0.000 (0.000) & 0.589\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.323 (0.026) & 0.000 (0.000) & 0.323\\
+
+ &  & 1074 M & P & 0.668 (0.012) & 0.000 (0.000) & 0.668\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.482 (0.027) & 0.000 (0.000) & 0.482\\
+
+ &  & 2097 M & P & 0.697 (0.005) & 0.000 (0.000) & 0.697\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.602 (0.014) & 0.000 (0.000) & 0.601\\
+\cmidrule{1-7}
+ &  & 34 M & P & 0.602 (0.005) & 0.000 (0.000) & 0.602\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.263 (0.030) & 0.000 (0.000) & 0.262\\
+
+ &  & 67 M & P & 0.612 (0.006) & 0.000 (0.000) & 0.612\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.268 (0.031) & 0.000 (0.000) & 0.268\\
+
+ &  & 134 M & P & 0.595 (0.014) & 0.000 (0.000) & 0.595\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.232 (0.039) & 0.000 (0.000) & 0.232\\
+
+ &  & 537 M & P & 0.711 (0.014) & 0.000 (0.000) & 0.711\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.473 (0.051) & 0.000 (0.000) & 0.473\\
+
+ &  & 1074 M & P & 0.695 (0.007) & 0.000 (0.000) & 0.695\\
+
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.509 (0.029) & 0.000 (0.000) & 0.509\\
+
+ &  & 2097 M & P & 0.723 (0.004) & 0.000 (0.000) & 0.723\\
+
+\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.619 (0.019) & 0.001 (0.000) & 0.618\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-r2-checkpoints-pythia-default-words}Pythia
+checkpoint probe R² --- full context, word-level. P = pair-held-out; W =
+word-held-out. SD in parentheses.}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & $\hat{\beta}_2$ & SE & CI & P(>0)\\
+\midrule
+ & 24 & 20 M & -0.0268 & 0.0102 & {}[-0.0471, -0.0070] & 0.4\%\\
+
+ & 48 & 39 M & -0.0080 & 0.0092 & {}[-0.0259, 0.0098] & 19.1\%\\
+
+ & 144 & 118 M & -0.0074 & 0.0077 & {}[-0.0225, 0.0075] & 16.9\%\\
+
+ & 384 & 315 M & -0.0054 & 0.0074 & {}[-0.0198, 0.0090] & 23.6\%\\
+
+ & 912 & 747 M & 0.0265 & 0.0077 & {}[0.0115, 0.0414] & 100.0\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-125M} & 2280 & 1868 M & 0.0529 & 0.0080 & {}[0.0371, 0.0683] & 100.0\%\\
+\cmidrule{1-7}
+ & 48 & 20 M & -0.0169 & 0.0106 & {}[-0.0371, 0.0044] & 5.8\%\\
+
+ & 96 & 39 M & -0.0138 & 0.0097 & {}[-0.0327, 0.0050] & 7.8\%\\
+
+ & 288 & 118 M & -0.0172 & 0.0077 & {}[-0.0322, -0.0018] & 1.2\%\\
+
+ & 768 & 315 M & -0.0023 & 0.0069 & {}[-0.0158, 0.0110] & 37.5\%\\
+
+ & 1824 & 747 M & -0.0001 & 0.0074 & {}[-0.0144, 0.0147] & 49.2\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-350M} & 4560 & 1868 M & 0.0383 & 0.0078 & {}[0.0229, 0.0540] & 100.0\%\\
+\cmidrule{1-7}
+ & 97 & 20 M & -0.0161 & 0.0090 & {}[-0.0341, 0.0013] & 3.7\%\\
+
+ & 194 & 40 M & 0.0064 & 0.0081 & {}[-0.0090, 0.0225] & 78.0\%\\
+
+ & 582 & 119 M & -0.0078 & 0.0076 & {}[-0.0231, 0.0063] & 15.4\%\\
+
+ & 1455 & 298 M & 0.0068 & 0.0076 & {}[-0.0080, 0.0222] & 81.7\%\\
+
+ & 3686 & 755 M & 0.0647 & 0.0083 & {}[0.0488, 0.0813] & 100.0\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash BabyLM-1.3B} & 9021 & 1848 M & 0.0595 & 0.0117 & {}[0.0367, 0.0831] & 100.0\%\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta-checkpoints-babylm-default-words}BabyLM
+checkpoint frequency-residual regression (\(\hat{\beta}_2\)) --- full
+context, word-level. SE = posterior SD; CI = 95\% credible interval;
+P(\textgreater0) = percentage of posterior samples with
+\(\hat{\beta}_2 > 0\).}
+
+\end{table}%
+
+\begin{table}
+
+\centering{
+
+\centering\begingroup\fontsize{8}{10}\selectfont
+
+\begin{tabular}[t]{lrlllll}
+\toprule
+Model & Step & Tokens & $\hat{\beta}_2$ & SE & CI & P(>0)\\
+\midrule
+ & 16 & 34 M & -0.0011 & 0.0011 & {}[-0.0034, 0.0011] & 17.3\%\\
+
+ & 32 & 67 M & -0.0004 & 0.0011 & {}[-0.0025, 0.0018] & 35.7\%\\
+
+ & 64 & 134 M & 0.0005 & 0.0010 & {}[-0.0015, 0.0025] & 70.2\%\\
+
+ & 256 & 537 M & 0.0011 & 0.0008 & {}[-0.0005, 0.0027] & 90.4\%\\
+
+ & 512 & 1074 M & 0.0027 & 0.0008 & {}[0.0012, 0.0043] & 100.0\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-160M} & 1000 & 2097 M & 0.0077 & 0.0009 & {}[0.0059, 0.0094] & 100.0\%\\
+\cmidrule{1-7}
+ & 16 & 34 M & -0.0008 & 0.0011 & {}[-0.0029, 0.0014] & 25.0\%\\
+
+ & 32 & 67 M & 0.0011 & 0.0011 & {}[-0.0011, 0.0032] & 82.8\%\\
+
+ & 64 & 134 M & 0.0005 & 0.0011 & {}[-0.0016, 0.0027] & 69.1\%\\
+
+ & 256 & 537 M & 0.0010 & 0.0009 & {}[-0.0007, 0.0027] & 86.5\%\\
+
+ & 512 & 1074 M & 0.0012 & 0.0008 & {}[-0.0003, 0.0027] & 93.7\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-410M} & 1000 & 2097 M & 0.0049 & 0.0008 & {}[0.0033, 0.0065] & 100.0\%\\
+\cmidrule{1-7}
+ & 16 & 34 M & 0.0002 & 0.0011 & {}[-0.0020, 0.0023] & 55.2\%\\
+
+ & 32 & 67 M & -0.0005 & 0.0011 & {}[-0.0026, 0.0016] & 34.0\%\\
+
+ & 64 & 134 M & 0.0007 & 0.0010 & {}[-0.0013, 0.0028] & 76.5\%\\
+
+ & 256 & 537 M & 0.0015 & 0.0008 & {}[-0.0000, 0.0031] & 97.4\%\\
+
+ & 512 & 1074 M & 0.0022 & 0.0007 & {}[0.0008, 0.0036] & 99.9\%\\
+
+\multirow{-6}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & 2097 M & 0.0090 & 0.0008 & {}[0.0074, 0.0105] & 100.0\%\\
+\bottomrule
+\end{tabular}
+\endgroup{}
+
+}
+
+\caption{\label{tbl-beta-checkpoints-pythia-default-words}Pythia
+checkpoint frequency-residual regression (\(\hat{\beta}_2\)) --- full
+context, word-level. SE = posterior SD; CI = 95\% credible interval;
+P(\textgreater0) = percentage of posterior samples with
+\(\hat{\beta}_2 > 0\).}
+
+\end{table}%
+
+\clearpage
+
+\section{Corpus Frequency Distributions}\label{sec-appendix-corpus-freq}
+
+The figure below compares the frequency distributions of the
+approximately 47,000 corpus binomials in the BabyLM training corpus
+(150M tokens, 20 epochs) and the Pile, illustrating the stark difference
+in lexical coverage between the two training regimes. BabyLM's
+distribution is dominated by singleton pairs (70.7\% appear exactly
+once), while Pile frequencies span several orders of magnitude.
+
+\begin{figure}
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-corpus-freq-1.pdf}}
+
+}
+
+\caption{\label{fig-corpus-freq}Frequency distributions for the
+\textasciitilde47K corpus binomials in the BabyLM training corpus (150M
+tokens, 20 epochs) and the Pile. Left: histogram of log\(_{10}\) raw
+counts. Right: rank-frequency plot treating counts as a probability
+distribution (probability = count / \(\sum\) counts); both axes
+log-scaled. BabyLM's distribution is heavily concentrated at a single
+occurrence per pair (70.7\% of pairs appear exactly once), whereas Pile
+frequencies span several orders of magnitude with a median of 365
+occurrences per pair.}
+
+\end{figure}%
+
+The BabyLM training corpus is a 150M-token collection of child-directed
+and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles,
+Wikipedia), trained for 20 epochs. The Pile is a
+\textasciitilde300B-token web-scraped corpus used to train the Pythia
+family. For each of the \textasciitilde47K corpus binomials, we
+extracted 3-gram counts (i.e., the frequency of ``word\(_1\) and
+word\(_2\)'' and its reverse) from each corpus via infinigram. As
+Figure~\ref{fig-corpus-freq} shows, the BabyLM corpus produces a highly
+degenerate frequency distribution: 70.7\% of pairs appear exactly once,
+87.4\% appear at most twice, and 98.2\% appear at most ten times, with a
+maximum of 1,095 occurrences. The Pile distribution is far richer: the
+median pair appears 365 times, the 25th percentile is 62 occurrences,
+and the 99th percentile exceeds 77,000.
+
+In absolute training exposure terms (accounting for BabyLM's 20 epochs),
+the most frequent BabyLM binomials are seen at most
+\textasciitilde21,900 times total across all training steps, while the
+equivalent Pile binomials are seen over 1.5 million times in a single
+pass. Even the median Pile pair (365 occurrences per pass) substantially
+exceeds BabyLM's total exposure for a typical singleton pair (1 × 20 =
+20 exposures). This gap in absolute exposure is the proximate
+explanation for why idiosyncratic memorization --- reflected in positive
+\(\hat{\beta}_2\) --- emerges immediately in Pythia but requires
+hundreds of millions of tokens to appear in BabyLM.
+
+\end{document}
