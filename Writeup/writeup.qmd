@@ -246,13 +246,13 @@ For each model, we extract hidden-state representations from the final hidden-la
 We probe representations under two attention conditions:
 
 -   **Full context** (`default`): standard forward pass with full cross-token attention. Each word's representation reflects contextual influences from all other tokens in the sentence.
--   **Attention-zeroed** (`attn_zeroed`): attention from the second word and the conjunction to the first word is blocked by setting the corresponding attention logits to $-\infty$ before the softmax, while all other attention. This condition tests whether the second word's representation is specifically shaped by direct cross-word attention to the first word.
+-   **Attention-zeroed** (`attn_zeroed`): attention from the second word and the conjunction to the first word is blocked by setting the corresponding attention logits to $-\infty$ before the softmax. This condition tests whether the second word's representation is specifically shaped by direct cross-word attention to the first word.
 
 Because the word-level mode extracts each word from the sentence in which it occupies first position, its representation depends only on the preceding sentence context and is not influenced by any later token's attention. We therefore report three representation types per model: full-context binomial-level, attention-zeroed binomial-level, and full-context word-level.
 
 ### MLP Probe
 
-For each representation type, we train a two-layer MLP classifier (hidden dimension 128, ReLU activation) to predict binomial preference from the extracted representations. The model is trained with Adam (learning rate $10^{-3}$, weight decay $10^{-4}$) with early stopping (patience = 20) and a 10% held-out validation set. Training uses antisymmetric augmentation: for each pair, we add a flipped version (swapped ordering, negated label) with probability 0.5. We report cross-validated Bayesian R² [@gelman2019r2] as our measure of probe performance, averaged across 10 folds.
+For each representation type, we train a two-layer MLP classifier (hidden dimension 128, ReLU activation) to predict binomial preference from the extracted representations. The probe takes as its input the concatenated hidden-layer representations for a given binomial (dimensionality and construction determined by the representation type, as operationalized above) and outputs a single continuous value $\hat{y}$, trained via mean-squared-error loss to approximate the true preference score, $y_{true}$, defined in the Stimuli section. The model is trained with Adam (learning rate $10^{-3}$, weight decay $10^{-4}$) with early stopping (patience = 20) and a 10% held-out validation set. Training uses antisymmetric augmentation: for each pair, we add a flipped version (swapped ordering, negated label) with probability 0.5. We report cross-validated R² (the squared Pearson correlation between $\hat{y}$ and $y_{true}$ on held-out folds) as our measure of probe performance, averaged across 10 folds.
 
 We evaluate generalization under two cross-validation splits:
 
@@ -265,13 +265,9 @@ Following @hewitt-liang-2019-designing, we train a matched control probe on rand
 
 ### Frequency-Residual Regression {#sec-methods-freq-regression}
 
-To characterize how corpus frequency relates to probe accuracy, we regress the absolute residual error of the MLP probe on log corpus frequency using a Bayesian quadratic regression. Here, $y_{\text{true}}$ is the model's own ordering preference computed from a forward pass: $\log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)$. We fit:
+To characterize how corpus frequency relates to probe accuracy, we regress the absolute residual error of the MLP probe on log corpus frequency using a Bayesian quadratic regression model implemented in *brms* [@burkner2017brms] with default priors. Frequency was estimated using exact counts of the binomial in the BabyLM training corpus [@warstadt-etal-2023-findings]. Specifically, we fit:
 
 $$|y_{\text{true}} - \hat{y}| \sim \beta_0 + \beta_1 \log(\text{freq}) + \beta_2 \log(\text{freq})^2$$ {#eq-freq-regression}
-
-where $\hat\beta_2 > 0$ implies a U-shaped curve with prediction error lowest at intermediate frequencies and highest at both extremes; the vertex $-\hat\beta_1 / (2\hat\beta_2)$ gives the log-frequency at which probe error is minimized.
-
-Both specifications are fit using Bayesian linear regression [via **brms**, @burkner2017brms] with default priors, 4 chains, 4000 iterations (2000 warmup), and seed 964. Frequency counts for BabyLM models are drawn from the BabyLM training corpus; for all full-scale models, we use the Pile [@gao2020pile] as a frequency proxy, as most full-scale training corpora are not publicly queryable at scale.
 
 ```{r}
 #| label: load-brms-babylm
@@ -310,9 +306,7 @@ ctrl_sd_exp2   <- sd(ctrl_r2_exp2)
 
 ### Probe Performance
 
-Results are visualized in @fig-r2-babylm; full numerical results are in Appendix @tbl-r2-babylm. Control probe R² was consistently near zero across all conditions and all three models (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp1, ctrl_sd_exp1)`; full control results in Appendix [-@sec-appendix-exp1]), confirming that the probe doesn't recover spurious signal from label noise.
-
-These conditions differ in what information reaches the probe, which constrains how they can be compared. The two binomial-level conditions (full-context and attention-zeroed) both feed the probe a mean-pooled phrase representation and differ only in whether cross-word attention is permitted; they are directly comparable. The word-level condition feeds the probe a concatenation of two individual word vectors extracted from isolated sentence contexts, bypassing phrase-level mean pooling entirely. Because mean pooling can itself destroy information by averaging across tokens — and because words_only provides two separate word vectors where mean_pooled provides one blended vector — the information available to the probe is structurally different across modes, making direct R² comparisons across them difficult to interpret. We therefore treat the word-level condition as a separate analysis; word-level results replicating the key findings are provided in Appendix [-@sec-appendix-exp1].
+Results are visualized in @fig-r2-babylm; full numerical results are in Appendix @tbl-r2-babylm. The control probe R² values were consistently near zero across all conditions and all three models (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp1, ctrl_sd_exp1)`; full control results in Appendix [-@sec-appendix-exp1]), confirming that the probe doesn't recover spurious signal from label noise.
 
 For the binomial-level conditions, pair-held-out R² ranges from 0.24 to 0.34; word-held-out R² is consistently lower, ranging from 0.12 to 0.23. The drop from pair-held-out to word-held-out reflects a lexical generalization cost: the probe is more accurate when the words in a test pair appeared in other pairs during probe training than when both words are entirely novel, suggesting that some preference signal is tied to word identity rather than being fully abstract. Probe accuracy is non-monotonic with model size: BabyLM-350M achieves the highest pair-held-out R² across most conditions, with BabyLM-125M and BabyLM-1.3B lower by similar margins. The full-context condition yields higher pair-held-out R² than attention-zeroed, indicating that cross-word attention contributes positively to preference encoding for these novel binomials.
 
