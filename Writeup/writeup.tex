@@ -98,64 +98,49 @@ TODO
 
 \section{Experiment 1: BabyLM Representations}\label{sec-exp1}
 
-\subsection{Methods}\label{methods}
-
-We probe the three BabyLM models (125M, 350M, and 1.3B parameters) at
-their final training checkpoint. Because the novel binomials were
+In this first experiment, we probe three BabyLM models (125M, 350M, and
+1.3B parameters)\footnote{The BabyLM models used here are OPT-based
+  models trained for 20 epochs on a 150M-token subset of the BabyLM
+  benchmark corpus; \citet{houghton2026holisticstorageverbupphrases};
+  \citet{warstadt-etal-2023-findings}{]}.} at their final training
+checkpoint. These three models were trained on an amount of data
+comparable to humans and thus are more directly comparable to the human
+behavioral literature. Because the binomials used in this study were
 selected to be absent from BabyLM's training corpus, this experiment
 provides the cleanest test of whether a language model encodes abstract
 binomial ordering preferences: any preference signal the probe recovers
 must have been generalized from the training distribution rather than
 read off from direct exposure to the test pairs.
 
+\subsection{Methods}\label{methods}
+
+Below we describe the methods used in Experiment 1.
+
 \subsubsection{Stimuli}\label{stimuli}
 
-We use two complementary datasets of binomial expressions, conjunctions
-of the form \emph{X and Y} where speakers exhibit a consistent
-preference for one ordering over the other (e.g., \emph{bread and
-butter} rather than \emph{butter and bread}). The \textbf{novel set}
-comprises approximately 340,000 binomial pairs selected to be absent
-from BabyLM's training corpus. Each novel pair carries a human
-preference score derived from prior norming studies, operationalized as
-the logit-transformed proportion of participants preferring the
-\(W_1\text{ and }W_2\) ordering. The novel pairs are therefore genuinely
-novel for the BabyLM models used in Experiment 1 and not for the
-full-scale models in Experiment 2: frequency estimates from Dolma
-\citep{dolma}, a corpus comparable in composition to the Pile, indicate
-that approximately 98\% of the novel pairs appear at non-zero frequency
-in that corpus, with Pile-equivalent counts spanning 14 to 443
-occurrences for the middle 50\% of items. The implications of this
-asymmetry for the interpretation of Experiment 2 are addressed in
-Section~\ref{sec-exp2-validity}.
+We use two complementary datasets of binomial expressions (\emph{X and
+Y}). Binomials are a strong test case because they are well-studied in
+the linguistics literature \citep[e.g.,][]{morgan2016, benor2006} and
+human ordering preferences for them are driven by abstract preferences
+\citep{morgan2015, morgan2016}. The \textbf{novel set} comprises
+approximately 340,000 binomial pairs from the Wikitext corpus
+\citep{merity2016pointer} selected to be absent from BabyLM's training
+corpus. The novel pairs are therefore genuinely novel for the BabyLM
+models used in Experiment 1.
 
-The \textbf{corpus set} comprises approximately 49,000 binomial pairs
-attested in natural text. For each corpus pair and each model, the
-ordering preference is operationalized as the model's own
-log-probability ratio:
-\(y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)\),
-computed from a standard forward pass. The probe is trained on the novel
-set and evaluated on the corpus set, so frequency effects measured on
-corpus items reflect genuine generalization to new data. The corpus set
-is used in Experiment 2; Experiment 1 uses only the novel set.
-
-\subsubsection{Models}\label{models}
-
-We compare three BabyLM models --- OPT-based models trained for 20
-epochs on a 150M-token subset of the BabyLM benchmark corpus
-\citep{warstadt-etal-2023-findings} --- against fourteen full-scale
-pre-trained language models spanning four model families (Appendix
-Table~\ref{tbl-models}). The BabyLM models serve as a small-data
-baseline; the full-scale models provide a cross-family comparison at
-substantially larger training scales. Experiment 1 uses only the three
-BabyLM models; all sixteen models are included in Experiment 2.
+The \textbf{attested corpus set} comprises approximately 49,000 binomial
+pairs from the BabyLM corpus \citep{warstadt-etal-2023-findings}. For
+each corpus pair and each model, the ordering preference is
+operationalized as the model's own log-probability ratio:
+\(y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)\).
 
 \subsubsection{Representation
 Extraction}\label{representation-extraction}
 
 For each model, we extract hidden-state representations from the final
-layer at inference time. Each binomial pair is presented to the model in
-both orderings (\emph{W}\textsubscript{1} and \emph{W}\textsubscript{2}
-; \emph{W}\textsubscript{2} and \emph{W}\textsubscript{1}) within a
+hidden-layer. Each binomial pair is presented to the model in both
+orderings (\emph{W}\textsubscript{1} and \emph{W}\textsubscript{2};
+\emph{W}\textsubscript{2} and \emph{W}\textsubscript{1}) within a
 natural sentence frame. We extract representations under two input
 modes:
 
@@ -166,18 +151,13 @@ modes:
   probe is
   \([\bar{h}(W_1\text{ and }W_2); \bar{h}(W_2\text{ and }W_1)]\), where
   \(\bar{h}\) denotes the mean of token representations across all
-  positions in each ordering.
+  tokens in the binomial in each ordering.
 \item
   \textbf{Word-level} (\texttt{words\_only}): the input is
   \([h(W_1); h(W_2)]\), where \(h(W_k)\) is the hidden state of word
   \(W_k\) extracted from the sentence in which it appears in first
   position, excluding the conjunction token.
 \end{itemize}
-
-The binomial-level mode captures the model's representation of the full
-phrase, including the interaction between words mediated by the
-conjunction. The word-level mode isolates individual word
-representations without phrase-level composition.
 
 \subsubsection{Attention Conditions}\label{attention-conditions}
 
@@ -193,17 +173,15 @@ We probe representations under two attention conditions:
   \textbf{Attention-zeroed} (\texttt{attn\_zeroed}): attention from the
   second word and the conjunction to the first word is blocked by
   setting the corresponding attention logits to \(-\infty\) before the
-  softmax, while all other attention --- including each word's attention
-  to the preceding sentence context --- remains intact. This condition
-  tests whether the second word's representation is specifically shaped
-  by direct cross-word attention to the first word.
+  softmax. This condition tests whether the second word's representation
+  is specifically shaped by direct cross-word attention to the first
+  word.
 \end{itemize}
 
 Because the word-level mode extracts each word from the sentence in
 which it occupies first position, its representation depends only on the
 preceding sentence context and is not influenced by any later token's
-attention --- so the attention-zeroed manipulation is vacuous for that
-mode. We therefore report three representation types per model:
+attention. We therefore report three representation types per model:
 full-context binomial-level, attention-zeroed binomial-level, and
 full-context word-level.
 
@@ -211,13 +189,19 @@ full-context word-level.
 
 For each representation type, we train a two-layer MLP classifier
 (hidden dimension 128, ReLU activation) to predict binomial preference
-from the extracted representations. The model is trained with Adam
-(learning rate \(10^{-3}\), weight decay \(10^{-4}\)) with early
-stopping (patience = 20) and a 10\% held-out validation set. Training
-uses antisymmetric augmentation: for each pair, we add a flipped version
-(swapped ordering, negated label) with probability 0.5. We report
-cross-validated Bayesian R² \citep{gelman2019r2} as our measure of probe
-performance, averaged across 10 folds.
+from the extracted representations. The probe takes as its input the
+concatenated hidden-layer representations for a given binomial
+(dimensionality and construction determined by the representation type,
+as operationalized above) and outputs a single continuous value
+\(\hat{y}\), trained via mean-squared-error loss to approximate the true
+preference score, \(y_{true}\), defined in the Stimuli section. The
+model is trained with Adam (learning rate \(10^{-3}\), weight decay
+\(10^{-4}\)) with early stopping (patience = 20) and a 10\% held-out
+validation set. Training uses antisymmetric augmentation: for each pair,
+we add a flipped version (swapped ordering, negated label) with
+probability 0.5. We report cross-validated R² (the squared Pearson
+correlation between \(\hat{y}\) and \(y_{true}\) on held-out folds) as
+our measure of probe performance, averaged across 10 folds.
 
 We evaluate generalization under two cross-validation splits:
 
@@ -247,51 +231,24 @@ Regression}\label{sec-methods-freq-regression}
 
 To characterize how corpus frequency relates to probe accuracy, we
 regress the absolute residual error of the MLP probe on log corpus
-frequency using a Bayesian quadratic regression. Here,
-\(y_{\text{true}}\) is the model's own ordering preference computed from
-a forward pass:
-\(\log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)\). We fit:
+frequency using a Bayesian quadratic regression model implemented in
+\emph{brms} \citep{burkner2017brms} with default priors. Frequency was
+estimated using exact counts of the binomial in the BabyLM training
+corpus \citep{warstadt-etal-2023-findings}. Our statistical model
+equation is presented below:
 
 \begin{equation}\phantomsection\label{eq-freq-regression}{|y_{\text{true}} - \hat{y}| \sim \beta_0 + \beta_1 \log(\text{freq}) + \beta_2 \log(\text{freq})^2}\end{equation}
-
-where \(\hat\beta_2 > 0\) implies a U-shaped curve with prediction error
-lowest at intermediate frequencies and highest at both extremes; the
-vertex \(-\hat\beta_1 / (2\hat\beta_2)\) gives the log-frequency at
-which probe error is minimized.
-
-Both specifications are fit using Bayesian linear regression \citep[via
-\textbf{brms},][]{burkner2017brms} with default priors, 4 chains, 4000
-iterations (2000 warmup), and seed 964. Frequency counts for BabyLM
-models are drawn from the BabyLM training corpus; for all full-scale
-models, we use the Pile \citep{gao2020pile} as a frequency proxy, as
-most full-scale training corpora are not publicly queryable at scale.
 
 \subsection{Results}\label{results}
 
 \subsubsection{Probe Performance}\label{probe-performance}
 
 Results are visualized in Figure~\ref{fig-r2-babylm}; full numerical
-results are in Appendix Table~\ref{tbl-r2-babylm}. Control probe R² was
-consistently near zero across all conditions and all three models (mean
-± SD = 0.0001 ± 0.0001; full control results in Appendix
-\ref{sec-appendix-exp1}), confirming that the probe doesn't recover
-spurious signal from label noise.
-
-These conditions differ in what information reaches the probe, which
-constrains how they can be compared. The two binomial-level conditions
-(full-context and attention-zeroed) both feed the probe a mean-pooled
-phrase representation and differ only in whether cross-word attention is
-permitted; they are directly comparable. The word-level condition feeds
-the probe a concatenation of two individual word vectors extracted from
-isolated sentence contexts, bypassing phrase-level mean pooling
-entirely. Because mean pooling can itself destroy information by
-averaging across tokens --- and because words\_only provides two
-separate word vectors where mean\_pooled provides one blended vector ---
-the information available to the probe is structurally different across
-modes, making direct R² comparisons across them difficult to interpret.
-We therefore treat the word-level condition as a separate analysis;
-word-level results replicating the key findings are provided in Appendix
-\ref{sec-appendix-exp1}.
+results are in Appendix \ref{sec-appendix-exp1}. The control probe R²
+values were consistently near zero across all conditions and all three
+models (mean ± SD = 0.0001 ± 0.0001; full control results are in
+Appendix \ref{sec-appendix-exp1}), confirming that the probe doesn't
+recover spurious signal from label noise.
 
 For the binomial-level conditions, pair-held-out R² ranges from 0.24 to
 0.34; word-held-out R² is consistently lower, ranging from 0.12 to 0.23.

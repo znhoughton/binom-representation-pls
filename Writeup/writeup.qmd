@@ -265,7 +265,7 @@ Following @hewitt-liang-2019-designing, we train a matched control probe on rand
 
 ### Frequency-Residual Regression {#sec-methods-freq-regression}
 
-To characterize how corpus frequency relates to probe accuracy, we regress the absolute residual error of the MLP probe on log corpus frequency using a Bayesian quadratic regression model implemented in *brms* [@burkner2017brms] with default priors. Frequency was estimated using exact counts of the binomial in the BabyLM training corpus [@warstadt-etal-2023-findings]. Specifically, we fit:
+To characterize how corpus frequency relates to probe accuracy, we regress the absolute residual error of the MLP probe on log corpus frequency using a Bayesian quadratic regression model implemented in *brms* [@burkner2017brms] with default priors. Frequency was estimated using exact counts of the binomial in the BabyLM training corpus [@warstadt-etal-2023-findings]. Our statistical model equation is presented below:
 
 $$|y_{\text{true}} - \hat{y}| \sim \beta_0 + \beta_1 \log(\text{freq}) + \beta_2 \log(\text{freq})^2$$ {#eq-freq-regression}
 
@@ -306,9 +306,9 @@ ctrl_sd_exp2   <- sd(ctrl_r2_exp2)
 
 ### Probe Performance
 
-Results are visualized in @fig-r2-babylm; full numerical results are in Appendix @tbl-r2-babylm. The control probe R² values were consistently near zero across all conditions and all three models (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp1, ctrl_sd_exp1)`; full control results in Appendix [-@sec-appendix-exp1]), confirming that the probe doesn't recover spurious signal from label noise.
+Results are visualized in @fig-r2-babylm; full numerical results are in Appendix [-@sec-appendix-exp1]. The control probe R² values were consistently near zero across all conditions and all three models (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp1, ctrl_sd_exp1)`; full control results are in Appendix [-@sec-appendix-exp1]), confirming that the probe doesn't recover spurious signal from label noise.
 
-For the binomial-level conditions, pair-held-out R² ranges from 0.24 to 0.34; word-held-out R² is consistently lower, ranging from 0.12 to 0.23. The drop from pair-held-out to word-held-out reflects a lexical generalization cost: the probe is more accurate when the words in a test pair appeared in other pairs during probe training than when both words are entirely novel, suggesting that some preference signal is tied to word identity rather than being fully abstract. Probe accuracy is non-monotonic with model size: BabyLM-350M achieves the highest pair-held-out R² across most conditions, with BabyLM-125M and BabyLM-1.3B lower by similar margins. The full-context condition yields higher pair-held-out R² than attention-zeroed, indicating that cross-word attention contributes positively to preference encoding for these novel binomials.
+For the binomial-level conditions, pair-held-out R² ranges from 0.24 to 0.34; word-held-out R² is consistently lower, ranging from 0.12 to 0.23. The drop from pair-held-out to word-held-out reflects a lexical generalization cost: the probe is more accurate when the words in a test pair appeared in other pairs during probe training than when both words are entirely novel, suggesting that some preference signal is tied to word identity rather than being fully abstract. Probe accuracy is non-monotonic with model size: BabyLM-350M achieves the highest pair-held-out R² across most conditions, with BabyLM-125M and BabyLM-1.3B lower by similar margins. The full-context condition yields higher pair-held-out R² than attention-zeroed, indicating that cross-word attention contributes positively to preference encoding for these novel binomials. We return to possible explanations for this in the discussion section.
 
 ```{r}
 #| label: fig-r2-babylm
@@ -347,13 +347,23 @@ all_r2 |>
 
 ### Memorization vs. Abstraction
 
-Full numerical results and fitted curves are in Appendix [-@sec-appendix-exp1]. Under the full-context condition, the quadratic coefficient $\hat\beta_2$ is positive for all three models, with 95% credible intervals excluding zero. This indicates a U-shaped relationship between corpus frequency and probe error: the probe makes the smallest errors for pairs at intermediate log-frequency values, with errors increasing toward both the low- and high-frequency tails. Under the attention-zeroed condition, the curvature is attenuated relative to full context and remains reliably positive for BabyLM-125M and BabyLM-350M; BabyLM-1.3B is a marginal exception ($\hat\beta_2 = 0.008$; 75% of posterior above zero). The vertex of the quadratic — the log-frequency value at which probe error is minimized — falls within the intermediate range of the observed frequency distribution across all models and conditions. The attenuation under the attention-zeroed condition indicates that the high-frequency penalty on probe accuracy is driven in part by cross-word attention: blocking the second word's attention to the first flattens the frequency-residual relationship, suggesting that this cross-word interaction contributes specifically to the pair-specific encoding that degrades probe accuracy at high frequencies.
+We report the results of the frequency-residual regression results here. Full numerical results and fitted curves are in Appendix [-@sec-appendix-exp1]. Under the full-context condition, the quadratic coefficient $\hat\beta_2$ is positive for all three models, with 95% credible intervals excluding zero. This indicates a U-shaped relationship between corpus frequency and probe error: the probe makes the smallest errors for pairs at intermediate log-frequency values, with errors increasing toward both the low- and high-frequency tails. Under the attention-zeroed condition, the curvature is attenuated relative to full context and remains reliably positive for BabyLM-125M and BabyLM-350M; though the effect falls below statistical significance levels for BabyLM-1.3B. The attenuation under the attention-zeroed condition indicates that the high-frequency penalty on probe accuracy is driven in part by cross-word attention: blocking the second word's attention to the first flattens the frequency-residual relationship.
+
+## Discussion
+
+The results of Experiment 1 demonstrate that, contrary to the results of previous research [e.g., @houghton2025role], LLMs are actually learning some abstract preferences. This is demonstrated by the positive $r^2$ values for held-out pairs, and go beyond simple lexical preferences (such as simply preferring the word *bread* first in general), evidenced by the positive $r^2$ values for the novel word condition where the probe generalizes to binomials whose words were not in the probe's training data.
+
+The results also demonstrate that the BabyLMs, in addition to using abstract preferences, are also still memorizing a good deal. This is evidenced by the frequency-residual regression model, where the probe's preference prediction is worst for high- and low-frequency items. For low-frequency binomials, this decrease in probe accuracy is likely due to underdeveloped lexical representations (i.e., noisy-representations). For higher-frequency binomials, this is likely due to attention effects reflecting context-specific representations (i.e., memorization).
 
 # Experiment 2: Cross-Family Final-Layer Representations {#sec-exp2}
 
+Experiment 1 demonstrates that BabyLMs are relying on both abstract preferences and memorization for binomial ordering preferences. However, those are models that are both smaller in terms of number of parameters as well as in terms of training data. In Experiment 2, we extend this to a larger variety of models.
+
 ## Methods
 
-We probe all 16 models spanning BabyLM, Pythia, GPT-2, OLMo, and Llama families (117M to 8B parameters, trained on 150M to approximately 15T tokens) at their final training checkpoints. One design consideration differs from Experiment 1: the novel binomials were selected to be absent from BabyLM's training corpus, but they are not truly novel for the Pile-trained models — approximately 98% appear in the Pile at non-zero frequency, most at low-to-medium exposure (Pile-equivalent counts spanning 14 to 443 occurrences for the middle 50% of items). The probe R² results for these models therefore reflect how representations of low-frequency attested pairs compare to higher-frequency ones within each family, rather than generalization from attested to genuinely unseen items; validity checks are discussed in @sec-exp2-validity. Probe architecture, attention conditions, and frequency regression are identical to Experiment 1.
+In Experiment 2, we probe all 16 models spanning BabyLM, Pythia, GPT-2, OLMo, and Llama families (117M to 8B parameters, trained on 150M to approximately 15T tokens) at their final training checkpoints. One design consideration differs from Experiment 1: the novel binomials were selected to be absent from BabyLM's training corpus, but they are not truly novel for the Pile-trained models; approximately 98% appear in the Pile at non-zero frequency, most at low-to-medium exposure (Pile-equivalent counts spanning 14 to 443 occurrences for the middle 50% of items). The probe R² results for these models therefore reflect representations of low-to-mid-frequency attested pairs rather than those of novel ones; validity checks are discussed in @sec-exp2-validity. Probe architecture, attention conditions, and frequency regression are identical to Experiment 1.
+
+<!--# Framing is a bit odd because we aren't probing BabyLM here, we already did. I'm wondering if we should also give the full range of frequencies, not just the middle 50% of items. -->
 
 ## Results
 
@@ -423,6 +433,12 @@ all_coefs <- brms_summary |>
 
 Full numerical results are in Appendix @tbl-beta and visualized in @fig-beta. $\hat{\beta}_2$ is positive for all 16 models under both attention conditions, with 95% credible intervals excluding zero in all cases except BabyLM-1.3B under the attention-zeroed condition ($\hat{\beta}_2 = 0.008$; 75% of posterior above zero). The U-shaped frequency-residual relationship is therefore a robust finding across model families, training corpora, and parameter scales. Two patterns stand out. First, BabyLM models show larger $\hat{\beta}_2$ magnitudes under full context (0.064–0.073) than any Pile-trained family (0.007–0.018), despite far less training — an effect likely driven by BabyLM's extreme frequency distribution (70% singleton pairs), which creates a sharper contrast between low- and high-frequency items in the regression. Second, under the attention-zeroed condition, $\hat{\beta}_2$ is consistently attenuated relative to full context across all families, confirming that cross-word attention contributes to the high-frequency memorization effect regardless of model family or scale.
 
+<!--# need to back up the statement that $\hat{\beta}_2 is consistently attentuated under attention-zeroed condition with a statistic -->
+
+It is worth noting that the frequency-residual regression results do not reflect an underlying correlation between preference strength and frequency: all $|r| < 0.03$ between $y_{true}$ and frequency. @fig-scatter (Appendix) corroborates this visually: mid-frequency pairs cluster tightly around the prediction diagonal, while low- and high-frequency pairs scatter in opposite directions — precisely the pattern implied by positive $\hat{\beta}_2$.
+
+<!--# Need to check if this is the correlation betwee ytrue and frequency or |ytrue| and frequency -- because frequency should lead to *stronger* preferences, not necessarily more positive -->
+
 ```{r}
 #| label: fig-beta
 #| fig-cap: "Quadratic curvature ($\\hat{\\beta}_2$) of the frequency-residual relationship at the final hidden layer, binomial-level by attention condition. Circles = full context; triangles = attention-zeroed. Positive values indicate that probe error is U-shaped: lowest at intermediate corpus frequencies, highest at extremes. Points = posterior mean; bars = 95\\% credible intervals (minimum bar enforced for visibility)."
@@ -457,11 +473,11 @@ all_coefs |>
         legend.position = "bottom")
 ```
 
-## Validity {#sec-exp2-validity}
+## Discussion
 
-Two validity concerns arise for the Experiment 2 frequency-residual results. First, the model's own ordering preference ($y_{\text{true}}$) is uncorrelated with corpus frequency for all 16 models (all $|r| < 0.03$), ruling out range restriction as an explanation for the U-shape: the signal the probe must predict is equally distributed across frequency levels. Second, word-held-out R² closely matches pair-held-out R² for all 14 Pile-trained models (Appendix [-@sec-appendix-exp2]), demonstrating that the high R² values reflect a generalizable mapping from representation to preference rather than a lookup over memorized pairs. @fig-scatter (Appendix) corroborates this visually: mid-frequency pairs cluster tightly around the prediction diagonal, while low- and high-frequency pairs scatter in opposite directions — precisely the pattern implied by positive $\hat{\beta}_2$.
+The results of Experiment 2 replicate the results of Experiment 1, showing that across several different models we see similar effects of both abstraction-driven preferences as well as memorization.
 
-Experiments 1 and 2 establish what models encode at the end of training. Experiment 3 turns to training dynamics: we ask when during training these representations emerge, and how the frequency-residual relationship evolves with additional exposure.
+<!--# Need to flesh this out -->
 
 # Experiment 3: Developmental Trajectories {#sec-exp3}
 
