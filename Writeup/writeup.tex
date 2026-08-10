@@ -262,7 +262,8 @@ pair-held-out R² across most conditions, with BabyLM-125M and
 BabyLM-1.3B lower by similar margins. The full-context condition yields
 higher pair-held-out R² than attention-zeroed, indicating that
 cross-word attention contributes positively to preference encoding for
-these novel binomials.
+these novel binomials. We return to possible explanations for this in
+the discussion section.
 
 \begin{figure}
 
@@ -282,6 +283,7 @@ Circles = pair-held-out; triangles = word-held-out. Bars = ±1 SD
 \subsubsection{Memorization
 vs.~Abstraction}\label{memorization-vs.-abstraction}
 
+We report the results of the frequency-residual regression results here.
 Full numerical results and fitted curves are in Appendix
 \ref{sec-appendix-exp1}. Under the full-context condition, the quadratic
 coefficient \(\hat\beta_2\) is positive for all three models, with 95\%
@@ -291,37 +293,56 @@ the smallest errors for pairs at intermediate log-frequency values, with
 errors increasing toward both the low- and high-frequency tails. Under
 the attention-zeroed condition, the curvature is attenuated relative to
 full context and remains reliably positive for BabyLM-125M and
-BabyLM-350M; BabyLM-1.3B is a marginal exception
-(\(\hat\beta_2 = 0.008\); 75\% of posterior above zero). The vertex of
-the quadratic --- the log-frequency value at which probe error is
-minimized --- falls within the intermediate range of the observed
-frequency distribution across all models and conditions. The attenuation
-under the attention-zeroed condition indicates that the high-frequency
-penalty on probe accuracy is driven in part by cross-word attention:
-blocking the second word's attention to the first flattens the
-frequency-residual relationship, suggesting that this cross-word
-interaction contributes specifically to the pair-specific encoding that
-degrades probe accuracy at high frequencies.
+BabyLM-350M; though the effect falls below statistical significance
+levels for BabyLM-1.3B. The attenuation under the attention-zeroed
+condition indicates that the high-frequency penalty on probe accuracy is
+driven in part by cross-word attention: blocking the second word's
+attention to the first flattens the frequency-residual relationship.
+
+\subsection{Discussion}\label{discussion}
+
+The results of Experiment 1 demonstrate that, contrary to the results of
+previous research \citep[e.g.,][]{houghton2025role}, LLMs are actually
+learning some abstract preferences. This is demonstrated by the positive
+\(r^2\) values for held-out pairs, and go beyond simple lexical
+preferences (such as simply preferring the word \emph{bread} first in
+general), evidenced by the positive \(r^2\) values for the novel word
+condition where the probe generalizes to binomials whose words were not
+in the probe's training data.
+
+The results also demonstrate that the BabyLMs, in addition to using
+abstract preferences, are also still memorizing a good deal. This is
+evidenced by the frequency-residual regression model, where the probe's
+preference prediction is worst for high- and low-frequency items. For
+low-frequency binomials, this decrease in probe accuracy is likely due
+to underdeveloped lexical representations (i.e., noisy-representations).
+For higher-frequency binomials, this is likely due to attention effects
+reflecting context-specific representations (i.e., memorization).
 
 \section{Experiment 2: Cross-Family Final-Layer
 Representations}\label{sec-exp2}
 
+Experiment 1 demonstrates that BabyLMs are relying on both abstract
+preferences and memorization for binomial ordering preferences. However,
+those are models that are both smaller in terms of number of parameters
+as well as in terms of training data. In Experiment 2, we extend this to
+a larger variety of models.
+
 \subsection{Methods}\label{methods-1}
 
-We probe all 16 models spanning BabyLM, Pythia, GPT-2, OLMo, and Llama
-families (117M to 8B parameters, trained on 150M to approximately 15T
-tokens) at their final training checkpoints. One design consideration
-differs from Experiment 1: the novel binomials were selected to be
-absent from BabyLM's training corpus, but they are not truly novel for
-the Pile-trained models --- approximately 98\% appear in the Pile at
-non-zero frequency, most at low-to-medium exposure (Pile-equivalent
-counts spanning 14 to 443 occurrences for the middle 50\% of items). The
-probe R² results for these models therefore reflect how representations
-of low-frequency attested pairs compare to higher-frequency ones within
-each family, rather than generalization from attested to genuinely
-unseen items; validity checks are discussed in
-Section~\ref{sec-exp2-validity}. Probe architecture, attention
-conditions, and frequency regression are identical to Experiment 1.
+In Experiment 2, we probe all 16 models spanning BabyLM, Pythia, GPT-2,
+OLMo, and Llama families (117M to 8B parameters, trained on 150M to
+approximately 15T tokens) at their final training checkpoints. One
+design consideration differs from Experiment 1: the novel binomials were
+selected to be absent from BabyLM's training corpus, but they are not
+truly novel for the Pile-trained models; approximately 98\% appear in
+the Pile at non-zero frequency, most at low-to-medium exposure
+(Pile-equivalent counts spanning 14 to 443 occurrences for the middle
+50\% of items). The probe R² results for these models therefore reflect
+representations of low-to-mid-frequency attested pairs rather than those
+of novel ones; validity checks are discussed in
+\textbf{?@sec-exp2-validity}. Probe architecture, attention conditions,
+and frequency regression are identical to Experiment 1.
 
 \subsection{Results}\label{results-1}
 
@@ -392,6 +413,14 @@ relative to full context across all families, confirming that cross-word
 attention contributes to the high-frequency memorization effect
 regardless of model family or scale.
 
+It is worth noting that the frequency-residual regression results do not
+reflect an underlying correlation between preference strength and
+frequency: all \(|r| < 0.03\) between \(y_{true}\) and frequency.
+Figure~\ref{fig-scatter} (Appendix) corroborates this visually:
+mid-frequency pairs cluster tightly around the prediction diagonal,
+while low- and high-frequency pairs scatter in opposite directions ---
+precisely the pattern implied by positive \(\hat{\beta}_2\).
+
 \begin{figure}
 
 \centering{
@@ -410,33 +439,17 @@ extremes. Points = posterior mean; bars = 95\% credible intervals
 
 \end{figure}%
 
-\subsection{Validity}\label{sec-exp2-validity}
+\subsection{Discussion}\label{discussion-1}
 
-Two validity concerns arise for the Experiment 2 frequency-residual
-results. First, the model's own ordering preference
-(\(y_{\text{true}}\)) is uncorrelated with corpus frequency for all 16
-models (all \(|r| < 0.03\)), ruling out range restriction as an
-explanation for the U-shape: the signal the probe must predict is
-equally distributed across frequency levels. Second, word-held-out R²
-closely matches pair-held-out R² for all 14 Pile-trained models
-(Appendix \ref{sec-appendix-exp2}), demonstrating that the high R²
-values reflect a generalizable mapping from representation to preference
-rather than a lookup over memorized pairs. Figure~\ref{fig-scatter}
-(Appendix) corroborates this visually: mid-frequency pairs cluster
-tightly around the prediction diagonal, while low- and high-frequency
-pairs scatter in opposite directions --- precisely the pattern implied
-by positive \(\hat{\beta}_2\).
-
-Experiments 1 and 2 establish what models encode at the end of training.
-Experiment 3 turns to training dynamics: we ask when during training
-these representations emerge, and how the frequency-residual
-relationship evolves with additional exposure.
+The results of Experiment 2 replicate the results of Experiment 1,
+showing that across several different models we see similar effects of
+both abstraction-driven preferences as well as memorization.
 
 \section{Experiment 3: Developmental Trajectories}\label{sec-exp3}
 
 Experiments 1 and 2 establish that language models encode binomial
-preferences at the end of training, but they leave open when during
-training these representations emerge, and whether the
+preferences at the end of training, but they leave open the timecourse
+in which these representations emerge, and whether the
 memorization-abstraction tradeoff is present from early on or
 crystallizes with additional exposure. Experiment 3 addresses this by
 examining the same probe at multiple training checkpoints. We ask two
@@ -448,28 +461,22 @@ progresses and memorization of high-frequency items accumulates?
 
 \subsection{Methods}\label{methods-2}
 
-We probe six BabyLM checkpoints per model size (125M, 350M, 1.3B),
-sampled at approximately even intervals across training. For Pythia, we
-use the publicly released intermediate checkpoints at steps 16, 32, 64,
-256, 512, and 1000 for the 160M, 410M, and 1B models. Pythia steps are
-indexed to gradient updates; each step corresponds to approximately 2.1M
-tokens, so these six checkpoints span roughly 34M to 2.1B tokens of
-exposure --- approximately the first 0.7\% of the full 300B-token
-training run. Because no later intermediate checkpoints are publicly
-released for Pythia, the Pythia trajectory analysis is limited to this
-early-training window; the fully trained models analyzed in Experiments
-1 and 2 represent the end of 300B tokens of training. BabyLM checkpoints
-span steps 24--2280 (125M), 48--4560 (350M), and 97--9021 (1.3B),
-corresponding to approximately 20M to 1.9B effective training tokens for
-each model size (each step processes a fixed number of tokens: 819K for
-125M, 410K for 350M, 205K for 1.3B).
+We probe six checkpoints across two different model families (BabyLM and
+Pythia). The same BabyLMs from the previous Experiments were used for
+this one(125M, 350M, and 1.3B) and the comparable Pythia models were
+chosen for rough comparison (160M, 410M, and 1B). Checkpoints were
+sampled at approximately even intervals across the BabyLM training. For
+Pythia, however, rather than sampling even intervals across training, we
+instead opted to choose comparable checkpoints such that the Pythia
+models had seen roughly the same number of tokens as the BabyLMs at each
+checkpoint. These checkpoints span roughly 20M to 2B effective training
+tokens for each model.
 
 The probe, input modes, attention conditions, and cross-validation
-splits are identical to Experiment 1. For the frequency-residual
+splits are identical to Experiments 1 and 2. For the frequency-residual
 analysis, we fit the quadratic Bayesian regression described in
 Experiment 1 at each checkpoint and report \(\hat\beta_2\) (the
-curvature of the U-shape) and the vertex log-frequency (the point at
-which probe error is minimized) as a function of training step.
+curvature of the U-shape) as a function of training step.
 
 \subsection{Results}\label{results-2}
 
@@ -518,7 +525,9 @@ very different scales). Control R² \(\approx\) 0 (Appendix).}
 
 \end{figure}%
 
-\section{Discussion}\label{sec-discussion}
+\subsection{Discussion}\label{discussion-2}
+
+\section{Conclusion}\label{sec-discussion}
 
 All 16 models encode decodable binomial ordering preferences in their
 final-layer representations, with probe R² well above near-zero control
