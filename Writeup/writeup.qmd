@@ -224,6 +224,8 @@ In this first experiment, we probe three BabyLM models (125M, 350M, and 1.3B par
 
 [^1]: The BabyLM models used here are OPT-based models trained for 20 epochs on a 150M-token subset of the BabyLM benchmark corpus; @houghton2026holisticstorageverbupphrases; @warstadt-etal-2023-findings\].
 
+<!--# Figure 2 "Word-held-out" is being cut off -->
+
 ## Methods
 
 Below we describe the methods used in Experiment 1.
@@ -481,13 +483,15 @@ The results of Experiment 2 replicate the results of Experiment 1, showing that 
 
 # Experiment 3: Developmental Trajectories {#sec-exp3}
 
-Experiments 1 and 2 establish that language models encode binomial preferences at the end of training, but they leave open when during training these representations emerge, and whether the memorization-abstraction tradeoff is present from early on or crystallizes with additional exposure. Experiment 3 addresses this by examining the same probe at multiple training checkpoints. We ask two questions: (1) Does probe accuracy increase monotonically with training, or does it plateau early, suggesting that preference representations are rapidly acquired? (2) Does the U-shaped frequency-residual relationship hold from early checkpoints, or does it only emerge as training progresses and memorization of high-frequency items accumulates?
+Experiments 1 and 2 establish that language models encode binomial preferences at the end of training, but they leave open the timecourse in which these representations emerge, and whether the memorization-abstraction tradeoff is present from early on or crystallizes with additional exposure. Experiment 3 addresses this by examining the same probe at multiple training checkpoints. We ask two questions: (1) Does probe accuracy increase monotonically with training, or does it plateau early, suggesting that preference representations are rapidly acquired? (2) Does the U-shaped frequency-residual relationship hold from early checkpoints, or does it only emerge as training progresses and memorization of high-frequency items accumulates?
 
 ## Methods
 
-We probe six BabyLM checkpoints per model size (125M, 350M, 1.3B), sampled at approximately even intervals across training. For Pythia, we use the publicly released intermediate checkpoints at steps 16, 32, 64, 256, 512, and 1000 for the 160M, 410M, and 1B models. Pythia steps are indexed to gradient updates; each step corresponds to approximately 2.1M tokens, so these six checkpoints span roughly 34M to 2.1B tokens of exposure — approximately the first 0.7% of the full 300B-token training run. Because no later intermediate checkpoints are publicly released for Pythia, the Pythia trajectory analysis is limited to this early-training window; the fully trained models analyzed in Experiments 1 and 2 represent the end of 300B tokens of training. BabyLM checkpoints span steps 24–2280 (125M), 48–4560 (350M), and 97–9021 (1.3B), corresponding to approximately 20M to 1.9B effective training tokens for each model size (each step processes a fixed number of tokens: 819K for 125M, 410K for 350M, 205K for 1.3B).
+We probe six checkpoints across two different model families (BabyLM and Pythia). The same BabyLMs from the previous Experiments were used for this one(125M, 350M, and 1.3B) and the comparable Pythia models were chosen for rough comparison (160M, 410M, and 1B). Checkpoints were sampled at approximately even intervals across the BabyLM training. For Pythia, however, rather than sampling even intervals across training, we instead opted to choose comparable checkpoints such that the Pythia models had seen roughly the same number of tokens as the BabyLMs at each checkpoint. These checkpoints span roughly 20M to 2B effective training tokens for each model.
 
-The probe, input modes, attention conditions, and cross-validation splits are identical to Experiment 1. For the frequency-residual analysis, we fit the quadratic Bayesian regression described in Experiment 1 at each checkpoint and report $\hat\beta_2$ (the curvature of the U-shape) and the vertex log-frequency (the point at which probe error is minimized) as a function of training step.
+The probe, input modes, attention conditions, and cross-validation splits are identical to Experiments 1 and 2. For the frequency-residual analysis, we fit the quadratic Bayesian regression described in Experiment 1 at each checkpoint and report $\hat\beta_2$ (the curvature of the U-shape) as a function of training step.
+
+<!--# Maybe should go back to reporting the vertex? -->
 
 ## Results
 
@@ -623,7 +627,9 @@ p_beta <- ckpt_coefs |>
 p_r2 / p_beta + plot_layout(heights = c(1, 1.4))
 ```
 
-# Discussion {#sec-discussion}
+## Discussion
+
+# Conclusion {#sec-discussion}
 
 All 16 models encode decodable binomial ordering preferences in their final-layer representations, with probe R² well above near-zero control values in every condition. BabyLM models produce lower R² (0.24–0.34) than their Pile-trained counterparts (0.43–0.79), consistent with their smaller training corpora, and scale effects within families are non-monotonic. Across Pile-trained families, attention-zeroed outperforms full-context at the binomial level — indicating that cross-token attention in data-rich models encodes pair-specific, idiosyncratic representations that reduce probe generalizability — while BabyLM shows the reverse, consistent with attention computing abstract compositional features rather than retrieving memorized pair orderings. Positive quadratic curvature of probe error over log-frequency ($\hat{\beta}_2 > 0$) holds across all models and conditions, revealing a mid-frequency advantage in which pairs at intermediate frequencies are easiest to decode, with both rare pairs (insufficient signal) and highly frequent pairs (idiosyncratic memorization) producing elevated prediction error.
 
