@@ -236,6 +236,10 @@ We use two complementary datasets of binomial expressions (*X and Y*). Binomials
 
 The **attested corpus set** comprises approximately 49,000 binomial pairs from the BabyLM corpus [@warstadt-etal-2023-findings]. For each corpus pair and each model, the ordering preference is operationalized as the model's own log-probability ratio: $y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)$.
 
+Binomial pairs were identified automatically using a two-stage procedure. First, candidate "W₁ and W₂" sequences were selected using spaCy [@spacy2] part-of-speech tags, retaining only cases where both W₁ and W₂ are open-class words (nouns, verbs, adjectives, or adverbs). Second, each candidate was parsed with the Berkeley Neural Parser [benepar; @kitaev-klein-2018-constituency; @kitaev-etal-2019-multilingual] to confirm that W₁ and W₂ form a minimal coordinate phrase: the two words must be co-constituents under the same phrasal node (NP, VP, ADJP, ADVP, PP, or equivalent), with that node spanning exactly the three tokens [W₁, and, W₂] and nothing else. This ensures that the extracted pairs are genuine coordinate binomials rather than incidental sequences where "and" links clauses or longer phrases. Because cross-category coordination is syntactically unacceptable, violating the Coordination of Likes constraint that benepar enforces through its Penn Treebank training, genuine mixed-category pairs are excluded by the constituency criterion rather than by any explicit POS filter.[^pos-filter] Novel binomials from the Wikitext corpus were extracted using the identical procedure, with the additional requirement that both words appear in BabyLM's vocabulary and the pair is absent from the attested corpus set.
+
+[^pos-filter]: We deliberately avoid filtering by spaCy POS tag agreement because spaCy frequently misclassifies participial forms in coordinate contexts, for example tagging "mortified" or "battered" as VERB rather than ADJ in "disgusted and mortified" or "battered and broken." Pairs with apparent cross-category spaCy tags in the final corpus reflect these tagging errors: the words function as the same syntactic category in context, which is why they pass the constituency criterion in the first place. Explicit POS filtering would therefore discard many valid same-category binomials without catching any genuine cross-category ones.
+
 ### Representation Extraction
 
 For each model, we extract hidden-state representations from the final hidden-layer. Each binomial pair is presented to the model in both orderings (*W*~1~ and *W*~2~; *W*~2~ and *W*~1~) within a natural sentence frame. We extract representations under two input modes:
@@ -263,7 +267,7 @@ We evaluate generalization under two cross-validation splits:
 
 ### Control Probes
 
-Following @hewitt-liang-2019-designing, we train a matched control probe on randomly permuted preference labels under the same architecture and hyperparameters. Near-zero control R² provides evidence that the probe is extracting genuine linguistic structure rather than exploiting label artifacts or probe capacity. Full control R² results are reported in appendix sections alongside each experiment.
+Following @hewitt-liang-2019-designing, we train a matched control probe on randomly permuted preference labels under the same architecture and hyperparameters. Near-zero control R² provides evidence that the probe is extracting genuine linguistic structure rather than exploiting label artifacts or probe capacity. Full control R² results are reported in the supplementary appendix for each experiment.
 
 ### Frequency-Residual Regression {#sec-methods-freq-regression}
 
@@ -308,7 +312,7 @@ ctrl_sd_exp2   <- sd(ctrl_r2_exp2)
 
 ### Probe Performance
 
-Results are visualized in @fig-r2-babylm; full numerical results are in Appendix [-@sec-appendix-exp1]. The control probe R² values were consistently near zero across all conditions and all three models (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp1, ctrl_sd_exp1)`; full control results are in Appendix [-@sec-appendix-exp1]), confirming that the probe doesn't recover spurious signal from label noise.
+Results are visualized in @fig-r2-babylm; full numerical results are in Appendix B (Table @tbl-r2-babylm). The control probe R² values were consistently near zero across all conditions and all three models (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp1, ctrl_sd_exp1)`; full control results are in Appendix B (Table @tbl-ctrl-r2-babylm)), confirming that the probe doesn't recover spurious signal from label noise.
 
 For the binomial-level conditions, pair-held-out R² ranges from 0.24 to 0.34; word-held-out R² is consistently lower, ranging from 0.12 to 0.23. The drop from pair-held-out to word-held-out reflects a lexical generalization cost: the probe is more accurate when the words in a test pair appeared in other pairs during probe training than when both words are entirely novel, suggesting that some preference signal is tied to word identity rather than being fully abstract. Probe accuracy is non-monotonic with model size: BabyLM-350M achieves the highest pair-held-out R² across most conditions, with BabyLM-125M and BabyLM-1.3B lower by similar margins. The full-context condition yields higher pair-held-out R² than attention-zeroed, indicating that cross-word attention contributes positively to preference encoding for these novel binomials. We return to possible explanations for this in the discussion section.
 
@@ -349,13 +353,29 @@ all_r2 |>
 
 ### Memorization vs. Abstraction
 
-We report the results of the frequency-residual regression results here. Full numerical results and fitted curves are in Appendix [-@sec-appendix-exp1]. Under the full-context condition, the quadratic coefficient $\hat\beta_2$ is positive for all three models, with 95% credible intervals excluding zero. This indicates a U-shaped relationship between corpus frequency and probe error: the probe makes the smallest errors for pairs at intermediate log-frequency values, with errors increasing toward both the low- and high-frequency tails. Under the attention-zeroed condition, the curvature is attenuated relative to full context and remains reliably positive for BabyLM-125M and BabyLM-350M; though the effect falls below statistical significance levels for BabyLM-1.3B. The attenuation under the attention-zeroed condition indicates that the high-frequency penalty on probe accuracy is driven in part by cross-word attention: blocking the second word's attention to the first flattens the frequency-residual relationship.
+We report the results of the frequency-residual regression results here. Full numerical results are in Appendix B (Table @tbl-beta-babylm). Under the full-context condition, the quadratic coefficient $\hat\beta_2$ is positive for all three models, with 95% credible intervals excluding zero. This indicates a U-shaped relationship between corpus frequency and probe error: the probe makes the smallest errors for pairs at intermediate log-frequency values, with errors increasing toward both the low- and high-frequency tails. Under the attention-zeroed condition, the curvature is attenuated relative to full context and remains reliably positive for BabyLM-125M and BabyLM-350M; though the effect falls below statistical significance levels for BabyLM-1.3B. The attenuation under the attention-zeroed condition indicates that the high-frequency penalty on probe accuracy is driven in part by cross-word attention: blocking the second word's attention to the first flattens the frequency-residual relationship.
 
 ## Discussion
 
-The results of Experiment 1 demonstrate that, contrary to the results of previous research [e.g., @houghton2025role], LLMs are actually learning some abstract preferences. This is demonstrated by the positive $r^2$ values for held-out pairs, and go beyond simple lexical preferences (such as simply preferring the word *bread* first in general), evidenced by the positive $r^2$ values for the novel word condition where the probe generalizes to binomials whose words were not in the probe's training data.
+Experiment 1 establishes that BabyLM models encode binomial ordering preferences that are both generalizable and partially lexical. Positive pair-held-out R² shows the probe generalizes beyond training binomials, and positive word-held-out R² extends this to novel words, contrary to @houghton2025role. The consistently lower word-held-out R² reveals a lexical component in the learned representations: part of the probe's accuracy reflects word-specific ordering tendencies rather than abstract principles that hold regardless of which words are used. This gap is reliably present across all three model sizes, indicating that even at small training scale, preference representations blend abstract structure with word-specific information.
 
-The results also demonstrate that the BabyLMs, in addition to using abstract preferences, are also still memorizing a good deal. This is evidenced by the frequency-residual regression model, where the probe's preference prediction is worst for high- and low-frequency items. For low-frequency binomials, this decrease in probe accuracy is likely due to underdeveloped lexical representations (i.e., noisy-representations). For higher-frequency binomials, this is likely due to attention effects reflecting context-specific representations (i.e., memorization).
+The U-shaped frequency-residual relationship ($\hat{\beta}_2 > 0$ for all three models) reveals where pair-specific information is concentrated. At low frequencies, probe accuracy suffers because the model hasn't seen the pair often enough to develop reliable representations. At high frequencies, accuracy suffers for the opposite reason: repeated co-occurrence has made the representations context-sensitive to the specific pair, so they no longer reflect ordering principles that generalize across novel contexts. The attenuation of $\hat{\beta}_2$ under the attention-zeroed condition shows that cross-word attention is the mechanism driving the high-frequency penalty: blocking it partially removes the pair-specific context-sensitivity that makes high-frequency representations harder to generalize from.
+
+Despite contributing to memorization at high frequencies, cross-word attention's overall effect in BabyLM is abstractive: full-context outperforms attention-zeroed across the frequency range. We treat cross-word attention as a context-integration mechanism whose outcome depends on training exposure. In BabyLM, where most pairs appear only once or twice, cross-word attention hasn't been exposed to pair-specific co-occurrence statistics at scale; it instead computes more general relational features that predict ordering across many pairs. Most pairs fall below the frequency threshold at which memorization dominates, so the net effect of cross-word attention is abstractive. Experiment 2 shows how this balance shifts when models are trained on far more data.
+
+```{r}
+#| label: exp2-novel-pile-stats
+#| include: false
+
+novel_pile_freqs <- read_csv(
+  file.path(RES, "..", "Results", "novel_binomials_infinigram_dolma.csv"),
+  show_col_types = FALSE
+)
+pile_nonzero   <- novel_pile_freqs$freq_total[novel_pile_freqs$freq_total > 0]
+pile_pct_nonzero <- round(mean(novel_pile_freqs$freq_total > 0) * 100, 1)
+pile_q025 <- round(quantile(pile_nonzero, 0.025))
+pile_q975 <- round(quantile(pile_nonzero, 0.975))
+```
 
 # Experiment 2: Cross-Family Final-Layer Representations {#sec-exp2}
 
@@ -363,21 +383,19 @@ Experiment 1 demonstrates that BabyLMs are relying on both abstract preferences 
 
 ## Methods
 
-In Experiment 2, we probe all 16 models spanning BabyLM, Pythia, GPT-2, OLMo, and Llama families (117M to 8B parameters, trained on 150M to approximately 15T tokens) at their final training checkpoints. One design consideration differs from Experiment 1: the novel binomials were selected to be absent from BabyLM's training corpus, but they are not truly novel for the Pile-trained models; approximately 98% appear in the Pile at non-zero frequency, most at low-to-medium exposure (Pile-equivalent counts spanning 14 to 443 occurrences for the middle 50% of items). The probe R² results for these models therefore reflect representations of low-to-mid-frequency attested pairs rather than those of novel ones; validity checks are discussed in @sec-exp2-validity. Probe architecture, attention conditions, and frequency regression are identical to Experiment 1.
-
-<!--# Framing is a bit odd because we aren't probing BabyLM here, we already did. I'm wondering if we should also give the full range of frequencies, not just the middle 50% of items. -->
+In Experiment 2, we extend the probe to 13 models across four large-scale families: Pythia (160M, 410M, 1B), GPT-2 (117M–1.5B), OLMo (1B–7B), and Llama (1.3B, 8B), and include the BabyLM results from Experiment 1 for comparison. One design consideration differs: the novel binomials were selected to be absent from BabyLM's training corpus, but they are not truly novel for the large-scale models; approximately `r pile_pct_nonzero`% appear in the relevant training corpora at non-zero frequency, most at low-to-medium exposure (counts spanning `r pile_q025` to `r pile_q975` occurrences for the middle 95% of items). The probe R² results for these models therefore reflect representations of low-to-mid-frequency attested pairs rather than truly novel ones. Probe architecture, attention conditions, and frequency regression are identical to Experiment 1.
 
 ## Results
 
 ### Probe Performance
 
-Full numerical results are in Appendix @tbl-r2; @fig-r2 visualizes the pair-held-out results. Control probe R² was consistently near zero across all models and conditions (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp2, ctrl_sd_exp2)`; full control results in Appendix [-@sec-appendix-exp2]). As in Experiment 1, the binomial-level conditions (full-context and attention-zeroed) are directly comparable; word-level results are provided in Appendix [-@sec-appendix-exp2]. All Pile-trained models substantially outperform BabyLM: pair-held-out R² under the full-context, binomial-level condition ranges from 0.43 to 0.65 across the four Pile-trained families, compared to 0.29–0.34 for BabyLM. Word-held-out R² is consistently lower than pair-held-out R² for every model and condition, matching the pattern in Experiment 1. GPT-2 shows the most striking result: under the attention-zeroed condition, pair-held-out R² reaches 0.79 for GPT-2 (117M) — substantially higher than its full-context value of 0.65 — with attention-condition advantages across all four GPT-2 models: GPT-2-M (0.76 vs. 0.53), GPT-2-L (0.67 vs. 0.52), and GPT-2-XL (0.73 vs. 0.49). Pythia, OLMo, and Llama-1.3B show the same direction: attention-zeroed outperforms full context at the binomial level. Llama-3-8B is an exception, matching the BabyLM pattern with full context slightly outperforming attention-zeroed (0.54 vs. 0.52). Scale effects within families are non-monotonic: in GPT-2, R² decreases with model size under full context (117M highest at 0.65, XL lowest at 0.49); in Pythia, the pattern is non-monotonic (160M highest at 0.59, 410M lowest at 0.53, 1B at 0.55); OLMo's 7B models slightly outperform 1B counterparts; Llama's 8B model outperforms 1.3B.
+Full numerical results are in Appendix C (Table @tbl-r2); @fig-r2 visualizes the pair-held-out results. Control probe R² was consistently near zero across all models and conditions (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp2, ctrl_sd_exp2)`; full control results in Appendix C (Table @tbl-ctrl-r2)). As in Experiment 1, the binomial-level conditions (full-context and attention-zeroed) are directly comparable; word-level results are provided in Appendix C (Table @tbl-r2-words-only). All Pile-trained models substantially outperform BabyLM: pair-held-out R² under the full-context, binomial-level condition ranges from 0.43 to 0.65 across the four Pile-trained families, compared to 0.29–0.34 for BabyLM. Word-held-out R² is consistently lower than pair-held-out R² for every model and condition, matching the pattern in Experiment 1. GPT-2 shows the most striking result: under the attention-zeroed condition, pair-held-out R² reaches 0.79 for GPT-2 (117M; substantially higher than its full-context value of 0.65), with attention-condition advantages across all four GPT-2 models: GPT-2-M (0.76 vs. 0.53), GPT-2-L (0.67 vs. 0.52), and GPT-2-XL (0.73 vs. 0.49). Pythia, OLMo, and Llama-1.3B show the same direction: attention-zeroed outperforms full context at the binomial level. Llama-3-8B is an exception, matching the BabyLM pattern with full context slightly outperforming attention-zeroed (0.54 vs. 0.52). Scale effects within families are non-monotonic: in GPT-2, R² decreases with model size under full context (117M highest at 0.65, XL lowest at 0.49); in Pythia, the pattern is non-monotonic (160M highest at 0.59, 410M lowest at 0.53, 1B at 0.55); OLMo's 7B models slightly outperform 1B counterparts; Llama's 8B model outperforms 1.3B.
 
 ```{r}
 #| label: fig-r2
-#| fig-cap: "Cross-validated R² at the final hidden layer for all 16 models (binomial-level), by attention condition (columns) and cross-validation split (shape). Circles = pair-held-out; triangles = word-held-out. Bars = 95\\% CI across 10 folds ($t$-distribution, $df = 9$). Models ordered by parameter count within each family and colored by family. Control R² $\\approx$ 0 (Appendix [-@sec-appendix-exp2])."
+#| fig-cap: "Cross-validated R² at the final hidden layer for all 16 models (binomial-level), by attention condition (columns) and cross-validation split (shape). Circles = pair-held-out; triangles = word-held-out. Bars = 95\\% CI across 10 folds ($t$-distribution, $df = 9$). Models ordered by parameter count within each family and colored by family. Control R² $\\approx$ 0 (Appendix C)."
 #| fig-width: 6.5
-#| fig-height: 2.8
+#| fig-height: 3.2
 #| fig-env: "figure*"
 #| eval: !expr nrow(all_r2) > 0
 
@@ -416,8 +434,9 @@ all_r2 |>
   scale_y_continuous(breaks = c(0.25, 0.5, 0.75)) +
   labs(y = expression(R^2), x = NULL) +
   theme_paper(base_size = 9) +
-  theme(panel.spacing  = unit(0.8, "lines"),
+  theme(panel.spacing   = unit(0.8, "lines"),
         legend.position = "bottom",
+        legend.box      = "vertical",
         axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
 ```
 
@@ -433,13 +452,11 @@ all_coefs <- brms_summary |>
 
 ### Memorization vs. Abstraction
 
-Full numerical results are in Appendix @tbl-beta and visualized in @fig-beta. $\hat{\beta}_2$ is positive for all 16 models under both attention conditions, with 95% credible intervals excluding zero in all cases except BabyLM-1.3B under the attention-zeroed condition ($\hat{\beta}_2 = 0.008$; 75% of posterior above zero). The U-shaped frequency-residual relationship is therefore a robust finding across model families, training corpora, and parameter scales. Two patterns stand out. First, BabyLM models show larger $\hat{\beta}_2$ magnitudes under full context (0.064–0.073) than any Pile-trained family (0.007–0.018), despite far less training — an effect likely driven by BabyLM's extreme frequency distribution (70% singleton pairs), which creates a sharper contrast between low- and high-frequency items in the regression. Second, under the attention-zeroed condition, $\hat{\beta}_2$ is consistently attenuated relative to full context across all families, confirming that cross-word attention contributes to the high-frequency memorization effect regardless of model family or scale.
+Full numerical results are in Appendix C (Table @tbl-beta) and visualized in @fig-beta. $\hat{\beta}_2$ is positive for all 16 models under both attention conditions, with 95% credible intervals excluding zero in all cases except BabyLM-1.3B under the attention-zeroed condition ($\hat{\beta}_2 = 0.008$; 75% of posterior above zero). The U-shaped frequency-residual relationship is therefore a robust finding across model families, training corpora, and parameter scales. Two patterns stand out. First, BabyLM models show larger $\hat{\beta}_2$ magnitudes under full context (0.064–0.073) than any Pile-trained family (0.007–0.018), despite far less training, an effect likely driven by BabyLM's extreme frequency distribution (70% singleton pairs), which creates a sharper contrast between low- and high-frequency items in the regression. Second, under the attention-zeroed condition, $\hat{\beta}_2$ is consistently attenuated relative to full context across all families, confirming that cross-word attention contributes to the high-frequency memorization effect regardless of model family or scale.
 
 <!--# need to back up the statement that $\hat{\beta}_2 is consistently attentuated under attention-zeroed condition with a statistic -->
 
-It is worth noting that the frequency-residual regression results do not reflect an underlying correlation between preference strength and frequency: all $|r| < 0.03$ between $y_{true}$ and frequency. @fig-scatter (Appendix) corroborates this visually: mid-frequency pairs cluster tightly around the prediction diagonal, while low- and high-frequency pairs scatter in opposite directions — precisely the pattern implied by positive $\hat{\beta}_2$.
-
-<!--# Need to check if this is the correlation betwee ytrue and frequency or |ytrue| and frequency -- because frequency should lead to *stronger* preferences, not necessarily more positive -->
+It is worth noting that the frequency-residual regression results do not reflect an underlying correlation between preference strength and frequency: all $|r| < 0.04$ between $|y_{true}|$ and $\log(\text{frequency})$ across all 16 models. Appendix C (Figure @fig-scatter) corroborates this visually: mid-frequency pairs cluster tightly around the prediction diagonal, while low- and high-frequency pairs scatter in opposite directions, precisely the pattern implied by positive $\hat{\beta}_2$.
 
 ```{r}
 #| label: fig-beta
@@ -477,9 +494,11 @@ all_coefs |>
 
 ## Discussion
 
-The results of Experiment 2 replicate the results of Experiment 1, showing that across several different models we see similar effects of both abstraction-driven preferences as well as memorization.
+Experiment 2 shows that both abstraction and lexical memorization increase with training scale, though not uniformly. Pile-trained models achieve substantially higher word-held-out R² than BabyLM models of comparable size, indicating that larger-scale training on naturally varied text improves abstract preference representations beyond what BabyLM's data regime allows. The pair-held-out vs. word-held-out gap persists across all Pile-trained families, confirming that the lexical component identified in Experiment 1 is not eliminated by scale. Within families, word-held-out R² does not scale monotonically with parameter count, suggesting that corpus composition and diversity, rather than model size alone, drive the quality of abstract preference representations.
 
-<!--# Need to flesh this out -->
+The U-shaped frequency-residual relationship holds across all 16 models ($\hat{\beta}_2 > 0$ in all cases), replicating the key finding from Experiment 1. BabyLM's larger $\hat{\beta}_2$ magnitudes relative to Pile-trained families reflect BabyLM's more extreme frequency distribution, in which the contrast between singleton and high-frequency pairs is sharper. The attenuation of $\hat{\beta}_2$ under the attention-zeroed condition is consistent across all five families, confirming that cross-word attention mediates the high-frequency memorization effect regardless of training scale or architecture. The same mechanism identified in Experiment 1 operates universally.
+
+The most critical difference from Experiment 1 is in the attention condition comparison. Unlike BabyLM, where full-context outperforms attention-zeroed, all Pile-trained families show the reverse: blocking cross-word attention improves probe generalizability. Under the context-integration framing introduced in Experiment 1, this flip indicates that cross-word attention has crossed the threshold from computing general relational features to encoding pair-specific co-occurrence statistics. With sufficient and diverse training data, the same mechanism that abstracts in a data-limited regime instead becomes a vehicle for pair-specific memorization. Experiment 3 traces the developmental timecourse of this transition.
 
 # Experiment 3: Developmental Trajectories {#sec-exp3}
 
@@ -557,13 +576,13 @@ ckpt_colors <- c(
 )
 ```
 
-BabyLM pair-held-out R² is already high at the earliest checkpoint (\~20M tokens: 0.67–0.72) and broadly declines to 0.32–0.38 by the end of training. At the earliest checkpoint, the attention-zeroed condition outperforms full context (0.78–0.80 vs. 0.67–0.72); this ordering reverses between \~120M and \~750M tokens, so that full context exceeds attention-zeroed at the final checkpoint for all three model sizes. Pythia shows an inverted-U trajectory instead: R² rises from 0.68–0.74 at 33.6M tokens to a peak of 0.80–0.86 at 537M tokens, then declines to 0.71–0.76 at 1074M–2097M tokens — consistent with Pile-trained models still consolidating preference representations during this early window (the first 0.7% of 300B tokens). The attention condition flip for Pythia follows the same qualitative pattern as BabyLM. Full numerical results are in Appendix [-@sec-appendix-exp3]; word-level results are in Appendix [-@sec-appendix-exp3].
+BabyLM pair-held-out R² is already high at the earliest checkpoint (\~20M tokens: 0.67–0.72) and broadly declines to 0.32–0.38 by the end of training. At the earliest checkpoint, the attention-zeroed condition outperforms full context (0.78–0.80 vs. 0.67–0.72); this ordering reverses between \~120M and \~750M tokens, so that full context exceeds attention-zeroed at the final checkpoint for all three model sizes. Pythia shows an inverted-U trajectory instead: R² rises from 0.68–0.74 at 33.6M tokens to a peak of 0.80–0.86 at 537M tokens, then declines to 0.71–0.76 at 1074M–2097M tokens, consistent with Pile-trained models still consolidating preference representations during this early window (the first 0.7% of 300B tokens). The attention condition flip for Pythia follows the same qualitative pattern as BabyLM. Full numerical results are in Appendix D; word-level results are in Appendix D.
 
-For $\hat{\beta}_2$, BabyLM starts negative at all sizes (-0.013 to -0.029), remains negative until approximately 750M tokens, and reaches 0.045–0.093 at the final checkpoint, matching the positive curvature from Experiment 1. Pythia's $\hat{\beta}_2$ is positive from its earliest checkpoint (33.6M tokens), with credible intervals confidently excluding zero by 537M tokens. As discussed in Appendix [-@sec-appendix-corpus-freq], this contrast reflects the far greater absolute token exposure per pair in the Pile relative to BabyLM. Full numerical results are in Appendix [-@sec-appendix-exp3].
+For $\hat{\beta}_2$, BabyLM starts negative at all sizes (-0.013 to -0.029), remains negative until approximately 750M tokens, and reaches 0.045–0.093 at the final checkpoint, matching the positive curvature from Experiment 1. Pythia's $\hat{\beta}_2$ is positive from its earliest checkpoint (33.6M tokens), with credible intervals confidently excluding zero by 537M tokens. As discussed in Appendix E, this contrast reflects the far greater absolute token exposure per pair in the Pile relative to BabyLM. Full numerical results are in Appendix D.
 
 ```{r}
 #| label: fig-checkpoints
-#| fig-cap: "Probe R² (top) and quadratic frequency-residual curvature ($\\hat{\\beta}_2$, bottom) across BabyLM and Pythia training checkpoints, binomial-level by attention condition. BabyLM spans ~20M–1.9B effective training tokens; Pythia spans ~34M–2.1B tokens (~0.7\\% of the full 300B training run). Ribbons show 95\\% credible intervals. $\\hat{\\beta}_2$ y-axes are free per family row (BabyLM and Pythia have very different scales). Control R² $\\approx$ 0 (Appendix)."
+#| fig-cap: "Probe R² (top) and quadratic frequency-residual curvature ($\\hat{\\beta}_2$, bottom) across BabyLM and Pythia training checkpoints, binomial-level by attention condition. BabyLM spans ~20M–1.9B effective training tokens; Pythia spans ~34M–2.1B tokens (~0.7\\% of the full 300B training run). Ribbons show 95\\% credible intervals. $\\hat{\\beta}_2$ y-axes are free per family row (BabyLM and Pythia have very different scales). Control R² $\\approx$ 0 (Appendix D)."
 #| fig-width: 3.3
 #| fig-height: 4.5
 #| eval: !expr nrow(ckpt_r2) > 0
@@ -629,9 +648,15 @@ p_r2 / p_beta + plot_layout(heights = c(1, 1.4))
 
 ## Discussion
 
+The checkpoint trajectories connect the endpoints observed in Experiments 1 and 2 to a developmental timecourse. BabyLM pair-held-out R² starts high at the earliest checkpoints and declines over training, while the pair-held-out vs. word-held-out gap narrows, indicating that the lexical component of the representation weakens faster than the generalizable component. The final BabyLM checkpoint examined in Experiment 1 represents the endpoint of this trajectory. Pythia's pair-held-out R² follows an inverted-U, consistent with Pile-trained models still consolidating preference representations in the first 0.7% of training examined here. The Pile-trained final-layer results from Experiment 2 represent where these trajectories eventually lead.
+
+The $\hat{\beta}_2$ trajectories show that the onset of pair-specific memorization follows a different timecourse across the two families. BabyLM's $\hat{\beta}_2$ starts negative, reflecting conventional frequency effects in which more frequent pairs are easier to decode, and only turns positive after approximately 750M effective training tokens, when pair-specific exposure has accumulated enough to introduce the high-frequency penalty. Pythia's $\hat{\beta}_2$ is positive from its earliest checkpoint (33.6M tokens), consistent with the Pile's far greater absolute token exposure per pair: even at the earliest stage of Pile training, many binomials have been seen often enough for pair-specific co-occurrence statistics to shape the representation. The difference is not in the mechanism but in when the threshold for pair-specific memorization is crossed.
+
+The attention condition comparison provides the most direct window into the developmental arc of cross-word attention’s role. Both BabyLM and Pythia begin in a regime where attention-zeroed outperforms full-context. This pattern admits two interpretations: cross-word attention may be adding noise from random initialization, or it may already be encoding nascent pair-specific co-occurrence statistics that hurt generalization to novel words — the same interpretation we adopt for fully-trained Pile models in Experiment 2. Our behavioral R² data cannot distinguish these possibilities. Crucially, however, the pair-word R² gap is present from the earliest checkpoints alongside positive word-held-out R², establishing that lexical memorization and abstraction co-occur from the onset of training rather than one preceding the other. As training continues, full-context overtakes attention-zeroed in both families, indicating that cross-word attention shifts toward computing more generalizable relational features. The checkpoints here span only the first 0.7% of Pythia’s full 300B-token training, so the further shift back toward pair-specific memorization (observed in Experiment 2’s fully-trained Pile models) falls outside this window. Together, Experiments 1, 2, and 3 trace a coherent arc: memorization and abstraction are not staged processes but co-occur throughout training, with cross-word attention oscillating between pair-specific and generalizable encoding as a function of cumulative exposure per pair.
+
 # Conclusion {#sec-discussion}
 
-All 16 models encode decodable binomial ordering preferences in their final-layer representations, with probe R² well above near-zero control values in every condition. BabyLM models produce lower R² (0.24–0.34) than their Pile-trained counterparts (0.43–0.79), consistent with their smaller training corpora, and scale effects within families are non-monotonic. Across Pile-trained families, attention-zeroed outperforms full-context at the binomial level — indicating that cross-token attention in data-rich models encodes pair-specific, idiosyncratic representations that reduce probe generalizability — while BabyLM shows the reverse, consistent with attention computing abstract compositional features rather than retrieving memorized pair orderings. Positive quadratic curvature of probe error over log-frequency ($\hat{\beta}_2 > 0$) holds across all models and conditions, revealing a mid-frequency advantage in which pairs at intermediate frequencies are easiest to decode, with both rare pairs (insufficient signal) and highly frequent pairs (idiosyncratic memorization) producing elevated prediction error.
+All 16 models encode decodable binomial ordering preferences in their final-layer representations, with probe R² well above near-zero control values in every condition. BabyLM models produce lower R² (0.24–0.34) than their Pile-trained counterparts (0.43–0.79), consistent with their smaller training corpora, and scale effects within families are non-monotonic. Across Pile-trained families, attention-zeroed outperforms full-context at the binomial level (indicating that cross-token attention in data-rich models encodes pair-specific, idiosyncratic representations that reduce probe generalizability), while BabyLM shows the reverse, consistent with attention computing abstract compositional features rather than retrieving memorized pair orderings. Positive quadratic curvature of probe error over log-frequency ($\hat{\beta}_2 > 0$) holds across all models and conditions, revealing a mid-frequency advantage in which pairs at intermediate frequencies are easiest to decode, with both rare pairs (insufficient signal) and highly frequent pairs (idiosyncratic memorization) producing elevated prediction error. Crucially, the checkpoint trajectories in Experiment 3 establish that memorization and abstraction are not staged: lexical memorization (the pair-word R² gap) and abstract generalization (positive word-held-out R²) co-occur from the earliest training checkpoints, with cross-word attention oscillating between pair-specific and generalizable encoding as cumulative exposure per pair increases. What changes across training is not which process operates, but which dominates.
 
 ```{=latex}
 \bibliography{references}
@@ -743,7 +768,7 @@ all_r2 |>
 
 We trained the MLP probe using word-level representations (`words_only`) for the three BabyLM models to verify that the preference signal is not an artifact of mean pooling across the full binomial phrase. Under this condition the probe receives a concatenation of two word vectors extracted from isolated sentence contexts ("*the bread*", "*the butter*"), so it cannot rely on any co-occurrence signal from the two words' shared sentence context.
 
-Pair-held-out R² ranges from 0.31 to 0.33 — within a few percentage points of the corresponding binomial-level values (0.29–0.34). The generalization pattern is preserved: word-held-out R² is consistently lower than pair-held-out R² for all three models (word-held-out 0.18–0.20; pair-minus-word gap 0.127–0.129), confirming that the lexical generalization cost seen at the binomial level is a property of the preference encoding itself rather than an artifact of the mean-pooled representation. $\hat{\beta}_2$ is positive and credible intervals exclude zero for all three models, matching the curvature found at the binomial level (words-only $\hat{\beta}_2$: 0.039–0.079; full-context binomial-level: 0.064–0.073). Full results are in @tbl-r2-babylm-words-only.
+Pair-held-out R² ranges from 0.31 to 0.33, within a few percentage points of the corresponding binomial-level values (0.29–0.34). The generalization pattern is preserved: word-held-out R² is consistently lower than pair-held-out R² for all three models (word-held-out 0.18–0.20; pair-minus-word gap 0.127–0.129), confirming that the lexical generalization cost seen at the binomial level is a property of the preference encoding itself rather than an artifact of the mean-pooled representation. $\hat{\beta}_2$ is positive and credible intervals exclude zero for all three models, matching the curvature found at the binomial level (words-only $\hat{\beta}_2$: 0.039–0.079; full-context binomial-level: 0.064–0.073). Full results are in @tbl-r2-babylm-words-only.
 
 ```{r}
 #| label: tbl-r2-babylm-words-only
@@ -863,7 +888,7 @@ all_r2 |>
 
 ## Word-Level Replication {#sec-appendix-words-only-exp2}
 
-Across all 16 models, word-level probing reproduces the main findings from Experiment 2. Pair-held-out R² is slightly lower than the corresponding binomial-level values — by roughly 5–10 percentage points for most Pile-trained models — but rank order across families and the generalization pattern (pair-held-out \> word-held-out) are preserved in every case. For GPT-2, pair-held-out R² under word-level probing ranges from 0.46 to 0.62 (vs. 0.49–0.65 at the binomial level); for Pythia, 0.51–0.57 (vs. 0.53–0.59); for OLMo, 0.52–0.57 (vs. 0.56–0.62); for Llama, 0.36–0.45 (vs. 0.43–0.55). The generalization gaps (pair-held-out minus word-held-out) range from 0.044 to 0.073 across Pile-trained models, closely matching the corresponding binomial-level gaps (0.035–0.080). $\hat{\beta}_2$ is positive for all 16 models, with magnitudes similar to the full-context binomial-level condition. Full results are in @tbl-r2-words-only.
+Across all 16 models, word-level probing reproduces the main findings from Experiment 2. Pair-held-out R² is slightly lower than the corresponding binomial-level values (by roughly 5–10 percentage points for most Pile-trained models), but rank order across families and the generalization pattern (pair-held-out \> word-held-out) are preserved in every case. For GPT-2, pair-held-out R² under word-level probing ranges from 0.46 to 0.62 (vs. 0.49–0.65 at the binomial level); for Pythia, 0.51–0.57 (vs. 0.53–0.59); for OLMo, 0.52–0.57 (vs. 0.56–0.62); for Llama, 0.36–0.45 (vs. 0.43–0.55). The generalization gaps (pair-held-out minus word-held-out) range from 0.044 to 0.073 across Pile-trained models, closely matching the corresponding binomial-level gaps (0.035–0.080). $\hat{\beta}_2$ is positive for all 16 models, with magnitudes similar to the full-context binomial-level condition. Full results are in @tbl-r2-words-only.
 
 ```{r}
 #| label: tbl-r2-words-only
@@ -1058,7 +1083,7 @@ make_ckpt_beta_tbl <- function(df, cond_val, mode_val) {
 
 ```{r}
 #| label: tbl-r2-checkpoints-babylm-default-mean
-#| tbl-cap: "BabyLM checkpoint probe R² — full context, binomial-level. P = pair-held-out; W = word-held-out. SD in parentheses."
+#| tbl-cap: "BabyLM checkpoint probe R²:full context, binomial-level. P = pair-held-out; W = word-held-out. SD in parentheses."
 
 if (nrow(babylm_ckpt_r2) > 0)
   make_ckpt_r2_tbl(babylm_ckpt_r2, "default", "mean_pooled")
@@ -1066,7 +1091,7 @@ if (nrow(babylm_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-r2-checkpoints-babylm-attn-mean
-#| tbl-cap: "BabyLM checkpoint probe R² — attention-zeroed, binomial-level."
+#| tbl-cap: "BabyLM checkpoint probe R²:attention-zeroed, binomial-level."
 
 if (nrow(babylm_ckpt_r2) > 0)
   make_ckpt_r2_tbl(babylm_ckpt_r2, "attn_zeroed", "mean_pooled")
@@ -1074,7 +1099,7 @@ if (nrow(babylm_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-r2-checkpoints-pythia-default-mean
-#| tbl-cap: "Pythia checkpoint probe R² — full context, binomial-level."
+#| tbl-cap: "Pythia checkpoint probe R²:full context, binomial-level."
 
 if (nrow(pythia_ckpt_r2) > 0)
   make_ckpt_r2_tbl(pythia_ckpt_r2, "default", "mean_pooled")
@@ -1082,7 +1107,7 @@ if (nrow(pythia_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-r2-checkpoints-pythia-attn-mean
-#| tbl-cap: "Pythia checkpoint probe R² — attention-zeroed, binomial-level."
+#| tbl-cap: "Pythia checkpoint probe R²:attention-zeroed, binomial-level."
 
 if (nrow(pythia_ckpt_r2) > 0)
   make_ckpt_r2_tbl(pythia_ckpt_r2, "attn_zeroed", "mean_pooled")
@@ -1090,7 +1115,7 @@ if (nrow(pythia_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-beta-checkpoints-babylm-default-mean
-#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, binomial-level. SE = posterior SD; CI = 95\\% credible interval; P(>0) = percentage of posterior samples with $\\hat{\\beta}_2 > 0$."
+#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$):full context, binomial-level. SE = posterior SD; CI = 95\\% credible interval; P(>0) = percentage of posterior samples with $\\hat{\\beta}_2 > 0$."
 
 if (nrow(babylm_ckpt_coefs) > 0)
   make_ckpt_beta_tbl(babylm_ckpt_coefs, "default", "mean_pooled")
@@ -1098,7 +1123,7 @@ if (nrow(babylm_ckpt_coefs) > 0)
 
 ```{r}
 #| label: tbl-beta-checkpoints-babylm-attn-mean
-#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — attention-zeroed, binomial-level."
+#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$):attention-zeroed, binomial-level."
 
 if (nrow(babylm_ckpt_coefs) > 0)
   make_ckpt_beta_tbl(babylm_ckpt_coefs, "attn_zeroed", "mean_pooled")
@@ -1106,7 +1131,7 @@ if (nrow(babylm_ckpt_coefs) > 0)
 
 ```{r}
 #| label: tbl-beta-checkpoints-pythia-default-mean
-#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, binomial-level."
+#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$):full context, binomial-level."
 
 if (nrow(pythia_ckpt_coefs) > 0)
   make_ckpt_beta_tbl(pythia_ckpt_coefs, "default", "mean_pooled")
@@ -1114,7 +1139,7 @@ if (nrow(pythia_ckpt_coefs) > 0)
 
 ```{r}
 #| label: tbl-beta-checkpoints-pythia-attn-mean
-#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — attention-zeroed, binomial-level."
+#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$):attention-zeroed, binomial-level."
 
 if (nrow(pythia_ckpt_coefs) > 0)
   make_ckpt_beta_tbl(pythia_ckpt_coefs, "attn_zeroed", "mean_pooled")
@@ -1122,11 +1147,11 @@ if (nrow(pythia_ckpt_coefs) > 0)
 
 ## Word-Level Replication {#sec-appendix-words-only-exp3}
 
-Word-level probe results across BabyLM and Pythia checkpoints replicate the key patterns from the binomial-level analysis. The generalization gap (pair-held-out minus word-held-out) is largest at the earliest checkpoints and shrinks over the course of training. For BabyLM, the gap at the first checkpoint ranges from 0.15 to 0.36 across model sizes, narrowing to 0.13–0.14 by the final checkpoint — the same qualitative trajectory observed at the binomial level. $\hat{\beta}_2$ shows the same sign trajectory as in the main analysis: negative early in BabyLM training, transitioning to positive after approximately 750M tokens. Full R² results are in @tbl-r2-checkpoints-babylm-default-words and @tbl-r2-checkpoints-pythia-default-words; frequency-residual regression results are in @tbl-beta-checkpoints-babylm-default-words and @tbl-beta-checkpoints-pythia-default-words.
+Word-level probe results across BabyLM and Pythia checkpoints replicate the key patterns from the binomial-level analysis. The generalization gap (pair-held-out minus word-held-out) is largest at the earliest checkpoints and shrinks over the course of training. For BabyLM, the gap at the first checkpoint ranges from 0.15 to 0.36 across model sizes, narrowing to 0.13–0.14 by the final checkpoint, the same qualitative trajectory observed at the binomial level. $\hat{\beta}_2$ shows the same sign trajectory as in the main analysis: negative early in BabyLM training, transitioning to positive after approximately 750M tokens. Full R² results are in @tbl-r2-checkpoints-babylm-default-words and @tbl-r2-checkpoints-pythia-default-words; frequency-residual regression results are in @tbl-beta-checkpoints-babylm-default-words and @tbl-beta-checkpoints-pythia-default-words.
 
 ```{r}
 #| label: tbl-r2-checkpoints-babylm-default-words
-#| tbl-cap: "BabyLM checkpoint probe R² — full context, word-level. P = pair-held-out; W = word-held-out. SD in parentheses."
+#| tbl-cap: "BabyLM checkpoint probe R²:full context, word-level. P = pair-held-out; W = word-held-out. SD in parentheses."
 
 if (nrow(babylm_ckpt_r2) > 0)
   make_ckpt_r2_tbl(babylm_ckpt_r2, "default", "words_only")
@@ -1134,7 +1159,7 @@ if (nrow(babylm_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-r2-checkpoints-pythia-default-words
-#| tbl-cap: "Pythia checkpoint probe R² — full context, word-level. P = pair-held-out; W = word-held-out. SD in parentheses."
+#| tbl-cap: "Pythia checkpoint probe R²:full context, word-level. P = pair-held-out; W = word-held-out. SD in parentheses."
 
 if (nrow(pythia_ckpt_r2) > 0)
   make_ckpt_r2_tbl(pythia_ckpt_r2, "default", "words_only")
@@ -1142,7 +1167,7 @@ if (nrow(pythia_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-beta-checkpoints-babylm-default-words
-#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, word-level. SE = posterior SD; CI = 95\\% credible interval; P(>0) = percentage of posterior samples with $\\hat{\\beta}_2 > 0$."
+#| tbl-cap: "BabyLM checkpoint frequency-residual regression ($\\hat{\\beta}_2$):full context, word-level. SE = posterior SD; CI = 95\\% credible interval; P(>0) = percentage of posterior samples with $\\hat{\\beta}_2 > 0$."
 
 if (nrow(babylm_ckpt_coefs) > 0)
   make_ckpt_beta_tbl(babylm_ckpt_coefs, "default", "words_only")
@@ -1150,7 +1175,7 @@ if (nrow(babylm_ckpt_coefs) > 0)
 
 ```{r}
 #| label: tbl-beta-checkpoints-pythia-default-words
-#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$) — full context, word-level. SE = posterior SD; CI = 95\\% credible interval; P(>0) = percentage of posterior samples with $\\hat{\\beta}_2 > 0$."
+#| tbl-cap: "Pythia checkpoint frequency-residual regression ($\\hat{\\beta}_2$):full context, word-level. SE = posterior SD; CI = 95\\% credible interval; P(>0) = percentage of posterior samples with $\\hat{\\beta}_2 > 0$."
 
 if (nrow(pythia_ckpt_coefs) > 0)
   make_ckpt_beta_tbl(pythia_ckpt_coefs, "default", "words_only")
@@ -1218,4 +1243,4 @@ p_hist + p_rank + plot_layout(ncol = 2, widths = c(1, 1))
 
 The BabyLM training corpus is a 150M-token collection of child-directed and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles, Wikipedia), trained for 20 epochs. The Pile is a \~300B-token web-scraped corpus used to train the Pythia family. For each of the \~47K corpus binomials, we extracted 3-gram counts (i.e., the frequency of "word$_1$ and word$_2$" and its reverse) from each corpus via infinigram. As @fig-corpus-freq shows, the BabyLM corpus produces a highly degenerate frequency distribution: 70.7% of pairs appear exactly once, 87.4% appear at most twice, and 98.2% appear at most ten times, with a maximum of 1,095 occurrences. The Pile distribution is far richer: the median pair appears 365 times, the 25th percentile is 62 occurrences, and the 99th percentile exceeds 77,000.
 
-In absolute training exposure terms (accounting for BabyLM's 20 epochs), the most frequent BabyLM binomials are seen at most \~21,900 times total across all training steps, while the equivalent Pile binomials are seen over 1.5 million times in a single pass. Even the median Pile pair (365 occurrences per pass) substantially exceeds BabyLM's total exposure for a typical singleton pair (1 × 20 = 20 exposures). This gap in absolute exposure is the proximate explanation for why idiosyncratic memorization — reflected in positive $\hat{\beta}_2$ — emerges immediately in Pythia but requires hundreds of millions of tokens to appear in BabyLM.
+In absolute training exposure terms (accounting for BabyLM's 20 epochs), the most frequent BabyLM binomials are seen at most \~21,900 times total across all training steps, while the equivalent Pile binomials are seen over 1.5 million times in a single pass. Even the median Pile pair (365 occurrences per pass) substantially exceeds BabyLM's total exposure for a typical singleton pair (1 × 20 = 20 exposures). This gap in absolute exposure is the proximate explanation for why idiosyncratic memorization (reflected in positive $\hat{\beta}_2$) emerges immediately in Pythia but requires hundreds of millions of tokens to appear in BabyLM.
