@@ -254,7 +254,7 @@ We probe representations under two attention conditions:
 -   **Full context** (`default`): standard forward pass with full cross-token attention. Each word's representation reflects contextual influences from all other tokens in the sentence.
 -   **Attention-zeroed** (`attn_zeroed`): attention from the second word and the conjunction to the first word is blocked by setting the corresponding attention logits to $-\infty$ before the softmax. This condition tests whether the second word's representation is specifically shaped by direct cross-word attention to the first word.
 
-Because the word-level mode extracts each word from the sentence in which it occupies first position, its representation depends only on the preceding sentence context and is not influenced by any later token's attention. We therefore report three representation types per model: full-context binomial-level, attention-zeroed binomial-level, and full-context word-level.
+Because the word-level mode extracts each word from the sentence in which it occupies first position, its representation depends only on the preceding sentence context and is not influenced by any later token's attention. We therefore report three representation types per model: full-context binomial-level, attention-zeroed binomial-level, and full-context word-level. In all conditions, the probe is trained to predict the same $y_{true}$ (corpus ordering preference); only the input representations vary.
 
 ### MLP Probe
 
