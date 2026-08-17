@@ -24,12 +24,20 @@
 #   Preview the job list without running anything:
 #       python Scripts/supplementary_jobs.py | column -t
 #
+# RESTARTING
+#   Each cell writes Data/supplementary/<slug>/.done once every step has
+#   finished. Re-running the script skips those cells, so a crashed run is
+#   resumed by issuing the same command again rather than starting over. A cell
+#   that fails is logged and the run continues; failures are listed at the end.
+#   FORCE=1 ignores the markers and redoes everything.
+#
 # Usage:
 #   bash Scripts/supplementary_analyses.sh
 #   ONLY="babylm pythia"        bash Scripts/supplementary_analyses.sh
 #   FINAL_ONLY=1                bash Scripts/supplementary_analyses.sh
 #   EXCLUDE="allenai_OLMo-2-1124-1B" bash Scripts/supplementary_analyses.sh
 #   KEEP_EMBEDDINGS=1 SKIP_STEERING=1 bash Scripts/supplementary_analyses.sh
+#   FORCE=1                     bash Scripts/supplementary_analyses.sh
 #
 set -euo pipefail
 
@@ -68,26 +76,60 @@ if [[ "$DRY_RUN" == "1" ]]; then
 fi
 
 IDX=0
+FAILED=()
 while IFS=$'\t' read -r SLUG HF_ID REVISION NLAYERS BATCH LAYERS; do
   IDX=$((IDX + 1))
   LOG="$LOG_DIR/${SLUG}.log"
   N_L=$(wc -w <<< "$LAYERS")
+  # Two markers, because a cell run with SKIP_STEERING=1 is not as complete as
+  # one run without it. Otherwise a later steering run would silently skip every
+  # cell finished by an earlier no-steering run.
+  DONE_FULL="$OUT_ROOT/$SLUG/.done"
+  DONE_NOSTEER="$OUT_ROOT/$SLUG/.done_nosteer"
+  if [[ "$SKIP_STEERING" == "1" ]]; then
+    DONE_MARK="$DONE_NOSTEER"
+  else
+    DONE_MARK="$DONE_FULL"
+  fi
+
+  # Resume: a cell that finished every step wrote its marker. Re-running the
+  # script after a crash therefore picks up where it stopped instead of starting
+  # over. FORCE=1 re-runs everything regardless.
+  if [[ "${FORCE:-0}" != "1" ]] && { [[ -f "$DONE_FULL" ]] ||
+       { [[ "$SKIP_STEERING" == "1" ]] && [[ -f "$DONE_NOSTEER" ]]; }; }; then
+    log "=== [$IDX/$N_JOBS] $SLUG  already complete, skipping (FORCE=1 to redo)"
+    continue
+  fi
+
   log "=== [$IDX/$N_JOBS] $SLUG  rev=$REVISION  layers=$N_L  -> $LOG"
 
   REV_ARGS=()
   [[ "$REVISION" != "-" ]] && REV_ARGS=(--revision "$REVISION")
 
+  # Per-cell failure must not abort the remaining cells; collect and report.
+  CELL_OK=1
   {
     log "--- 1. extracting embeddings: layers [$LAYERS] ---"
     for COND in "default:binomial:novel_embeddings" \
                 "attn_zeroed:attn_zeroed:novel_embeddings_attn_zeroed"; do
       IFS=':' read -r CNAME CCTX CDIR <<< "$COND"
       TARGET="$BASE/Data/$CDIR/$SLUG"
-      if compgen -G "$TARGET/layer_*.npz" > /dev/null 2>&1; then
-        log "  $CNAME: embeddings present, skipping extraction"
+      # Every requested layer must be present. Checking for "any layer_*.npz"
+      # would treat a cell interrupted mid-extraction as complete and leave
+      # layers silently missing.
+      MISSING=""
+      for L in $LAYERS; do
+        [[ -s "$TARGET/layer_${L}.npz" ]] || MISSING="$MISSING $L"
+      done
+      if [[ -z "$MISSING" ]]; then
+        log "  $CNAME: all $N_L layers present, skipping extraction"
         continue
       fi
-      log "  $CNAME: extracting novel-set embeddings"
+      if compgen -G "$TARGET/layer_*.npz" > /dev/null 2>&1; then
+        log "  $CNAME: partial extraction, missing layers [$MISSING ]; re-extracting all"
+      else
+        log "  $CNAME: extracting novel-set embeddings"
+      fi
       "$PYTHON" "$BASE/Scripts/extract_embeddings.py" \
         --model "$HF_ID" "${REV_ARGS[@]}" \
         --data novel --context "$CCTX" \
@@ -127,12 +169,27 @@ while IFS=$'\t' read -r SLUG HF_ID REVISION NLAYERS BATCH LAYERS; do
              "$BASE/Data/novel_embeddings_attn_zeroed/$SLUG"
     fi
 
+    # Written last, and only on success, so it means "every step finished".
+    # Embeddings are deleted above, so without this a restart would re-extract
+    # and re-probe cells that were already done.
+    touch "$DONE_MARK"
     log "=== $SLUG complete ==="
-  } 2>&1 | tee -a "$LOG"
+  } 2>&1 | tee -a "$LOG" || CELL_OK=0
+
+  if [[ "$CELL_OK" != "1" || ! -f "$DONE_MARK" ]]; then
+    FAILED+=("$SLUG")
+    log "!!! $SLUG FAILED; continuing to next cell (see $LOG)"
+  fi
 
 done < "$JOBS"
 
-log "ALL DONE ($N_JOBS cells). Results in $OUT_ROOT"
+if (( ${#FAILED[@]} )); then
+  log "FINISHED WITH ${#FAILED[@]} FAILED CELL(S):"
+  printf '  %s\n' "${FAILED[@]}"
+  log "Re-run the same command to retry only the failed cells."
+else
+  log "ALL DONE ($N_JOBS cells). Results in $OUT_ROOT"
+fi
 cat <<EOF
 
 Per cell, $OUT_ROOT/<slug>/ contains:
