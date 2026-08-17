@@ -38,6 +38,12 @@
 #   EXCLUDE="allenai_OLMo-2-1124-1B" bash Scripts/supplementary_analyses.sh
 #   KEEP_EMBEDDINGS=1 SKIP_STEERING=1 bash Scripts/supplementary_analyses.sh
 #   FORCE=1                     bash Scripts/supplementary_analyses.sh
+#   LAST_LAYER_ONLY=1           bash Scripts/supplementary_analyses.sh
+#
+#   LAST_LAYER_ONLY is worth knowing about: the paper reports the final hidden
+#   layer everywhere, including Experiment 3, whose checkpoint loader takes
+#   max(layer) within each step. The full by-layer sweep is 524 layer-cells
+#   against 52, so roughly a tenfold cost for numbers nothing in the paper uses.
 #
 set -euo pipefail
 
@@ -61,6 +67,7 @@ log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
 JOB_ARGS=()
 [[ -n "${ONLY:-}" ]]       && JOB_ARGS+=(--only $ONLY)
 [[ "${FINAL_ONLY:-0}" == "1" ]] && JOB_ARGS+=(--final-only)
+[[ "${LAST_LAYER_ONLY:-0}" == "1" ]] && JOB_ARGS+=(--last-layer-only)
 [[ -n "${EXCLUDE:-}" ]]    && JOB_ARGS+=(--exclude $EXCLUDE)
 
 JOBS="$(mktemp)"

@@ -104,6 +104,13 @@ def main():
                     help="restrict to families: babylm pythia gpt2 olmo llama")
     ap.add_argument("--final-only", action="store_true", dest="final_only",
                     help="skip checkpoint cells")
+    ap.add_argument("--last-layer-only", action="store_true",
+                    dest="last_layer_only",
+                    help="emit only each cell's deepest layer. The paper reports "
+                         "the final hidden layer everywhere (every table and "
+                         "figure filters to layer == max(layer)), so the full "
+                         "by-layer sweep costs ~10x for results nothing uses. "
+                         "Steering needs several layers and is skipped under this.")
     ap.add_argument("--exclude", nargs="+", default=[],
                     help="additional slugs (or slug prefixes) to drop")
     ap.add_argument("--include-unreported", action="store_true",
@@ -130,7 +137,10 @@ def main():
         layers = layers_from_csv(csv_path)
         if not layers:
             continue
-        rows.append((slug, hf_id, revision or "-", max(layers),
+        n_layers = max(layers)
+        if args.last_layer_only:
+            layers = [n_layers]
+        rows.append((slug, hf_id, revision or "-", n_layers,
                      batch_for(hf_id), " ".join(str(x) for x in layers)))
 
     for r in rows:
