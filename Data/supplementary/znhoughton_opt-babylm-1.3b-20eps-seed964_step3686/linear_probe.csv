@@ -1,0 +1,2 @@
+condition,layer,mode,split,mean_r2,sd_r2,n_folds
+default,24,mean_pooled,pair_novel,0.271883,0.005518,10
