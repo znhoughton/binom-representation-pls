@@ -91,8 +91,16 @@ def _ridge(Z, y, alphas):
 
 
 def linear_cv(X, y, fold_data, device, mode, save_direction=False):
-    """Ridge on the same folds the MLP uses. Returns (r2s, mean_direction)."""
-    r2s, dirs = [], []
+    """Ridge on the same folds the MLP uses.
+
+    Returns (r2s, mean_direction, alphas). The chosen alpha is worth recording:
+    it is what determines how much of the nominal feature dimension the model
+    actually uses (effective df = sum d_i^2/(d_i^2+alpha)), and it is the only
+    way to tell whether the grid is wide enough. If selection piles up on the
+    largest value, ALPHAS is too narrow and the reported R2 understates what a
+    properly regularised linear probe would reach.
+    """
+    r2s, dirs, chosen = [], [], []
     for tr_np, te_np, fold_id in fold_data:
         tr = torch.from_numpy(tr_np).to(device)
         te = torch.from_numpy(te_np).to(device)
@@ -111,6 +119,7 @@ def linear_cv(X, y, fold_data, device, mode, save_direction=False):
         ws = _ridge((Z_itr - m) / s, y[itr].double(), ALPHAS)
         best_a = min(ws, key=lambda a: (((Z_iva - m) / s @ ws[a]) - y[iva].double())
                      .pow(2).mean().item())
+        chosen.append(float(best_a))
         del Z_itr, Z_iva
 
         Z_tr = antisym_features(X[tr], mode).double()
@@ -126,7 +135,7 @@ def linear_cv(X, y, fold_data, device, mode, save_direction=False):
     if device.type == "cuda":
         torch.cuda.empty_cache()
     direction = np.mean(dirs, axis=0) if dirs else None
-    return r2s, direction
+    return r2s, direction, chosen
 
 
 # ── PLS component sweep ──────────────────────────────────────────────────────
@@ -225,7 +234,9 @@ def main():
 
     lin_f = open(out_dir / "linear_probe.csv", "w", newline="")
     lin_w = _csv.DictWriter(lin_f, fieldnames=["condition", "layer", "mode", "split",
-                                               "mean_r2", "sd_r2", "n_folds"])
+                                               "mean_r2", "sd_r2", "n_folds",
+                                               "alpha_median", "alpha_min",
+                                               "alpha_max", "alpha_at_grid_max"])
     lin_w.writeheader()
 
     pls_f = open(out_dir / "pls_sweep.csv", "w", newline="")
@@ -267,13 +278,20 @@ def main():
                     fd = fold_list(folds, split)
 
                     if not args.skip_linear:
-                        r2s, d = linear_cv(X, y, fd, device, mode,
-                                           save_direction=args.save_directions)
+                        r2s, d, alphas = linear_cv(
+                            X, y, fd, device, mode,
+                            save_direction=args.save_directions)
                         lin_w.writerow({
                             "condition": condition, "layer": li, "mode": mode,
                             "split": split, "mean_r2": round(float(np.mean(r2s)), 6),
                             "sd_r2": round(float(np.std(r2s, ddof=1)) if len(r2s) > 1 else 0.0, 6),
-                            "n_folds": len(r2s)})
+                            "n_folds": len(r2s),
+                            "alpha_median": float(np.median(alphas)) if alphas else "",
+                            "alpha_min": float(np.min(alphas)) if alphas else "",
+                            "alpha_max": float(np.max(alphas)) if alphas else "",
+                            "alpha_at_grid_max": (
+                                float(np.mean(np.array(alphas) >= max(ALPHAS)))
+                                if alphas else "")})
                         lin_f.flush()
                         print(f"  {tag:>10s} {mode:<12s} {split:<11s} linear "
                               f"r²={np.mean(r2s):.4f}", flush=True)
