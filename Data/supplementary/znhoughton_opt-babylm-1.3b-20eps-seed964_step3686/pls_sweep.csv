@@ -1,0 +1,16 @@
+condition,layer,mode,split,k,mean_r2,sd_r2
+default,24,mean_pooled,pair_novel,1,0.061625,0.003137
+default,24,mean_pooled,pair_novel,2,0.10127,0.003176
+default,24,mean_pooled,pair_novel,3,0.13367,0.003954
+default,24,mean_pooled,pair_novel,4,0.158293,0.00291
+default,24,mean_pooled,pair_novel,5,0.181517,0.003103
+default,24,mean_pooled,pair_novel,6,0.197243,0.003126
+default,24,mean_pooled,pair_novel,7,0.20707,0.003963
+default,24,mean_pooled,pair_novel,8,0.21698,0.004158
+default,24,mean_pooled,pair_novel,9,0.223775,0.004162
+default,24,mean_pooled,pair_novel,10,0.230335,0.004883
+default,24,mean_pooled,pair_novel,11,0.237922,0.004966
+default,24,mean_pooled,pair_novel,12,0.243358,0.004672
+default,24,mean_pooled,pair_novel,13,0.248563,0.004466
+default,24,mean_pooled,pair_novel,14,0.252214,0.004566
+default,24,mean_pooled,pair_novel,15,0.255747,0.004653
