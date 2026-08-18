@@ -1,0 +1,9 @@
+condition,layer,mode,split,mean_r2,sd_r2,n_folds
+default,48,mean_pooled,pair_novel,0.394177,0.006194,10
+default,48,mean_pooled,word_novel,0.368694,0.036099,10
+default,48,words_only,pair_novel,0.348318,0.005377,10
+default,48,words_only,word_novel,0.32062,0.027149,10
+attn_zeroed,48,mean_pooled,pair_novel,0.608917,0.00308,10
+attn_zeroed,48,mean_pooled,word_novel,0.559611,0.043216,10
+attn_zeroed,48,words_only,pair_novel,0.265659,0.007958,10
+attn_zeroed,48,words_only,word_novel,0.227399,0.024915,10
