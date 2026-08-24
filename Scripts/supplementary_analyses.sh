@@ -116,6 +116,34 @@ while IFS=$'\t' read -r SLUG HF_ID REVISION NLAYERS BATCH LAYERS; do
   # Per-cell failure must not abort the remaining cells; collect and report.
   CELL_OK=1
   {
+    # ── 0. Calibrate the extraction batch size ────────────────────────────────
+    # The per-model batch sizes in supplementary_jobs.py are copied from
+    # run_scale_models.py, but that script does not use them directly: it first
+    # probes the GPU with --calibrate and uses the result. Copying the constants
+    # without the probe is what caused OLMo-2-7B to OOM here after succeeding in
+    # the main pipeline -- the constants are safe on an idle A100, not on a card
+    # holding anything else.
+    #
+    # The probe must run in its own subprocess. extract_embeddings.py already
+    # halves the batch on OOM, but by the time that loop runs the weights are
+    # resident and the allocator is fragmented, so it walked 2048 -> 1 and still
+    # failed. A separate process gives the real extraction a clean allocator.
+    log "--- 0. calibrating batch size (max $BATCH) ---"
+    CAL_OUT="$("$PYTHON" "$BASE/Scripts/extract_embeddings.py" \
+                 --model "$HF_ID" "${REV_ARGS[@]}" \
+                 --data corpus --batch-size "$BATCH" --gpu "$GPU" \
+                 --calibrate 2>&1 || true)"
+    SAFE_BATCH="$(grep -o 'SAFE_BATCH_SIZE=[0-9]*' <<< "$CAL_OUT" | tail -1 | cut -d= -f2)"
+    if [[ -n "$SAFE_BATCH" ]]; then
+      log "  calibrated batch size: $SAFE_BATCH (requested $BATCH)"
+      BATCH="$SAFE_BATCH"
+    else
+      FALLBACK=$(( BATCH < 512 ? BATCH : 512 ))
+      log "  WARNING: calibration produced no SAFE_BATCH_SIZE; falling back to $FALLBACK"
+      log "$CAL_OUT"
+      BATCH="$FALLBACK"
+    fi
+
     log "--- 1. extracting embeddings: layers [$LAYERS] ---"
     for COND in "default:binomial:novel_embeddings" \
                 "attn_zeroed:attn_zeroed:novel_embeddings_attn_zeroed"; do
@@ -174,6 +202,22 @@ while IFS=$'\t' read -r SLUG HF_ID REVISION NLAYERS BATCH LAYERS; do
       log "--- 5. removing embeddings (KEEP_EMBEDDINGS=1 to retain) ---"
       rm -rf "$BASE/Data/novel_embeddings/$SLUG" \
              "$BASE/Data/novel_embeddings_attn_zeroed/$SLUG"
+    fi
+
+    # supplementary_probes.py exits 0 when it finds no embeddings -- it prints
+    # "no embeddings for condition=..., skipping" and writes a header-only CSV.
+    # Without this check the cell is then marked done, and every later run skips
+    # it, so an extraction failure becomes permanent and silent. That is how
+    # OLMo-7B, OLMo-2-7B, Llama-3.2-1B and Llama-3-8B ended up with 50-byte
+    # linear_probe.csv files and .done_nosteer markers.
+    PROBE_CSV="$OUT_ROOT/$SLUG/linear_probe.csv"
+    if [[ ! -s "$PROBE_CSV" ]] || (( $(wc -l < "$PROBE_CSV") < 2 )); then
+      # This block is a subshell (it is piped to tee), so setting CELL_OK here
+      # would not reach the parent. Exiting non-zero does: pipefail makes the
+      # pipeline fail, which trips the "|| CELL_OK=0" below, and DONE_MARK is
+      # absent regardless, which the parent also checks.
+      log "!!! $SLUG: linear_probe.csv has no data rows; NOT marking done"
+      exit 1
     fi
 
     # Written last, and only on success, so it means "every step finished".
