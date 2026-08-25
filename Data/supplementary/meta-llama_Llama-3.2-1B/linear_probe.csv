@@ -1,1 +1,9 @@
-condition,layer,mode,split,mean_r2,sd_r2,n_folds
+condition,layer,mode,split,mean_r2,sd_r2,n_folds,alpha_median,alpha_min,alpha_max,alpha_at_grid_max
+default,16,mean_pooled,pair_novel,0.35685,0.008369,10,10000.0,1000.0,10000.0,0.0
+default,16,mean_pooled,word_novel,0.332317,0.029729,10,10000.0,1000.0,10000.0,0.0
+default,16,words_only,pair_novel,0.26473,0.006759,10,10000.0,1000.0,10000.0,0.0
+default,16,words_only,word_novel,0.233003,0.028674,10,10000.0,10000.0,10000.0,0.0
+attn_zeroed,16,mean_pooled,pair_novel,0.336069,0.00673,10,10000.0,1000.0,10000.0,0.0
+attn_zeroed,16,mean_pooled,word_novel,0.287529,0.026542,10,10000.0,1000.0,10000.0,0.0
+attn_zeroed,16,words_only,pair_novel,0.322867,0.008238,10,5500.0,1000.0,10000.0,0.0
+attn_zeroed,16,words_only,word_novel,0.295113,0.038224,10,10000.0,1000.0,10000.0,0.0
