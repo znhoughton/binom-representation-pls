@@ -51,3 +51,42 @@ Writeup/_experiment4_saved.qmd
 .DS_Store
 Thumbs.db
 desktop.ini
+# ── Added during the 2026-08 reorganisation ──────────────────────────────────
+# Fitted brms models: ~185 MB of binary artifacts regenerable from
+# Scripts/analysis/corpus_relfreq_brms_all.R, which is resume-safe and skips any
+# cell whose .rds already exists. Tracking them would bloat the repo for no gain.
+Data/brms_models/
+
+# Run logs and rendering scratch
+Results/*_progress.log
+Results/*_stdout.log
+Results/slopes_rebuild.log
+
+# Editor and render byproducts
+*.bak
+*.bak[0-9]*
+Writeup/writeup.txt
+Writeup/writeup2.txt
+Writeup/_backups/
+__pycache__/
+
+# Local R environment: points TMPDIR at D: because the .xz prediction files
+# decompress through vroom's temp storage and have exhausted C: mid-render.
+.Renviron
+Writeup/texput.log
+Writeup/tmp-pdfcrop-*.tex
+Writeup/writeup.html
+Writeup/writeup_files/figure-html/
+Writeup/writeup_files/figure-latex/
+
+# ── Large probe artifacts: kept locally, not tracked ─────────────────────────
+# ~16.5 GB of layer embeddings and ~644 MB of compressed probe predictions.
+# Both are regenerable from the pipeline that IS tracked:
+#   Scripts/pipeline/extract_embeddings.py  -> Data/**/layer_{N}.npz
+#   Scripts/pipeline/by_layer_mlp.py        -> Results/{slug}/by_layer_corpus_pred.csv.xz
+# The small summaries the paper actually renders from stay tracked
+# (Data/brms_relfreq_prop.rds, Data/relfreq_slope_curve.csv,
+#  Results/{slug}/by_layer_mlp.csv), so the writeup builds from a clean clone.
+*.npz
+*.csv.xz
+*.xz

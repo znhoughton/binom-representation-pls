@@ -33,20 +33,30 @@ $endif$
 \usepackage{calc}      % pandoc uses \real{} expressions for column widths
 \usepackage{multirow}  % multi-row table cells
 
-% longtable is incompatible with twocolumn mode (enforced by acl.sty).
-% Use etoolbox hooks to temporarily switch to onecolumn around each longtable.
-% The table will appear full-width on its own page segment.
 \usepackage{etoolbox}
-\BeforeBeginEnvironment{longtable}{\onecolumn}
-\AfterEndEnvironment{longtable}{\twocolumn}
+
+% longtable is incompatible with twocolumn mode (enforced by acl.sty), which is
+% why this file used to wrap every longtable in \onecolumn ... \twocolumn:
+%
+%   \BeforeBeginEnvironment{longtable}{\onecolumn}
+%   \AfterEndEnvironment{longtable}{\twocolumn}
+%
+% Every table in this paper now lives in the appendix, which is already
+% \onecolumn. Under those hooks the trailing \twocolumn would flip the appendix
+% into two columns after the first table, and each switch forces a page break.
+% They are removed deliberately. Restore them only if a longtable is ever
+% needed in the two-column main text.
 
 % Fix table caption numbering for longtable
 \def\fnum@table{\tablename~\thetable}
 
-% Float placement — [H] pins floats exactly where defined
+% Float placement. Main-text floats use LaTeX's default [tbp] so they can move
+% to wherever they fit, including across section boundaries; pinning them left
+% whitespace at section ends that following text could not fill. Do not add
+% placeins here: its [section] option barriers every section and reintroduces
+% exactly that whitespace. The appendix sets its own [H] placement and
+% \raggedbottom after \appendix in the document body.
 \usepackage{float}
-\floatplacement{table}{H}
-\usepackage[section]{placeins}
 
 % Graphics
 \usepackage{graphicx}
