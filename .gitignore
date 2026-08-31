@@ -90,3 +90,6 @@ Writeup/writeup_files/figure-latex/
 *.npz
 *.csv.xz
 *.xz
+
+# Draft kept outside the paper build
+Writeup/_experiment4_saved.qmd

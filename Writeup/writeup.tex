@@ -655,8 +655,12 @@ models, in both attention conditions: 72 fits in all.
 \(y_{\text{true}}\) and \(\hat{y}\) are standardized within each fit,
 since their spread differs across models, conditions and checkpoints;
 \(r\) is a proportion on a fixed scale that means the same thing in
-every corpus. Coefficients are therefore comparable across checkpoints
-as well as across models.
+every corpus. Because a model's corpus does not change over training,
+coefficients are directly comparable across a model's own checkpoints
+and between its two attention conditions. Comparisons of main-effect
+magnitude \emph{between} the two corpora are less direct, since overall
+frequency is centered within each fit and the corpora differ in what a
+typical binomial's frequency is (Appendix~\ref{sec-appendix-relfreq}).
 
 \subsection{Results}\label{results-2}
 
@@ -813,23 +817,26 @@ item-specific in that it concerns particular words and their learned
 positional tendencies rather than a general constraint, but it no longer
 requires the model to represent the specific binomial context. On this
 interpretation, entrenchment shifts the lexical representations before
-it shifts the phrasal one. The probe trajectories are consistent with
-this. For the BabyLMs, probe R² falls as the effect of relative
-frequency rises, and falls almost in step with it; for Pythia the two
-rise together. In other words, for the models that see the same 150M
-tokens twenty times, later training seems to add item-specific knowledge
-without adding structure that generalizes across items, so a probe
-trained to generalize recovers less of the preference. The attention
-conditions follow the same course: zeroing out attention \emph{helps} at
-the earliest checkpoints and hurts by the end, which is what we would
-expect if there is no phrasal representation to remove early on. That
-the phrasal representation comes to carry ordering information is not
-especially surprising, since attention is what allows a representation
-of the pair to be built at all. That the \emph{lexical} representations
-shift is the more interesting result, and it parallels evidence from
-human processing that the internal representations of a stored
-multi-word phrase are themselves altered by experience with the phrase
-\citep{houghton2025multiwordrepresentationsminds}.
+it shifts the phrasal one.
+
+The probe trajectories are consistent with this. For the BabyLMs, probe
+R² falls as the effect of relative frequency rises, and falls almost in
+step with it; for Pythia the two rise together. In other words, for the
+models that see the same 150M tokens twenty times, later training seems
+to add item-specific knowledge without adding structure that generalizes
+across items, so a probe trained to generalize recovers less of the
+preference. The attention conditions follow the same course: zeroing out
+attention \emph{helps} at the earliest checkpoints and hurts by the end,
+which is what we would expect if there is no phrasal representation to
+remove early on.
+
+That the phrasal representation comes to carry ordering information is
+not especially surprising, since attention is what allows a
+representation of the pair to be built at all. That the \emph{lexical}
+representations shift is the more interesting result, and it parallels
+evidence from human processing that the internal representations of a
+stored multi-word phrase are themselves altered by experience with the
+phrase \citep{houghton2025multiwordrepresentationsminds}.
 
 The same interpretation may extend to the abstract preferences. Zeroing
 out attention weakens the effect of abstract preferences for the
@@ -1293,8 +1300,9 @@ Regression}\label{sec-appendix-relfreq}
 
 Full results for Equation~\ref{eq-relfreq}: abstract preferences
 \(\hat{y}\) (\texttt{y\_pred}), the binomial's relative frequency in the
-corpus (\texttt{rel\_freq}), total binomial frequency
+corpus (\texttt{rel\_freq}), overall binomial frequency
 (\texttt{log\_freq}), the two moderations, and the residual-scale term.
+
 The two kinds of variable are treated differently, and deliberately so.
 \texttt{y\_true} and \texttt{y\_pred} are properties of the model: both
 are log-probability ratios, so a unit is nominally the same everywhere,
@@ -1304,27 +1312,29 @@ Across the models here the standard deviation of \texttt{y\_true} ranges
 from 2.71 to 4.85, and it runs opposite to probe R², so a raw
 coefficient would partly measure output calibration. We therefore
 z-score both within each fit, which puts every coefficient in units of
-that model's own preference spread. \texttt{rel\_freq} and
-\texttt{log\_freq}, by contrast, are properties of the training corpus:
-a proportion of occurrences and a count of them mean the same thing
-however they are measured, and dividing either by a corpus-specific
-standard deviation would replace a shared unit with a local one. They
-are therefore left on their own scales: \texttt{rel\_freq} is a
-proportion running from \(-0.5\) to \(+0.5\) and \texttt{log\_freq} is
-centred but not scaled, so both mean the same thing in every corpus. A
-\texttt{rel\_freq} coefficient is therefore the change in ordering
-preference, in standard deviations, between a binomial always attested
-in one order and one always attested in the other; a \texttt{log\_freq}
-coefficient is the change per unit of log frequency, which is a factor
-of \(e \approx 2.72\) in the raw count; multiplying by \(0.69\) converts
-it to the change per doubling. Because \texttt{log\_freq} is centred
-within each fit, a main effect is the effect at that corpus's average
-binomial, which is a different absolute frequency for BabyLM than for
-the large-scale corpora. Main effects are therefore interpretable within
-a fit and comparable between attention conditions, but they are not
-comparable in magnitude across the two corpora. The two predictors are
-also on different scales, so their coefficients should not be compared
-with each other.
+that model's own preference spread.
+
+\texttt{rel\_freq} and \texttt{log\_freq}, by contrast, are properties
+of the training corpus: a proportion of occurrences and a count of them
+mean the same thing however they are measured, and dividing either by a
+corpus-specific standard deviation would replace a shared unit with a
+local one. They are therefore left on their own scales:
+\texttt{rel\_freq} is a proportion running from \(-0.5\) to \(+0.5\) and
+\texttt{log\_freq} is centred but not scaled, so both mean the same
+thing in every corpus. A \texttt{rel\_freq} coefficient is therefore the
+change in ordering preference, in standard deviations, between a
+binomial always attested in one order and one always attested in the
+other; a \texttt{log\_freq} coefficient is the change per unit of log
+frequency, which is a factor of \(e \approx 2.72\) in the raw count;
+multiplying by \(0.69\) converts it to the change per doubling.
+
+Because \texttt{log\_freq} is centred within each fit, a main effect is
+the effect at that corpus's average binomial, which is a different
+absolute frequency for BabyLM than for the large-scale corpora. Main
+effects are therefore interpretable within a fit and comparable between
+attention conditions, but they are not comparable in magnitude across
+the two corpora. The two predictors are also on different scales, so
+their coefficients should not be compared with each other.
 
 \begingroup\fontsize{7}{9}\selectfont
 
@@ -1558,19 +1568,21 @@ chance. It is not. Preferences on novel binomials are not weak to begin
 with: median \(|y_{\text{true}}|\) ranges from 1.79 to 3.21 across the
 three models, so the preferred ordering is between roughly six and
 twenty-five times more likely, and only 9\% to 17\% of binomials fall
-below 0.5. Rank correlations track the Pearson values closely
-(0.371--0.406 for BabyLM on novel binomials), and the models order the
-same binomial the same way on 60\% to 70\% of items against a chance
-rate of 50\%, a statistic that ignores magnitude and weights every
-binomial equally. Stratifying by preference strength, using the third
-model's \(|y_{\text{true}}|\) so that the bins are independent of the
-two series being correlated, agreement is graded but present throughout:
-in the weakest quintile \(r = 0.30\) under full context and \(0.28\)
-under attention-zeroing, with directional agreement near 59\% in both,
-rising to \(r = 0.61\) and 73\% in the strongest. That gradient is
-itself informative, since agreement increasing with preference strength
-is the signature of a signal measured with noise rather than of an
-arbitrary function of a particular set of weights.
+below 0.5.
+
+Rank correlations track the Pearson values closely (0.371--0.406 for
+BabyLM on novel binomials), and the models order the same binomial the
+same way on 60\% to 70\% of items against a chance rate of 50\%, a
+statistic that ignores magnitude and weights every binomial equally.
+Stratifying by preference strength, using the third model's
+\(|y_{\text{true}}|\) so that the bins are independent of the two series
+being correlated, agreement is graded but present throughout: in the
+weakest quintile \(r = 0.30\) under full context and \(0.28\) under
+attention-zeroing, with directional agreement near 59\% in both, rising
+to \(r = 0.61\) and 73\% in the strongest. That gradient is itself
+informative, since agreement increasing with preference strength is the
+signature of a signal measured with noise rather than of an arbitrary
+function of a particular set of weights.
 
 Two further patterns appear in Table~\ref{tbl-agreement}. Agreement
 within a family is roughly constant across all four cells, near
