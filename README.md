@@ -89,8 +89,8 @@ binom-corpus-pls/
 Fitted brms models live in `Data/brms_models/` and are gitignored: a few hundred
 MB of binary artifacts, regenerable by `Scripts/analysis/corpus_relfreq_brms_all.R`,
 which is resume-safe and skips any cell whose `.rds` already exists. The two
-small summaries the paper renders from, `Data/brms_relfreq_rawscale.rds` and
-`Data/relfreq_slope_curve.csv`, *are* tracked, so the writeup builds without
+small summaries the paper renders from, `Data/derived/brms_relfreq_rawscale.rds` and
+`Data/derived/relfreq_slope_curve.csv`, *are* tracked, so the writeup builds without
 re-running roughly seven hours of sampling.
 
 That script fits two parameterisations, selected by the `SCALE` environment

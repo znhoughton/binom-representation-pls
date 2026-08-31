@@ -10,8 +10,8 @@ analysis/   fit the regressions the paper reports          (CPU, ~7 h)
 supplementary/  appendix analyses
 ```
 
-The two files the paper renders from are `Data/brms_relfreq_rawscale.rds` and
-`Data/relfreq_slope_curve.csv`. Both are tracked, so `Writeup/writeup.qmd`
+The two files the paper renders from are `Data/derived/brms_relfreq_rawscale.rds` and
+`Data/derived/relfreq_slope_curve.csv`. Both are tracked, so `Writeup/writeup.qmd`
 builds from a clean clone without re-running anything below.
 
 ---
@@ -70,8 +70,8 @@ SCALE=raw Rscript Scripts/analysis/corpus_relfreq_brms_all.R    # what the paper
 * `raw` leaves `rel_freq` on its -0.5..+0.5 proportion scale and centres
   `log_freq` without scaling. Both are corpus properties whose units mean the
   same thing everywhere, so dividing by a corpus-specific SD would replace a
-  shared unit with a local one. Writes `Data/brms_relfreq_rawscale.rds`.
-* `z` z-scores all four variables. Writes `Data/brms_relfreq_prop.rds`.
+  shared unit with a local one. Writes `Data/derived/brms_relfreq_rawscale.rds`.
+* `z` z-scores all four variables. Writes `Data/derived/brms_relfreq_prop.rds`.
 
 `y_true` and `y_pred` are z-scored under both settings. Their spread is a
 property of the model rather than of binomial knowledge: `sd(y_pred)` tracks

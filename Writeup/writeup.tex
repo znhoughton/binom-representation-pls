@@ -813,13 +813,22 @@ item-specific in that it concerns particular words and their learned
 positional tendencies rather than a general constraint, but it no longer
 requires the model to represent the specific binomial context. On this
 interpretation, entrenchment shifts the lexical representations before
-it shifts the phrasal one. That the phrasal representation comes to
-carry ordering information is not especially surprising, since attention
-is what allows a representation of the pair to be built at all. That the
-\emph{lexical} representations shift is the more interesting result, and
-it parallels evidence from human processing that the internal
-representations of a stored multi-word phrase are themselves altered by
-experience with the phrase
+it shifts the phrasal one. The probe trajectories are consistent with
+this. For the BabyLMs, probe R² falls as the effect of relative
+frequency rises, and falls almost in step with it; for Pythia the two
+rise together. In other words, for the models that see the same 150M
+tokens twenty times, later training seems to add item-specific knowledge
+without adding structure that generalizes across items, so a probe
+trained to generalize recovers less of the preference. The attention
+conditions follow the same course: zeroing out attention \emph{helps} at
+the earliest checkpoints and hurts by the end, which is what we would
+expect if there is no phrasal representation to remove early on. That
+the phrasal representation comes to carry ordering information is not
+especially surprising, since attention is what allows a representation
+of the pair to be built at all. That the \emph{lexical} representations
+shift is the more interesting result, and it parallels evidence from
+human processing that the internal representations of a stored
+multi-word phrase are themselves altered by experience with the phrase
 \citep{houghton2025multiwordrepresentationsminds}.
 
 The same interpretation may extend to the abstract preferences. Zeroing

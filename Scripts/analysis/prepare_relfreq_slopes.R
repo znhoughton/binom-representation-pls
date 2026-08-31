@@ -25,7 +25,7 @@
 #
 # Usage (from project root):
 #   Rscript Scripts/analysis/prepare_relfreq_slopes.R
-# Output: Data/relfreq_slope_curve.csv
+# Output: Data/derived/relfreq_slope_curve.csv
 
 # Every path below is relative to the project root, so resolve it by walking up
 # from this script until the data directories appear. A fixed number of ".."
@@ -172,8 +172,8 @@ out <- map_dfr(fits, function(f) {
   })
 })
 
-write_csv(out, "Data/relfreq_slope_curve.csv")
-cat(sprintf("wrote Data/relfreq_slope_curve.csv: %d rows, %d models\n",
+write_csv(out, "Data/derived/relfreq_slope_curve.csv")
+cat(sprintf("wrote Data/derived/relfreq_slope_curve.csv: %d rows, %d models\n",
             nrow(out), length(unique(out$label))))
 
 print(out |> filter(decile %in% c(1, 10), condition == "default") |>

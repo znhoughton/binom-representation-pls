@@ -53,7 +53,7 @@
 # Usage (from project root):
 #   Rscript Scripts/analysis/corpus_relfreq_brms_all.R
 # Resume-safe: skips any cell whose .rds already exists.
-# Output: Data/brms_relfreq_prop.rds  (step = NA marks a final checkpoint)
+# Output: Data/derived/brms_<SUFFIX>.rds  (step = NA marks a final checkpoint)
 
 suppressPackageStartupMessages({
   library(brms); library(dplyr); library(readr); library(tibble)
@@ -74,8 +74,6 @@ find_project_root <- function() {
 }
 setwd(find_project_root())
 
-zscore <- function(v) as.numeric(scale(v))
-centre <- function(v) as.numeric(scale(v, center = TRUE, scale = FALSE))
 
 # ── Predictor scaling: "z" (default) or "raw" ────────────────────────────────
 # Set by the SCALE environment variable; controls the output filenames too, so
@@ -110,9 +108,10 @@ SEED    <- 964
 
 RESULTS   <- "Results"
 MODEL_DIR <- file.path("Data", "brms_models")
-OUT_RDS   <- file.path("Data", paste0("brms_", SUFFIX, ".rds"))
+OUT_RDS   <- file.path("Data", "derived", paste0("brms_", SUFFIX, ".rds"))
 LOG       <- file.path(RESULTS, paste0("brms_", SUFFIX, "_progress.log"))
 dir.create(MODEL_DIR, showWarnings = FALSE, recursive = TRUE)
+dir.create(dirname(OUT_RDS), showWarnings = FALSE, recursive = TRUE)
 
 log_msg <- function(...) {
   m <- paste0("[", format(Sys.time(), "%H:%M:%S"), "] ", ..., "\n")
@@ -204,12 +203,14 @@ load_cell <- function(slug, corpus, cond) {
     mutate(total = n_w1_w2 + n_w2_w1) |>
     (\(d) { stopifnot(all(d$word1 < d$word2)); d })() |>
     transmute(
-      y_true_z   = zscore(y_true),
-      y_pred_z   = zscore(y_pred),
+      y_true_z   = c(scale(y_true)),
+      y_pred_z   = c(scale(y_pred)),
       # column names are kept identical across both scalings so the formula,
       # the draw extraction and every downstream script stay unchanged
-      log_freq_z = if (SCALE == "z") zscore(log(total)) else centre(log(total)),
-      rel_freq_z = if (SCALE == "z") zscore(n_w1_w2 / total - 0.5)
+      # c() strips the 1-column matrix scale() returns back to a vector
+      log_freq_z = if (SCALE == "z") c(scale(log(total)))
+                   else              c(scale(log(total), scale = FALSE)),
+      rel_freq_z = if (SCALE == "z") c(scale(n_w1_w2 / total - 0.5))
                    else              (n_w1_w2 / total - 0.5)
     )
 }
