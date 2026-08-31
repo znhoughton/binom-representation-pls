@@ -86,12 +86,19 @@ binom-corpus-pls/
         └── by_layer_corpus_pred.csv.xz    # Corpus predictions (compressed)
 ```
 
-Fitted brms models live in `Data/brms_models/` and are gitignored: ~185 MB of
-binary artifacts, regenerable by `Scripts/analysis/corpus_relfreq_brms_all.R`,
+Fitted brms models live in `Data/brms_models/` and are gitignored: a few hundred
+MB of binary artifacts, regenerable by `Scripts/analysis/corpus_relfreq_brms_all.R`,
 which is resume-safe and skips any cell whose `.rds` already exists. The two
-small summaries the paper renders from, `Data/brms_relfreq_prop.rds` and
+small summaries the paper renders from, `Data/brms_relfreq_rawscale.rds` and
 `Data/relfreq_slope_curve.csv`, *are* tracked, so the writeup builds without
 re-running roughly seven hours of sampling.
+
+That script fits two parameterisations, selected by the `SCALE` environment
+variable, which also names the outputs so they cannot collide. The paper reports
+`SCALE=raw`, which leaves `rel_freq` on its proportion scale and centres
+`log_freq` without scaling; `SCALE=z` z-scores everything and is kept for
+comparison. See [`Scripts/README.md`](Scripts/README.md) for why the two kinds of
+variable are scaled differently.
 
 ---
 

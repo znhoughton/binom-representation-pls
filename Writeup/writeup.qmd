@@ -16,10 +16,14 @@ author:
       - name: Vail Systems, Inc.
 
 abstract: |
-  Humans balance abstract and item-specific knowledge when ordering binomials: abstract constraints shape the ordering preferences for infrequent binomials, while idiosyncratic knowledge drives the ordering preferences for frequent ones. Evaluating 16 language models across five families, we uncover a parallel trade-off. Probing hidden-state representations shows that language models do learn abstract preferences, recovering the ordering of binomials built from words they never saw together. But a binomial's own attested order in the training corpus predicts a model's preference over and above anything those abstract preferences supply, and predicts it more strongly the more often the model encountered it. To locate that item-specific component, we zero out cross-word attention, forcing the representation into a strictly additive function of the two words. The intervention removes roughly half of it while the abstract component survives undiminished, showing that what is stored requires the two words to be encoded together. Tracking training checkpoints shows that abstract preferences are present early while the item-specific component is absent at first and accumulates with exposure, its onset governed by training tokens rather than model scale.
+  Humans balance abstract and item-specific knowledge when ordering binomials: abstract constraints shape the ordering preferences for infrequent binomials, while idiosyncratic knowledge drives the ordering preferences for frequent ones. Evaluating 16 language models across five families, we uncover a parallel trade-off. Probing hidden-state representations shows that language models do learn abstract preferences. However, a binomial's relative frequency in the training corpus predicts a model's preference over and above anything those abstract preferences supply, and predicts it more strongly for high-frequency binomials. To locate that item-specific component, we zero out cross-word attention, forcing the representation into a strictly additive function of the two words. The intervention mitigates but does not remove the idiosyncrasy of high-frequency binomials, indicating that storage shifts the representations of the individual words and not only the representation of the phrase. Tracking training checkpoints further demonstrates that abstract preferences are present early while the frequency-dependent storage is not observable until later, the point at which it becomes detectable being governed by training tokens rather than model scale.
 
 bibliography: references.bib
-tbl-cap-location: bottom
+# Captions above tables. With bottom captions Quarto appends the caption as a
+# trailing row of the longtable, so kableExtra's \bottomrule (which lives in
+# \endlastfoot) is emitted *after* it and draws a rule underneath the caption
+# text. Placing the caption in the header removes that stray rule.
+tbl-cap-location: top
 header-includes:
   - \usepackage{float}
 execute:
@@ -271,11 +275,11 @@ Binomial expressions (e.g., *cats and dogs*) are notable for their relationship 
 
 ## Abstract Preferences in Language Models
 
-Language models offer a way to study this trade-off that behavioral work cannot. When an expression stops being formed compositionally and starts being stored holistically is fundamentally a question about experience, but a human speaker's history with any particular expression can only be estimated reasonably using corpus frequency. In a language model, that history is the training corpus itself, and it can be counted exactly. The representations are also directly inspectable, and the computation that produces them can be intervened on. The same is not true for humans, at least not without throwing away our ethics.
+Language models offer a way to study this trade-off that behavioral work cannot. When an expression stops being formed compositionally and starts being stored holistically is fundamentally a question about experience, but a human speaker's history with any particular expression can only be estimated reasonably using corpus frequency. In a language model, that history is the training corpus itself, and it can be counted exactly. The representations are also directly inspectable, and the computation that produces them can be intervened on. Neither is possible for human learners.
 
-The evidence for abstract preferences and holistic storage in language models has been much more mixed than in the human behavioral literature. Models clearly generalize beyond what they have seen: @misraLanguageModelsLearn2024 show that language models can produce the rare *a beautiful five days* construction even when it is withheld from training, generalizing to it from related constructions that are better attested, and @yaoBothDirectIndirect2025 find that dative alternation preferences are shaped by abstract constraints rather than direct experience alone. At the same time, models retain a great deal item-specifically. @mccoy2023howmuchlanguage find that while model-generated text is often as structurally novel as human text, the same models also reproduce passages of over a thousand words verbatim from their training data. As such, it is clear that both abstract preferences and holistic storage are clearly at play within language models, however what remains unclear is how these types of knowledge trade off and when they emerge during training.
+The evidence for abstract preferences and holistic storage in language models has been more mixed than in the human behavioral literature. Models clearly generalize beyond what they have seen: @misraLanguageModelsLearn2024 show that language models can produce the rare *a beautiful five days* construction even when it is withheld from training, generalizing to it from related constructions that are better attested, and @yaoBothDirectIndirect2025 find that dative alternation preferences are shaped by abstract constraints. At the same time, models retain a great deal item-specifically. @mccoy2023howmuchlanguage find that while model-generated text is often as structurally novel as human text, the same models also reproduce passages of over a thousand words verbatim from their training data. As such, it is clear that both abstract preferences and holistic storage are clearly at play within language models, however what remains unclear is how these types of knowledge trade off and when they emerge during training.
 
-Perhaps most related to the present study, language models' ordering preferences for binomials appear not to be driven by abstract preferences at all [@houghton2025role]. @houghton2025role examined whether language models showed the same abstract preferences that humans show in the ordering of binomials, and found that the models' ordering preferences were driven exclusively by frequency statistics, with no evidence of an effect of the abstract preferences that affect human ordering preferences. However, that finding faces limitations along two main dimensions. First, the study can only claim to find no evidence that the models' ordering preferences were driven by *human* ordering preferences; it may very well be that their preferences are driven by abstract preferences that simply differ from those humans show. Second, the examination was conducted on model behavior, in the form of output probabilities, rather than over the representations that produce it. A model could in principle derive an ordering from abstract properties of the binomial and still produce output statistics that look frequency-driven.
+Perhaps most related to the present study, language models' ordering preferences for binomials appear not to be driven by abstract preferences at all [@houghton2025role]. @houghton2025role examined whether language models showed the same abstract preferences as humans, and found that the models' ordering preferences were driven exclusively by frequency statistics, with no evidence of an effect of abstract preferences. However, that finding faces limitations along two main dimensions. First, the study can only claim to find no evidence that the models' ordering preferences were driven by *human* ordering preferences; it may very well be that their preferences are driven by abstract preferences that simply differ from those humans show. Second, the examination was conducted on model behavior, in the form of output probabilities, rather than over the representations that produce it. A model could in principle derive an ordering from abstract properties of the binomial and still produce output statistics that look frequency-driven.
 
 ## Present Study
 
@@ -283,14 +287,15 @@ The present study thus asks whether binomial ordering preferences in language mo
 
 Our main contributions are:
 
+-   **Empirical evidence for both abstract preferences and frequency-driven holistic storage.** We show that a probe trained on LLM hidden-state representations for binomials can predict the ordering preferences for binomials it hasn't seen, however the order a binomial's own training corpus attests for it predicts a model's preference over and above anything those abstract preferences predict, and does so more strongly the more often the model encountered it.
 -   **An architectural intervention separating holistic storage from abstract preferences.** Zeroing out cross-word attention between the individual words isolates a model's abstract preferences from its binomial-specific representations.
-
--   **Empirical evidence for both abstract preferences and frequency-driven holistic storage.** We show that ordering preferences are recoverable from a model's representations and generalize to binomials composed of words the probe never saw, establishing that they are driven by abstract preferences. At the same time, the order a binomial's own training corpus attests for it predicts a model's preference over and above anything those abstract preferences supply, and does so more strongly the more often the model encountered it, showing that frequent items are additionally stored. 
--   **Demonstrating that exposure, not scale, drives the shift.** Across a tenfold range in parameters, the stored component becomes detectable at nearly the same point in training: between 298M and 315M tokens for the three BabyLM models. What governs the transition is how much text a model has read rather than its representational capacity.
+-   **Evidence that storage shifts lexical, not only phrasal, representations.** Part of what a model knows about a particular binomial survives an intervention that removes its phrasal representation, indicating that repeated exposure to a phrase also changes the representations of the individual words it contains.
 
 # Methods {#sec-methods}
 
-All three experiments apply the same procedure and differ only in which models and checkpoints it is applied to; Appendix\ \ref{sec-appendix-models} lists all sixteen with their parameter counts and training-token estimates. This section describes that shared procedure: the datasets, the probes, and the analyses.
+All three experiments apply the same procedure and differ only in which models[^1] and checkpoints it is applied to. This section describes that procedure: the datasets, the probes, and the analyses.
+
+[^1]: Appendix \ref{sec-appendix-models} lists all sixteen models with their parameter counts and training-token estimates.
 
 ```{r}
 #| label: exp2-novel-pile-stats
@@ -315,7 +320,7 @@ In order to examine the ordering preferences for binomials, we created two binom
 
 The novel set is genuinely novel only for the BabyLM models; for the large-scale models it consists of infrequent attested binomials rather than unseen ones. We retain the label *novel* throughout, and return to what it licenses in the Limitations.
 
-Both sets were extracted automatically, using spaCy [@spacy2] part-of-speech tags to find candidate sequences and the Berkeley Neural Parser [@kitaev-klein-2018-constituency; @kitaev-etal-2019-multilingual] to confirm that the two words form a minimal coordinate phrase; Appendix\ \ref{sec-appendix-extraction} gives the full criteria.
+Both sets were extracted automatically, using spaCy [@spacy2] part-of-speech tags to find candidate sequences and the Berkeley Neural Parser [@kitaev-klein-2018-constituency; @kitaev-etal-2019-multilingual] to confirm that the two words form a minimal coordinate phrase (See Appendix \ref{sec-appendix-extraction}).
 
 For each corpus binomial and each model, we also calculate the ordering preference, which is operationalized as the model's own log-probability ratio: $y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)$.
 
@@ -333,34 +338,34 @@ For each model we extract final-layer hidden states, presenting each binomial in
 We additionally probe representations under two attention conditions:
 
 -   **Full context**: standard forward pass with full cross-token attention. Each word's representation reflects contextual influences from all other (previous) tokens in the sentence.
--   **Attention-zeroed**: attention from the second word and the conjunction to the first word is blocked by setting the corresponding attention logits to $-\infty$ before the softmax, at every transformer layer, so no cross-word information reaches $W_2$ or the conjunction at any depth (Appendix\ \ref{sec-appendix-implementation}). This condition tests whether the second word's representation is specifically shaped by direct cross-word attention to the first word.
+-   **Attention-zeroed**: attention from the second word and the conjunction to the first word is blocked by setting the corresponding attention logits to $-\infty$ before the softmax, at every transformer layer, so no cross-word information reaches $W_2$ or the conjunction at any depth (Appendix \ref{sec-appendix-implementation}).
 
 This gives three representation types per model: binomial-level under each attention condition, and full-context word-level.
 
-Because $y_{true}$ is a difference of log-probabilities over the two orderings, and because causal masking already prevents $W_1$ from attending to $W_2$, blocking attention from $W_2$ and the conjunction to $W_1$ leaves the model blind to the other word. The resulting preference is necessarily of the form $g(W_1) - g(W_2)$: an additive function of the two words evaluated separately, with no interaction term. The attention-zeroed model therefore reports not a degraded preference but the preference it would hold given only per-word information.
+Because $y_{\text{true}}$ is a difference of log-probabilities over the two orderings, and because causal masking already prevents $W_1$ from attending to $W_2$, blocking attention from $W_2$ and the conjunction to $W_1$ leaves the model blind to the other word. The resulting preference is necessarily of the form $g(W_1) - g(W_2)$: an additive function of the two words evaluated separately, with no interaction term. The attention-zeroed model therefore reports not a degraded preference but the preference it would hold given only per-word information.
 
 ## Probes
 
-For each representation type, we train a two-layer MLP classifier (hidden dimension 128, ReLU activation) to predict binomial ordering preferences from the extracted representations. The probe takes the concatenated representations for a binomial and outputs a single continuous value $\hat{y}$, trained under mean-squared-error loss against $y_{true}$, with antisymmetric augmentation so that a swapped ordering carries the negated label. Optimizer settings, early stopping, and the augmentation rate are given in Appendix\ \ref{sec-appendix-implementation}. We report cross-validated R² (the squared Pearson correlation between $\hat{y}$ and $y_{true}$ on held-out folds), averaged across 10 folds.[^1]
+For each representation type, we train a two-layer MLP classifier (hidden dimension 128, ReLU activation) to predict binomial ordering preferences from the extracted representations. The probe takes the concatenated representations for a binomial and outputs a single continuous value $\hat{y}$, trained under mean-squared-error loss against $y_{\text{true}}$, with antisymmetric augmentation so that a swapped ordering carries the negated label. Optimizer settings, early stopping, and the augmentation rate are given in Appendix \ref{sec-appendix-implementation}. We report cross-validated R² (the squared Pearson correlation between $\hat{y}$ and $y_{\text{true}}$ on held-out folds), averaged across 10 folds.[^2]
 
-[^1]: The results below do not depend on the MLP's capacity. A ridge regression on the same antisymmetric features, using the same folds and a single tuned hyperparameter, recovers most of the MLP's performance and orders the models the same way; on the word-held-out split the two agree most closely. Full comparison in Appendix\ \ref{sec-appendix-linear}.
+[^2]: The results below do not depend on the MLP's capacity. A ridge regression on the same antisymmetric features, using the same folds and a single tuned hyperparameter, recovers most of the MLP's performance. Full comparison in Appendix \ref{sec-appendix-linear}.
 
-We evaluate generalization under two cross-validation splits:
+We evaluate generalization under two 10-fold cross-validation conditions:
 
 -   **Binomial-held-out**: binomials are held out as units; each binomial in the test set is excluded from the training set, however overlapping words are allowed (e.g., *radios and computers* is not excluded from the training even if *radios and televisions* is in the test set).
--   **Word-held-out**: the vocabulary is partitioned into ten folds; the test set for a fold is the binomials whose *both* words fall in that fold, and the training set is the binomials whose *neither* word does. Binomials with one word on each side are discarded for that fold. This tests generalization to completely novel lexical items.
+-   **Word-held-out**: binomials with overlapping words are excluded from the training set. For example, if *radios and televisions* is in the test set, then *radios and computers* is excluded from the training set.
 
-Both splits are applied to the novel set; the attested set is not cross-validated, and enters only as the transfer target described below. Word-held-out yields an order of magnitude fewer test items per fold, and its R² is correspondingly more variable, which is why we report fold standard deviations throughout (Appendix\ \ref{sec-appendix-cv}).
+Both splits are applied to the novel set; the attested set is not cross-validated, and enters only as the transfer target described below. Word-held-out yields an order of magnitude fewer test items per fold, and its R² is correspondingly more variable, which is why we report fold standard deviations throughout (Appendix \ref{sec-appendix-cv}).
 
-Finally, following @hewitt-liang-2019-designing, we train a matched control probe on randomly permuted labels under identical settings; near-zero control R² indicates the probe is recovering linguistic structure rather than label artifacts or probe capacity.
+Finally, following @hewitt-liang-2019-designing, we train a matched control probe on randomly permuted labels; near-zero control R² indicates the probe is recovering linguistic structure rather than label artifacts or probe capacity.
 
 ## Analyses {#sec-methods-analyses}
 
-We report two measurements. The first is the probe's cross-validated $R^2$ under the two splits above, of which word-held-out is the stricter: binomial-held-out $R^2$ may be inflated by lexical preferences, such as a general tendency for *bread* to come first.
+We report two measurements. The first is the probe's cross-validated $R^2$ under the two splits above, of which word-held-out is the stricter (since binomial-held-out $R^2$ may be inflated by general lexical preferences).
 
-The second measurement uses the probe rather than evaluating it. A probe trained on the full novel set is applied to the attested set. Since that probe has seen only binomials the model encountered rarely or not at all, its prediction $\hat{y}$ for an attested binomial estimates what generalizable knowledge alone would predict, and cannot reflect the probe having learned that binomial.
+The second measurement evaluates the probe on the attested set. Since that probe has seen only binomials the model encountered rarely or not at all, its prediction $\hat{y}$ for an attested binomial estimates what abstract knowledge alone would predict, and cannot reflect the probe (or the LLM) having memorized that binomial. In order to analyze the extent to which the model's ordering preference within the attested set is driven by abstract vs holistic knowledge, we implement a Bayesian regression model using *brms* [@burkner2017brms] with default priors. Our dependent variable is $y_{\text{true}}$, the model's ordering preference. The probe's prediction, $\hat{y}$, stands in for abstract preferences. Relative frequency, $r$, is the centered proportion of occurrences in alphabetical ordering: $0.5$ means the binomial always occurs in alphabetical ordering in the corpus, $0$ means it occurs evenly in both orderings, and $-0.5$ means it always occurs in non-alphabetical ordering. Letting $f$ be log overall frequency (overall occurrences in the model's corpus, logged[^3]), our regression equation is:
 
-Two things could govern the model's preference for an attested binomial: the abstract component $\hat{y}$, and the order the corpus itself attests for that particular pair. The latter is item-specific and external to the model, so it is the natural measure of stored knowledge. Writing each pair with $w_1$ alphabetically first, we measure it as $r = \text{freq}_{w_1 \text{and} w_2} / (\text{freq}_{w_1 \text{and} w_2} + \text{freq}_{w_2 \text{and} w_1}) - 0.5$, the share of the corpus's occurrences that place the alphabetically first word first, centered so that $r$ runs from $-0.5$ to $+0.5$ and zero means the corpus attests both orders equally often. Alphabetical order is an arbitrary reference frame rather than a preferred one: it is the majority order for almost exactly half of the binomials in each corpus, and $r$, $\hat{y}$, and $y_{\text{true}}$ are all signed the same way, so a positive value on any of the three means the alphabetically first word comes first. Entering both predictors together, and letting each be moderated by how often the model saw the binomial ($f$, log total frequency), gives
+[^3]: Frequency is each binomial's exposure in the model's own training corpus: exact counts in the BabyLM corpus [@warstadt-etal-2023-findings] for the BabyLM models, and infini-gram counts in the Pile [@gao2020pile; @liu2024infinigram] for the rest, which are exact only for Pythia and stand in as a proxy for GPT-2, OLMo, and Llama  (Appendix \ref{sec-appendix-relfreq}). The two corpora differ sharply in the frequency range they afford; Appendix\ \ref{sec-appendix-corpus-freq} gives the distributions.
 
 $$
 \begin{aligned}
@@ -370,17 +375,13 @@ y_{\text{true}} &\sim \beta_0 + \beta_1\hat{y} + \beta_2 r + \beta_3 f\\
 \end{aligned}
 $$ {#eq-relfreq}
 
-fit in *brms* [@burkner2017brms] with default priors. Holistic storage makes two predictions about the moderators: as a binomial becomes entrenched, the abstract component should lose ground ($\beta_4 < 0$) while its own attested order should gain ground ($\beta_5 > 0$). Attention-zeroing should attenuate both, since it prevents any information about the two words jointly from reaching the probe.
-
-The residual scale is modeled rather than assumed constant. The spread of $y_{\text{true}}$ varies with frequency, and an unmodeled trend there would inflate the slopes at one end of the range; $\gamma_1$ absorbs it, leaving the interaction terms to capture changes in how strongly each predictor governs the ordering.
-
-Frequency is each binomial's exposure in the model's own training corpus: exact counts in the BabyLM corpus [@warstadt-etal-2023-findings] for the BabyLM models, and infini-gram counts in the Pile [@gao2020pile; @liu2024infinigram] for the rest, which are exact only for Pythia and stand in as a proxy for GPT-2, OLMo, and Llama. Reduplicatives such as *again and again* are excluded, since the two orderings are the same string (Appendix\ \ref{sec-appendix-relfreq}).
+The residual scale is modeled rather than assumed constant. The spread of $y_{\text{true}}$ varies with frequency, and an unmodeled trend there would inflate the slopes at one end of the range.
 
 # Experiment 1: BabyLM Representations {#sec-exp1}
 
-In this first experiment, we probe three BabyLMs (125M, 350M, and 1.3B parameters)[^2] at their final training checkpoint. Because these models were trained on an amount of data comparable to humans, and because the novel set excludes binomials in their training corpus, they give the cleanest test of whether a language model encodes abstract binomial ordering preferences: any preference the probe recovers for a novel binomial must have been generalized rather than retrieved.
+In this first experiment, we probe three BabyLMs (125M, 350M, and 1.3B parameters)[^4] at their final training checkpoint. Because these models were trained on an amount of data comparable to humans, and because the novel set excludes binomials in their training corpus, they give the cleanest test of whether a language model encodes abstract binomial ordering preferences.
 
-[^2]: The BabyLM models used here are OPT-based models trained for 20 epochs on a 150M-token subset of the BabyLM benchmark corpus [@houghton2026holisticstorageverbupphrases; @warstadt-etal-2023-findings].
+[^4]: The BabyLM models used here are OPT-based models trained for 20 epochs on the BabyLM v3 corpus [@houghton2026holisticstorageverbupphrases; @warstadt-etal-2023-findings].
 
 ```{r}
 #| label: load-brms-babylm
@@ -389,10 +390,11 @@ In this first experiment, we probe three BabyLMs (125M, 350M, and 1.3B parameter
 babylm_labels <- c("BabyLM-125M", "BabyLM-350M", "BabyLM-1.3B")
 # ── Main model: y_true ~ y_pred*log_freq + rel_freq*log_freq, sigma ~ log_freq ──
 # (Scripts/analysis/corpus_relfreq_brms_all.R). All four variables z-scored within each
-# cell, so coefficients are standardized betas and comparable across cells; the
+# cell; rel_freq and log_freq keep their own scales, so they are comparable
+# across cells without standardising. The
 # file holds final checkpoints (step = NA) and training checkpoints together.
-relfreq_all <- if (file.exists("../Data/brms_relfreq_prop.rds")) {
-  readRDS("../Data/brms_relfreq_prop.rds") |>
+relfreq_all <- if (file.exists("../Data/brms_relfreq_rawscale.rds")) {
+  readRDS("../Data/brms_relfreq_rawscale.rds") |>
     filter(label %in% model_order) |>
     mutate(model = factor(label, levels = model_order),
            family = family_map[label])
@@ -474,7 +476,12 @@ if (nrow(relfreq_curve)) {
 curve_line  <- function(d) if (any(d$kind == "grid")) filter(d, kind == "grid") else d
 curve_point <- function(d) filter(d, kind == "decile")
 freq_axis <- if (has_raw_freq) {
-  list(scale_x_log10(breaks = scales::breaks_log(4),
+  # Breaks have to adapt to the range: BabyLM spans 1-15 occurrences (1.2
+  # decades) while the Pile corpora reach ~73,000 (4.6 decades), so one tick per
+  # decade would leave the BabyLM panel with two labels. breaks_log picks
+  # sub-decade breaks when the range is narrow (1, 3, 5, 10) and whole decades
+  # when it is wide, giving four or five ticks either way.
+  list(scale_x_log10(breaks = scales::breaks_log(6),
                      labels = scales::label_number(big.mark = ",", accuracy = 1)),
        labs(x = "Binomial frequency in training corpus (log scale)"))
 } else {
@@ -516,13 +523,13 @@ ctrl_sd_exp2   <- sd(ctrl_r2_exp2)
 
 ### Probe Performance
 
-Results are shown in @fig-r2-babylm; full numerical results are in Appendix\ \ref{sec-appendix-exp1} (@tbl-r2-babylm). The control probe R² values were consistently near zero across all conditions and all three models (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp1, ctrl_sd_exp1)`; full control results are in @tbl-ctrl-r2-babylm), confirming that the probe doesn't recover spurious signal from label noise.
+Results are shown in @fig-r2-babylm; full numerical results are in Appendix \ref{sec-appendix-exp1} (@tbl-r2-babylm). The control probe R² values were consistently near zero across all conditions and all three models (reported alongside each R² in @tbl-r2-babylm), confirming that the probe doesn't recover spurious signal from label noise.
 
 ```{r}
 #| label: fig-r2-babylm
-#| fig-cap: "Cross-validated probe R² at the final hidden layer for the BabyLM models, binomial level, by attention condition. Bars = ±1 SD across 10 folds (minimum width enforced for visibility). The drop from the left to the right of each panel is the lexical generalization cost."
+#| fig-cap: "Cross-validated probe R² at the final hidden layer for the BabyLM models, binomial level, by attention condition. Bars = ±1 SD across 10 folds."
 #| fig-width: 3.3
-#| fig-height: 2.3
+#| fig-height: 2
 #| eval: !expr nrow(all_r2) > 0
 
 all_r2 |>
@@ -561,17 +568,15 @@ For the binomial-level conditions, binomial-held-out R² ranges from 0.24 to 0.3
 
 ### Abstract and Stored Contributions
 
-Both sources predict the model's ordering preference, and both do so credibly in all three models. Under full context, $\hat{y}$ carries a coefficient between `r sprintf("%+.3f", min(sapply(babylm_labels, function(l) relfreq$pred_mean[relfreq$label==l & relfreq$condition=="default"])))` and `r sprintf("%+.3f", max(sapply(babylm_labels, function(l) relfreq$pred_mean[relfreq$label==l & relfreq$condition=="default"])))`, and $r$ one between `r sprintf("%+.3f", min(sapply(babylm_labels, function(l) relfreq$rel_mean[relfreq$label==l & relfreq$condition=="default"])))` and `r sprintf("%+.3f", max(sapply(babylm_labels, function(l) relfreq$rel_mean[relfreq$label==l & relfreq$condition=="default"])))`, with 95% credible intervals excluding zero throughout (Appendix\ \ref{sec-appendix-relfreq}). A BabyLM's preference for an attested binomial is thus governed partly by what generalizes from binomials it never saw, and partly by the order its own corpus happens to attest for that specific pair. Neither alone accounts for the ordering.
+Both abstract preferences and relative corpus frequency predict the model's ordering preference, and both do so credibly in all three models (Appendix \ref{sec-appendix-relfreq}). The effect of relative frequency is stronger for high-frequency binomials, while the effect of $\hat{y}$ is constant across different frequencies.
 
-Attention-zeroing separates the two. Blocking cross-word attention reduces the contribution of the corpus's attested order by `r sprintf("%.0f", min(sapply(c("BabyLM-125M","BabyLM-350M","BabyLM-1.3B"), rf_drop, term="rel")))`–`r sprintf("%.0f", max(sapply(c("BabyLM-125M","BabyLM-350M","BabyLM-1.3B"), rf_drop, term="rel")))`%, against `r sprintf("%.0f", min(sapply(c("BabyLM-125M","BabyLM-350M","BabyLM-1.3B"), rf_drop, term="pred")))`–`r sprintf("%.0f", max(sapply(c("BabyLM-125M","BabyLM-350M","BabyLM-1.3B"), rf_drop, term="pred")))`% for the abstract component. The two ranges overlap, but the asymmetry holds within each model taken separately: the attested order loses more than the abstract component does in all three. Since the zeroed representation is additive in the two words and can carry no information about them jointly, the component that gives way is the one that required them to interact.
-
-The frequency moderation is present here too. The attested order gains ground with exposure in all three models (`r rf("BabyLM-125M","default","rel_x")`, `r rf("BabyLM-350M","default","rel_x")` and `r rf("BabyLM-1.3B","default","rel_x")`), and in each case that gain is roughly halved under attention-zeroing (`r rfm("BabyLM-125M","attn_zeroed","rel_x")`, `r rfm("BabyLM-350M","attn_zeroed","rel_x")` and `r rfm("BabyLM-1.3B","attn_zeroed","rel_x")`). These are the same magnitudes the large-scale models show in Experiment 2, so the models trained on a human-scale corpus need no separate account: the frequency-dependent trade-off appears at 100M tokens and does not require web-scale exposure to emerge. The caveat is on precision rather than direction. 70% of BabyLM's binomials occur exactly once, so $r$ sits at a boundary value for most of the set and its lowest frequency deciles consist entirely of singletons, leaving the measure coarse at the low-frequency end (Appendix\ \ref{sec-appendix-relfreq}). Experiment 2 supplies the frequency range these models lack.
+Zeroing out attention reduces both the effects of abstract preferences and relative frequency for the BabyLMs and additionally results in a negative interaction effect between $\hat{y}$ and overall frequency, suggesting that abstract preferences are a *worse* predictor of ordering preferences for high-frequency binomials when attention is zeroed.
 
 ```{r}
 #| label: fig-relfreq-babylm
-#| fig-cap: "How strongly each source contributes to the BabyLM models' ordering preference, by binomial frequency. Values are simple slopes from the fitted posteriors of @eq-relfreq, evaluated at each decile's median frequency and plotted against that frequency. The lines are straight because @eq-relfreq is linear in `log_freq`, so a simple slope is exactly linear in it; points mark the decile medians, and their spacing shows where the binomials actually are. Bands are 95\\% credible intervals, widest at the extremes because a simple slope is least precisely estimated far from the mean. Under full context relative frequency gains ground as frequency rises while the abstract component loses it; under attention-zeroing relative frequency sits lower throughout."
+#| fig-cap: "How strongly each source contributes to the BabyLM models' ordering preference, by binomial frequency. Values are slopes from the fitted posteriors of @eq-relfreq. Bands are 95\\% credible intervals."
 #| fig-width: 3.3
-#| fig-height: 3.0
+#| fig-height: 2.0
 #| eval: !expr nrow(relfreq_curve) > 0
 
 # x is the decile's median log frequency, not the decile index. @eq-relfreq is
@@ -599,7 +604,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term, linetype = model))
   scale_linetype_manual(values = c("solid", "42", "12"), name = NULL,
                         labels = c("125M", "350M", "1.3B")) +
   freq_axis +
-  labs(y = "Standardized slope on ordering preference") +
+  labs(y = "Coefficient value") +
   guides(linetype = guide_legend(order = 1), color = guide_legend(order = 2)) +
   theme_paper(base_size = 9) +
   theme(legend.position = "bottom", legend.box = "vertical",
@@ -611,19 +616,22 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term, linetype = model))
 
 # Experiment 2: Cross-Family Final-Layer Representations {#sec-exp2}
 
-Experiment 1 demonstrates that BabyLMs rely on both abstract preferences and holistic storage for binomial ordering. Those models are small in both parameters and training data, so Experiment 2 applies the same probe to 13 further models across four large-scale families: Pythia, GPT-2, OLMo, and Llama, with the BabyLM results carried over for comparison (Appendix\ \ref{sec-appendix-models}).
+Experiment 1 demonstrates that BabyLMs rely on both abstract preferences and holistic storage for binomial ordering. Those models are small in both parameters and training data, so Experiment 2 applies the same probe to 13 further models across four large-scale families: Pythia, GPT-2, OLMo, and Llama, with the BabyLM results carried over for comparison (Appendix \ref{sec-appendix-models}).
 
 ## Results
 
 ### Probe Performance
 
-@fig-r2 shows both cross-validation splits for all 16 models; full numbers, control probes, and the word-level replication are in Appendix\ \ref{sec-appendix-exp2}. Control R² was near zero throughout (mean ± SD = `r sprintf("%.4f ± %.4f", ctrl_mean_exp2, ctrl_sd_exp2)`). All large-scale models substantially outperform BabyLM: full-context binomial-held-out R² spans 0.43 to 0.65 against 0.29–0.34, and word-held-out R² is lower than binomial-held-out for every model and condition. Attention-zeroing raises binomial-held-out R² in every large-scale family, most sharply in GPT-2, where it reaches 0.79 at 117M against 0.65 under full context; Llama-3-8B is the sole exception. Scale effects within families are non-monotonic, with GPT-2 R² *decreasing* with size, from 0.65 at 117M to 0.49 at XL.
+
+
+@fig-r2 shows both cross-validation splits for all 16 models; full numbers, control probes, and the word-level replication are in Appendix \ref{sec-appendix-exp2}. Control R² was near zero throughout. All large-scale models substantially outperform BabyLM: full-context binomial-held-out R² spans 0.43 to 0.65 against 0.29–0.34, and word-held-out R² is lower than binomial-held-out for every model and condition. Attention-zeroing raises binomial-held-out R² in every large-scale family, most sharply in GPT-2, where it reaches 0.79 at 117M against 0.65 under full context; Llama-3-8B is the sole exception. Scale effects within families are non-monotonic as a function of number of parameters.
 
 ```{r}
 #| label: fig-r2
-#| fig-cap: "Cross-validated R² for all 16 models, by attention condition and cross-validation split. Circles = binomial-held-out; triangles = word-held-out. Bars = 95\\% CI across 10 folds. Models ordered by parameter count within each family and colored by family. Control R² $\\approx$ 0 (Appendix\\ \\ref{sec-appendix-exp2})."
+#| fig-cap: "Cross-validated R² for all 16 models, by attention condition and cross-validation split. Circles = binomial-held-out; triangles = word-held-out. Bars = 95\\% CI across 10 folds. Models ordered by parameter count within each family and colored by family."
 #| fig-width: 6.5
-#| fig-height: 2.5
+#| fig-height: 2
+#| fig-pos: 't'
 #| fig-env: "figure*"
 #| eval: !expr nrow(all_r2) > 0
 
@@ -639,6 +647,11 @@ all_r2 |>
   filter(mode == "mean_pooled", !is_control) |>
   mutate(
     condition = recode_condition(condition),
+    condition = recode(
+      condition,
+      "Full context" = "Full\ncontext",
+      "Attention-zeroed" = "Attention-\nzeroed"
+    ),
     split_lbl = factor(recode(split,
                               "pair_novel" = "Binomial-held-out",
                               "word_novel" = "Word-held-out"),
@@ -666,14 +679,15 @@ all_r2 |>
     legend.position  = "bottom",
     legend.margin    = margin(t = -4),
     axis.text.x = element_text(angle = 45, hjust = 1, size = 6.5),
-  
+
     # Make the right-hand facet labels smaller
     strip.text.y.right = element_text(size = 7),
-  
+
     # Don't clip the facet-strip text if the rows get shorter
     strip.clip = "off"
   )
 ```
+
 
 ```{r}
 #| label: load-brms-all
@@ -683,19 +697,17 @@ all_r2 |>
 
 ### Abstract and Stored Contributions
 
-The frequency range BabyLM lacks sharpens the moderation and separates the two moderators. Under full context, the contribution of the corpus's attested order grows with exposure in all `r rf_tot("default", large_fams)` large-scale models, and the abstract component's shrinks in all `r rf_tot("default", large_fams)`, with 95% credible intervals excluding zero in every case (@tbl-relfreq; @fig-relfreq-coefs). The two moderators run in opposite directions on the same items: the more often a model saw a binomial, the more its ordering is governed by that binomial's own attested order and the less by what generalizes from binomials it never saw.
+Similar to the BabyLMs, there is an effect of both abstract preferences and relative frequency for all models. Further, the effect of relative frequency is stronger for frequent binomials compared to infrequent ones. Unlike the BabyLMs, however, the effect of abstract preferences *decreases* as a function of frequency. In other words, the more the models encounter a binomial, the more their ordering preferences are governed by that binomial's frequency and the less by abstract preferences.
 
-The effect is substantial rather than marginal. In GPT-2 the two sources cross over: the attested order's standardized slope climbs from `r rc("GPT-2","rel_freq",1)` in the rarest frequency decile to `r rc("GPT-2","rel_freq",10)` in the most frequent, while the abstract component's falls from `r rc("GPT-2","y_pred",1)` to `r rc("GPT-2","y_pred",10)`, so that for the most frequent binomials the corpus's own attested order is the better predictor of the two (@fig-relfreq-pile). The crossing is not universal: in Llama-3-8B the attested order climbs from `r rc("Llama-3-8B","rel_freq",1)` to `r rc("Llama-3-8B","rel_freq",10)` while the abstract component falls from `r rc("Llama-3-8B","y_pred",1)` to `r rc("Llama-3-8B","y_pred",10)`, converging without meeting. The direction is the same in every model; whether the two actually cross depends on where each starts.
+Zeroing out attention mitigates the effect of relative frequency substantially for both the main-effect and the interaction with overall frequency, however both remain credible. Further, the effect of abstract preferences *increases* in every one of the large-scale models, while the interaction effect grows more negative in all but one. In other words, the effect of abstract preferences is generally stronger with attention zeroed out, but this increase is weaker for high-frequency binomials.
 
-Attention-zeroing removes this selectively, which is what identifies where the stored component lives. The attested order's contribution falls by `r sprintf("%.0f", min(sapply(large_models, rf_drop, term="rel")))`–`r sprintf("%.0f", max(sapply(large_models, rf_drop, term="rel")))`% across the large-scale models, and its moderation by frequency falls by roughly `r sprintf("%.0f", median(sapply(large_models, rf_drop, term="rel_x")))`% alongside it, though it remains credible in `r rf_n("attn_zeroed","rel_x","pos",large_fams)` of `r rf_tot("attn_zeroed", large_fams)` models rather than vanishing outright. The abstract component moves the other way: it is *larger* under attention-zeroing in every one of the `r rf_tot("default", large_fams)`, by `r sprintf("%.0f", -max(sapply(large_models, rf_drop, term="pred")))`–`r sprintf("%.0f", -min(sapply(large_models, rf_drop, term="pred")))`%. Since the zeroed representation is additive in the two words, no information about them jointly can reach the probe, so what the intervention strips is the component that required the two words to be encoded together. A blunt degradation of the representation would have reduced both terms; this reduces one and raises the other. It is worth being clear about what remains: roughly half of the attested order's contribution survives an additive representation, so the item-specific knowledge is not carried by a pair representation alone. Experiment 3 shows this surviving portion is the part that appears first, and @sec-discussion takes up what it is likely to be.
-
-One term does not behave as the storage account predicts. The abstract component's moderation stays negative under attention-zeroing in all `r rf_tot("attn_zeroed", large_fams)` large-scale models rather than flattening, so its decline with frequency is not caused by stored orderings displacing it. The probe is trained on novel binomials, which by construction have no corpus frequency; the words of frequent attested binomials have had their representations shaped by those binomial contexts, and a mapping learned from nonce items transfers less well to them. That is a claim about lexical representations rather than phrasal storage, and the intervention leaves it intact because word-additive representations survive the mask.
+Notably, the effect of zeroing out attention differs between the BabyLMs and the other models. For the BabyLMs, zeroing out attention weakens the effect of both abstract preferences and relative frequency; for the large-scale models, it weakens the effect of relative frequency but *strengthens* the effect of abstract preferences. Further, the reduction in the effect of relative frequency is smaller for the BabyLMs than for the other models. In other words, abstract preferences appear to depend on cross-word attention for the BabyLMs, while for the large-scale models they are recoverable from the individual word representations alone.
 
 ```{r}
 #| label: fig-relfreq-pile
-#| fig-cap: "How strongly each source contributes to the ordering preference, by binomial frequency, for the 13 large-scale models. Values are simple slopes from the fitted posteriors of @eq-relfreq, evaluated at each decile's median frequency and plotted against that frequency; faint lines are individual models with their 95\\% credible intervals, bold lines their mean. The lines are straight because @eq-relfreq is linear in `log_freq`. Under full context the abstract component weakens and relative frequency strengthens in all 13; the two cross in Pythia, GPT-2 and Llama-1.3B but not in OLMo or Llama-3-8B. Under attention-zeroing relative frequency sits far lower throughout."
+#| fig-cap: "How strongly each source contributes to the ordering preference, by binomial frequency, for the 13 large-scale models. Values are simple slopes from the fitted posteriors of @eq-relfreq, evaluated at each decile's median frequency and plotted against that frequency; faint lines are individual models with their 95\\% credible intervals, bold lines their mean."
 #| fig-width: 3.3
-#| fig-height: 2.8
+#| fig-height: 2
 #| eval: !expr nrow(relfreq_curve) > 0
 #| fig-pos: 't'
 
@@ -725,7 +737,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term)) +
   scale_fill_manual(values = term_colors, guide = "none") +
   scale_color_manual(values = term_colors, name = NULL) +
   freq_axis +
-  labs(y = "Standardized slope on ordering preference") +
+  labs(y = "Coefficient value") +
   theme_paper(base_size = 9) +
   theme(legend.position = "bottom",
         legend.key.width = unit(12, "pt"),
@@ -736,9 +748,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term)) +
 
 Experiments 1 and 2 establish that language models encode binomial preferences at the end of training, but leave open when those representations emerge, and whether the trade-off between abstract preferences and holistic storage is present early or accumulates with exposure. Experiment 3 examines the same probe at multiple training checkpoints.
 
-The probe, input modes, attention conditions, and cross-validation splits are as described in @sec-methods. We refit @eq-relfreq at each saved checkpoint of the three BabyLM models and the three Pythia models for which checkpoints were available, in both attention conditions: 72 fits in all. Because every variable is standardized within each fit, coefficients are comparable across checkpoints as well as across models.
-
-The two sets of checkpoints cover very different portions of training and should not be read as a common axis. BabyLM's six steps span roughly the first two-thirds of its run, whereas Pythia's stop at step 1000 of about 143,000, or the first 0.7%. Pythia therefore shows what happens very early, and its final-checkpoint models from Experiment 2 show where that leads, with nothing in between.
+The probe, input modes, attention conditions, and cross-validation splits are as described previously. We refit @eq-relfreq at each saved checkpoint of the three BabyLM models and the three Pythia models, in both attention conditions: 72 fits in all. $y_{\text{true}}$ and $\hat{y}$ are standardized within each fit, since their spread differs across models, conditions and checkpoints; $r$ is a proportion on a fixed scale that means the same thing in every corpus. Coefficients are therefore comparable across checkpoints as well as across models.
 
 ## Results
 
@@ -900,20 +910,20 @@ fin_v <- function(lbl, term, cond = "default") {
 }
 ```
 
-Probe trajectories are shown in @fig-checkpoints and the two sources' contributions in @fig-ckpt-sources. BabyLM binomial-held-out R² is already high at the earliest checkpoint (\~20M tokens: 0.67–0.72) and broadly declines to 0.32–0.38 by the end of training. At the earliest checkpoint, the attention-zeroed condition outperforms full context (0.78–0.80 vs. 0.67–0.72); this ordering reverses between \~120M and \~750M tokens, so that full context exceeds attention-zeroed at the final checkpoint for all three model sizes. Pythia shows an inverted-U trajectory instead: R² rises from 0.68–0.74 at 33.6M tokens to a peak of 0.80–0.86 at 537M tokens, then declines to 0.71–0.76 at 1074M–2097M tokens, consistent with large-scale models still consolidating preference representations during this early window (the first 0.7% of 300B tokens). The attention condition flip for Pythia follows the same qualitative pattern as BabyLM. Full numerical and word-level results are in Appendix\ \ref{sec-appendix-exp3}.
+Probe trajectories are shown in @fig-checkpoints and the two sources' contributions in @fig-ckpt-sources. BabyLM binomial-held-out R² is already high at the earliest checkpoint (\~20M tokens: 0.67–0.72) and broadly declines to 0.32–0.38 by the end of training. At the earliest checkpoint, the attention-zeroed condition outperforms full context (0.78–0.80 vs. 0.67–0.72); this ordering reverses between \~120M and \~750M tokens, so that full context exceeds attention-zeroed at the final checkpoint for all three model sizes. Pythia shows an inverted-U trajectory instead: R² rises from 0.68–0.74 at 33.6M tokens to a peak of 0.80–0.86 at 537M tokens, then declines to 0.71–0.76 at 1074M–2097M tokens. The attention condition flip for Pythia follows the same qualitative pattern as BabyLM. Full numerical and word-level results are in Appendix \ref{sec-appendix-exp3}.
 
-The stored contribution accumulates. Across the first three checkpoints `rel_freq` is negligible in every model, never exceeding `r ck_maxabs(ck_sub(TRUE), "rel")` in absolute value and credibly different from zero in only `r n_cred(ck_sub(TRUE), "rel")` of `r nrow(ck_sub(TRUE))` cells, in both directions. From the fourth checkpoint it is credibly positive in `r n_cred_p(ck_sub(FALSE), "rel")` of `r nrow(ck_sub(FALSE))` model-by-condition cells and climbs `r if (ck_mono("rel")) "monotonically " else ""`thereafter: to `r ck_list(babylm_ck, "last", "rel")` in the three BabyLM models and to `r ck_list(pythia_ck, "last", "rel")` in the three Pythia models. This holds in both attention conditions, so what grows is not solely the part that requires the two words to interact. Item-specific ordering information is not present from the outset; it is acquired, and it keeps accruing for as long as we can observe.
+The effect of relative frequency is negligible across the first three checkpoints of every model. From the fourth checkpoint it is credibly positive in `r n_cred_p(ck_sub(FALSE), "rel")` of `r nrow(ck_sub(FALSE))` model-by-condition cells and climbs `r if (ck_mono("rel")) "monotonically " else ""`thereafter: to `r ck_list(babylm_ck, "last", "rel")` in the three BabyLM models and to `r ck_list(pythia_ck, "last", "rel")` in the three Pythia models. This holds in both attention conditions, so what grows is not solely the binomial-specific representation.
 
-What the intervention removes appears later than the contribution itself, and the lag is informative. At the fourth checkpoint, the first at which `rel_freq` is credibly positive in every model, attention-zeroing removes none of it: the gap between conditions is `r ck_gap_maxabs()` at most and as often slightly negative as positive, in both corpora and on both terms. Item-specific ordering information is therefore already measurable at a point where it survives a strictly additive representation intact. Whatever carries it at this stage is not holistic storage, which by definition requires the pair: it is the individual lexical representations.
+At the fourth checkpoint, the first at which `rel_freq` is credibly positive in every model, attention-zeroing removes none of the effect. In other words, at the point where storage is first measurable, it survives an intervention that removes the phrasal representation, so what has shifted at that point is the lexical representations. Storage in the phrasal representation then accumulates on top of it. The share of `rel_freq` that attention-zeroing removes rises from nothing at the fourth checkpoint to `r ck_joint_rng(pythia_ck, "last")`% by the last in the three Pythia models and `r ck_joint_rng(babylm_ck, "last")`% in the three BabyLM models, and reaches `r fin_joint_rng(large_models)`% in the fully trained large-scale models. The interaction effect between relative frequency and overall frequency follows the same course, reaching `r ck_gap_list(babylm_ck, "last", "rel_x")` in BabyLM and `r ck_gap_list(pythia_ck, "last", "rel_x")` in Pythia.
 
-Holistic storage then accumulates on top of it. The share of `rel_freq` that attention-zeroing removes rises from nothing at the fourth checkpoint to `r ck_joint_rng(pythia_ck, "last")`% by the last in the three Pythia models and `r ck_joint_rng(babylm_ck, "last")`% in the three BabyLM models, and reaches `r fin_joint_rng(large_models)`% in the fully trained large-scale models. The frequency moderation follows the same course, its condition gap reaching `r ck_gap_list(babylm_ck, "last", "rel_x")` in BabyLM and `r ck_gap_list(pythia_ck, "last", "rel_x")` in Pythia. Repeated exposure to a binomial thus leaves item-specific knowledge in two forms, and they arrive in order: first in the lexical representations, and only later as holistic storage.
-The abstract component moves independently of all this. `y_pred` declines steadily across BabyLM training in both conditions (`r ck_v("BabyLM-125M", 1, "pred")` to `r ck_v("BabyLM-125M", "last", "pred")` in BabyLM-125M under full context) while rising over Pythia's early window and then falling below its starting value by the final model (`r ck_v("Pythia-160M", 1, "pred")` at step 16, `r ck_v("Pythia-160M", 4, "pred")` at step 256, `r fin_v("Pythia-160M", "pred")` fully trained). Its moderation, `y_pred`$\times$`log_freq`, is credibly negative under attention-zeroing in `r n_cred_n(ck[ck$condition == "attn_zeroed", ], "pred_x")` of the `r sum(ck$condition == "attn_zeroed")` checkpoint cells, but with no trend common to the two corpora: it drifts further from zero across BabyLM training and back toward zero across Pythia's. Full numerical results are in Appendix\ \ref{sec-appendix-exp3}.
+The effect of abstract preferences moves independently of all this. $\hat{y}$ declines steadily across BabyLM training in both conditions. For Pythia it rises over the early window, then falls below its starting value by the final model. Its interaction with overall frequency is credibly negative under attention-zeroing in `r n_cred_n(ck[ck$condition == "attn_zeroed", ], "pred_x")` of the `r sum(ck$condition == "attn_zeroed")` checkpoint cells. Full numerical results are in Appendix \ref{sec-appendix-exp3}.
 
 ```{r}
 #| label: fig-checkpoints
-#| fig-cap: "Cross-validated probe R² across BabyLM and Pythia training checkpoints, by attention condition and cross-validation split. BabyLM's checkpoints span most of its training run, Pythia's only the first 0.7\\% of its own, so the two x-axes are not on a common footing. Control R² $\\approx$ 0."
+#| fig-cap: "Cross-validated probe R² across BabyLM and Pythia training checkpoints, by attention condition and cross-validation split. Control R² $\\approx$ 0."
 #| fig-width: 3.3
-#| fig-height: 2.6
+#| fig-height: 2
+#| fig-pos: 't'
 #| eval: !expr nrow(ckpt_r2) > 0
 
 
@@ -962,9 +972,10 @@ p_r2 +
 
 ```{r}
 #| label: fig-ckpt-sources
-#| fig-cap: "All four terms of @eq-relfreq across training, with 95\\% credible intervals. Rows are the two sources and their moderations by frequency, on separate y-scales because they occupy very different ranges; color marks the attention condition and linetype the model size. All variables are standardized within each fit, so values are comparable across checkpoints and models. The abstract component is substantial from the earliest checkpoint while the attested order starts near zero and accumulates. The two conditions track each other on the main effects until the final checkpoints; they separate most clearly on the attested order's moderation (bottom row), where attention-zeroing roughly halves the coefficient by the end of training in every model. The abstract component's moderation stays near zero throughout and shows no trend common to the two corpora. Neither the y-axes nor the x-axes are on a common footing across panels: BabyLM's checkpoints span most of its training run, Pythia's only the first 0.7\\% of its own."
+#| fig-cap: "All four terms of @eq-relfreq across training, with 95\\% credible intervals. Rows are the two main-effects and their interaction with frequency, on separate y-scales because they occupy very different ranges; color marks the attention condition and linetype the model size. All variables are standardized within each fit, so values are comparable across checkpoints and models."
 #| fig-width: 3.3
-#| fig-height: 5.8
+#| fig-height: 4.8
+#| fig-pos: 't'
 #| eval: !expr nrow(ckpt_coefs) > 0
 
 # Faceting by TERM rather than by condition, with free y-scales. The terms
@@ -1012,7 +1023,7 @@ purrr::map_dfr(names(row_lab), function(s) {
   # exists to make; linetype carries model size, which is secondary here.
   scale_color_manual(values = condition_colors, name = NULL) +
   scale_linetype_manual(values = c("solid", "42", "12"), name = NULL) +
-  labs(x = "Tokens (M, log scale)", y = "Standardized slope on ordering preference") +
+  labs(x = "Tokens (M, log scale)", y = "Coefficient value") +
   theme_paper(base_size = 9) +
   theme(legend.position = "bottom", legend.box = "vertical",
         legend.key.width = unit(14, "pt"),
@@ -1023,27 +1034,29 @@ purrr::map_dfr(names(row_lab), function(s) {
         strip.text.y.left = element_text(angle = 90, size = 7))
 ```
 
-# Discussion and Conclusion {#sec-discussion}
+# Discussion and Conclusion
 
-The present study examined whether language models' binomial ordering preferences are driven by abstract structure, and if so, how that structure emerges throughout training. Across 16 models from five families, we found that ordering preferences are recoverable and generalize to unseen words, that a model's preference for an attested binomial is governed jointly by what generalizes from binomials it never saw and by the order its own corpus attests for that particular pair, that the balance between the two shifts toward the attested order as a binomial becomes more frequent, and that zeroing out cross-word attention removes roughly half of the attested-order contribution in the large-scale models while the abstract one survives, growing rather than shrinking in every one of them.
+The present study examined whether language models' binomial ordering preferences are driven by abstract structure, and if so, how that structure emerges throughout training. Across 16 models from five families, we found evidence for both abstract and item-specific sources of ordering preference. Preferences generalize to binomials composed entirely of words absent from training, demonstrating abstract structure that is shared across independently trained models. At the same time, a binomial's relative frequency contributes over and above abstract preferences, and contributes more as the binomial becomes more frequent. These two sources also behave differently over training: abstract preferences are present early, whereas the item-specific contribution only becomes measurable later, which bounds when it can be observed rather than when it arises. Finally, zeroing out cross-word attention removes only part of the relative-frequency contribution, suggesting that storage shifts the lexical representations as well as the phrasal one.
 
-Ordering preferences are therefore clearly driven by abstract preferences. The probe recovers a model's preference for binomials built entirely from words it was never trained on, which is not something a lookup of stored items can do, and a ridge probe with a single tuned hyperparameter recovers the same pattern, so the result does not depend on the MLP's capacity (Appendix\ \ref{sec-appendix-linear}), and the answer to the question left open by @houghton2025role is that models do have abstract preferences, but ones a test for human constraints failed to detect. Further evidence that these preferences are systematic rather than an arbitrary consequence of the weights is established without the probe at all: independently trained models converge on the same preferences for the same novel binomials ($r = 0.45$, against a shuffled baseline of $r \approx 0.00$), including the three BabyLM models, which share a training corpus but differ in capacity. Agreement is also higher within a family than between families, which rules out the shared sentence frame as its source: the frame is identical for all sixteen models, so it could not produce such a gap. At the same time, a binomial's own attested order contributes over and above anything the abstract mapping supplies, and contributes more the more often the model saw it. That contribution is item-specific by construction: it is a fact about one pair of words, not a constraint that generalizes. This is the same trade-off between abstract preferences and holistic storage that @morgan2016 found in humans, emerging in a system that does not have them innately encoded in them.
+The evidence for abstract preferences is particularly strong because it does not depend on generalization across familiar words alone. The probe recovers a model's preference for binomials built entirely from words it was never trained on. A ridge probe with a single tuned hyperparameter recovers the same pattern, showing that the result does not depend on the MLP's capacity (Appendix\ \ref{sec-appendix-linear}). The answer to the question left open by @houghton2025role is therefore that models do have abstract preferences, but ones that a test for human constraints failed to detect. Further evidence that these preferences are systematic comes without the probe at all: independently trained models converge on the same preferences for the same novel binomials ($r = 0.45$, against a shuffled baseline of $r \approx 0.00$). This agreement holds even among the three BabyLM models, which share a training corpus but differ in capacity, and is stronger within model families than between families. Because all sixteen models received the same sentence frame, the latter pattern cannot be attributed to the frame itself.
 
-The developmental trajectory separates the two components in time. Abstract preferences are present very early: probe R² is already high at the earliest BabyLM checkpoint, at roughly 20M tokens, and the abstract component of @eq-relfreq is large from the first checkpoint in every model. The stored contribution is not. It is negligible through the first three checkpoints of every model, becomes credibly positive everywhere from the fourth, and climbs monotonically thereafter under full context, without levelling off. Item-specific ordering information is therefore acquired rather than present from the outset, and it is still accumulating at the last point we can observe. What the intervention removes grows too, and it lags the contribution itself. At the first checkpoint where a binomial's attested order predicts the model's preference at all, attention-zeroing removes none of that prediction; the share it removes then climbs to roughly half by the end of training. Item-specific ordering knowledge therefore arrives in the lexical representations before it arrives as holistic storage.
+Abstract structure, however, does not fully determine a model's preference for a particular binomial. A binomial's relative frequency predicts the model's preference over and above what the abstract structure predicts, and this item-specific contribution increases with frequency. Unlike the abstract structure, this information is specific to the particular binomial. The result therefore reveals a frequency-dependent division between generalizable structure and experience with individual items, closely paralleling the trade-off between abstract preferences and item-specific experience observed by @morgan2016 in humans.
 
-Usage-based accounts have long held that frequently encountered expressions become stored and retrieved as units rather than assembled from their parts, and behavioral work on binomials has shown that human ordering preferences reflect both abstract constraints and direct experience with particular items. The present study corroborates these accounts in a system with no innate linguistic preferences at all: the same frequency-dependent trade-off emerges in a distributed network trained only to predict text, suggesting that it need not be built in, and can emerge from exposure alone. Zeroing out cross-word attention then shows where the stored component lives. Because the intervention makes the representation additive in the two words, it can carry nothing about them jointly, and what it removes is drawn specifically from the contribution of the binomial's own attested order. What it does *not* remove is equally informative. Roughly half of that contribution survives an additive representation, and it is not, at least, the part the probe's abstract prediction already explains, since that prediction is a covariate in the same fit and is computed from the same additive representation. The probe is not a complete account of abstract structure, so some of what survives may be generalizable knowledge it failed to recover. The more interesting possibility is that repeated exposure to a binomial in its own frame shifts the representations of its individual words, so that a word encountered overwhelmingly in first position comes to encode something of that tendency on its own. That is still item-specific knowledge, a fact about particular words rather than a constraint that generalizes, but it is not holistic storage: it has been distilled into the lexical representations and no longer needs the pair. On this reading, entrenchment yields item-specific knowledge in two forms rather than one, and the developmental data orders them: the lexical form is present as soon as the attested order predicts anything at all, and holistic storage accumulates afterwards. The trade-off @morgan2016 describe in humans is then not a single dial between abstract preferences and holistic storage, but a sequence, with the lexicon carrying the earliest item-specific knowledge and the pair representation taking over later. The abstract component survives the same intervention: it is *larger* under attention-zeroing in all `r rf_tot("default", large_fams)` large-scale models, by `r sprintf("%.0f", -max(sapply(large_models, rf_drop, term="pred")))`--`r sprintf("%.0f", -min(sapply(large_models, rf_drop, term="pred")))`%, and smaller by only `r sprintf("%.0f", min(sapply(babylm_labels, rf_drop, term="pred")))`--`r sprintf("%.0f", max(sapply(babylm_labels, rf_drop, term="pred")))`% in the three BabyLM models. A representation that had merely been degraded would have lost both. Repeated exposure does not simply add a stored preference alongside an abstract one: it builds something that requires the two words to be encoded together, and that can be switched off without disturbing what generalizes.
+Abstract preferences are present from the beginning of training. Probe R² is already high at the earliest BabyLM checkpoint, at roughly 20M tokens, and the effect of abstract preferences in @eq-relfreq is large from the first checkpoint in every model. The item-specific contribution follows a different trajectory: it is negligible through the first three checkpoints of every model, becomes credibly positive everywhere from the fourth, and then climbs monotonically under full context without leveling off. This is not conclusive evidence against item-specific knowledge being learned early, however, since the measurement relies on a frequency-difference in representations to detect holistic storage. The absence of a frequency difference, consequently, does not necessarily indicate lack of storage.
+
+Finally, the attention intervention provides further insight into how this item-specific information is represented. Zeroing out cross-word attention mitigates but does not eliminate the contribution of relative frequency: at the first checkpoint where a binomial's relative frequency predicts the model's ordering preference at all, attention-zeroing removes none of that prediction; the share removed then increases over training. This pattern suggests that item-specific information is not exclusively stored as a holistic representation of the binomial. Instead, it seems possible that repeated exposure to a binomial gradually shifts the representations of its individual words, so that a word encountered overwhelmingly in first position comes to encode something of that tendency on its own. Such information remains item-specific in that it concerns particular words and their learned positional tendencies rather than a general constraint, but it no longer requires the model to represent the specific binomial context. On this interpretation, entrenchment shifts the lexical representations before it shifts the phrasal one. That the phrasal representation comes to carry ordering information is not especially surprising, since attention is what allows a representation of the pair to be built at all. That the *lexical* representations shift is the more interesting result, and it parallels evidence from human processing that the internal representations of a stored multi-word phrase are themselves altered by experience with the phrase [@houghton2025multiwordrepresentationsminds].
+
+The same interpretation may extend to the abstract preferences. Zeroing out attention weakens the effect of abstract preferences for the BabyLMs, but strengthens it for the other models. Suppose exposure to a diverse corpus gradually shifts generalizable regularities into the individual word representations. For the large-scale models, the abstract preferences would then survive the intervention. For the BabyLMs, whose corpus was repeated 20 times rather than varied, they would still need to be computed across words. On this interpretation, both kinds of knowledge follow the same course from computed to lexical, differing only in how much exposure each requires.
+
+Overall, the findings bridge a longstanding gap between artificial language models and usage-based accounts of language. Such accounts have long proposed that frequent expressions become increasingly entrenched, with behavioral work on binomials showing that human ordering preferences reflect both abstract constraints and holistic storage. The present results show a similar division emerging in a system with no innate linguistic preferences: trained only to predict text, the models develop both generalizable ordering preferences and frequency-sensitive knowledge of individual expressions. The results therefore suggest that the interaction between abstraction and entrenchment need not be explicitly built into a learner. It can emerge from exposure itself, with generalizable structure and item-specific knowledge developing together but on different timescales and, potentially, in different parts of the representation.
 
 # Limitations {.unnumbered}
 
-The novel binomials were selected to be absent from BabyLM's training corpus, so they are genuinely novel only for the three BabyLM models; indexed against Dolma [@dolma], a trillion-token corpus, roughly `r dolma_pct_nonzero`% occur at non-zero frequency. For the thirteen large-scale models the probe is therefore trained on infrequent attested binomials rather than unseen ones. This is why Experiment 1 anchors the interpretation: the inference that a recovered preference must have been generalized rather than retrieved rests on BabyLM, and the larger models extend that pattern rather than establish it. Corpus frequency is likewise an exact measure of what the model saw only for BabyLM and Pythia; for GPT-2, OLMo, and Llama, Pile counts stand in as a proxy for web-scale exposure.
+The novel binomials were selected to be absent from BabyLM's training corpus, so they are genuinely novel only for the three BabyLM models; indexed against Dolma [@dolma], a trillion-token corpus, roughly `r dolma_pct_nonzero`% occur at non-zero frequency. For the thirteen large-scale models, then, the probe is trained on infrequent attested binomials, not unseen ones. This is why Experiment 1 anchors the interpretation. If a recovered preference must have been generalized and not retrieved, that inference rests on the BabyLMs; the larger models extend the pattern but don't establish it. Corpus frequency is likewise an exact measure of what the model saw only for BabyLM and Pythia; for GPT-2, OLMo, and Llama, Pile counts stand in as a proxy for web-scale exposure.
 
-The stored-ordering measure is estimated from counts, so it is least reliable exactly where exposure is lowest. A binomial seen once takes the same boundary value as one seen a thousand times in a single order, which makes the predictor coarse for rare items and attenuates its coefficient there. The effect is strongest for BabyLM, where most items sit at a boundary and the measure is close to binary, and mild for the large-scale models, where it varies continuously through its range. That the two return moderation estimates of similar size argues against the coefficient being mostly an artifact of saturation, but attenuation and growing storage do push it in the same direction, so part of any positive estimate reflects improving measurement. This is why we read the comparison between attention conditions rather than the moderation on its own, since the counts, and therefore the attenuation, are identical in both conditions and cancel from the difference.
+Additionally, the results are limited to English and to a single construction, and checkpoints were only examined for two of the five families, so the developmental claims rest on BabyLM and Pythia. Whether attention-zeroing separates per-word from relational information as cleanly in constructions with a different structure is untested, though the argument that it should is architectural rather than empirical and does not depend on properties peculiar to binomials.
 
-Separately, BabyLM and Pythia deliver cumulative exposure to individual binomials at nearly the same rate per training token, so total text read and per-binomial exposure cannot be told apart here; distinguishing them would require matched models trained on repeated versus varied text.
-
-Probe performance establishes that ordering information is present in a model's representations and recoverable by a mapping that generalizes to unseen words, but not that the model uses that information in the way the probe reads it. Our central claims are accordingly framed as differences between attention conditions and across frequency strata rather than as inferences from absolute decodability, and the attention-zeroed quantity is guaranteed by the architecture rather than estimated by the probe. This distinction does real work: a representation that merely carried the outcome of the computation would be read equally well at every frequency, predicting neither a shift in which source governs the ordering nor any change in that shift when cross-word attention is blocked, and both are observed in every large-scale model. Overall R² does also differ between the two attention conditions in a direction that is not stable across families or across training, and we draw no conclusions from it.
-
-Finally, the results are limited to English and to a single construction, and checkpoints were available for two of the five families, so the developmental claims rest on BabyLM and Pythia. Whether attention-zeroing separates per-word from relational information as cleanly in constructions with a different structure is untested, though the argument that it should is architectural rather than empirical and does not depend on properties peculiar to binomials.
+Finally, the intervention separates additive from non-additive information, not abstract from holistic information directly. The two line up only if abstract constraints can be stated over each word on its own. Most of the constraints in @morgan2016 can be: relative word length or frequency compares two quantities that each word carries by itself, so an additive representation preserves them. A constraint over the juncture between the two words is different. Avoiding a stress clash across the boundary, for instance, is abstract and generalizable, but the mask would remove it and we would count it as holistic storage. The dissociation between the two effects suggests this isn't what's driving our results, since losing information indiscriminately would have weakened both effects rather than only one. Even so, the design doesn't rule it out.
 
 ```{=latex}
 \bibliography{references}
@@ -1113,31 +1126,31 @@ model_table |>
   allow_group_breaks()
 ```
 
-\clearpage
+\newpage
 
 # Binomial Extraction Criteria {#sec-appendix-extraction}
 
-Candidate "$W_1$ and $W_2$" sequences were first selected using spaCy [@spacy2] part-of-speech tags, retaining only cases where both $W_1$ and $W_2$ are open-class words (nouns, verbs, adjectives, or adverbs). Each candidate was then parsed with the Berkeley Neural Parser [@kitaev-klein-2018-constituency; @kitaev-etal-2019-multilingual] to confirm that the two words form a minimal coordinate phrase. The inclusion criterion was that the two words be co-constituents under the same phrasal node (NP, VP, ADJP, ADVP, PP, or equivalent), with that node spanning exactly the three tokens \[$W_1$, and, $W_2$\] and nothing else. This ensures the extracted items are genuine coordinate binomials rather than incidental sequences where "and" links clauses or longer phrases. Novel binomials were extracted from Wikitext by the identical procedure, with the added requirements that both words appear in BabyLM's vocabulary and that the binomial is absent from the attested set.
+Candidate binomials ("W1 and W2") were first selected using spaCy [@spacy2] part-of-speech tags, retaining only cases where both $W_1$ and $W_2$ are open-class words (nouns, verbs, adjectives, or adverbs). Each candidate was then parsed with the Berkeley Neural Parser [@kitaev-klein-2018-constituency; @kitaev-etal-2019-multilingual] to confirm that the two words form a minimal coordinate phrase. The inclusion criterion was that the two words be co-constituents under the same phrasal node (NP, VP, ADJP, ADVP, PP, or equivalent), with that node spanning exactly the three tokens \[$W_1$, and, $W_2$\] and nothing else. This ensures the extracted items are genuine coordinate binomials rather than incidental sequences where "and" links clauses or longer phrases. Novel binomials were extracted from Wikitext by the identical procedure, with the added requirements that both words appear in BabyLM's vocabulary and that the binomial is absent from the attested set.
 
-Because cross-category coordination is syntactically unacceptable, violating the Coordination of Likes constraint that benepar enforces through its Penn Treebank training, genuine mixed-category binomials are excluded by the constituency criterion rather than by any explicit POS filter. We deliberately avoid filtering by spaCy POS tag agreement because spaCy frequently misclassifies participial forms in coordinate contexts, for example tagging "mortified" as VERB rather than ADJ in "disgusted and mortified." Explicit POS filtering would therefore discard many valid same-category binomials without catching any genuine cross-category ones.
+Because our extraction criterion requires W1 and W2 to form a phrase-level constituent spanning exactly W1, “and,” and W2, binomials that do not satisfy this constituency criterion are excluded. We do not additionally require the two conjuncts to receive the same POS tag, because spaCy's POS tagger can misclassify participial forms in coordinate contexts, for example tagging “mortified” as VERB rather than ADJ in “disgusted and mortified.” Requiring POS-tag agreement would therefore risk excluding valid binomials because of POS-tagging errors.
 
-\clearpage
+\newpage
 
 # Implementation Details {#sec-appendix-implementation}
 
-**Probe training.** The probe is optimized with Adam (learning rate $10^{-3}$, weight decay $10^{-4}$) under mean-squared-error loss, with early stopping (patience 20) against a 10% held-out validation split. Antisymmetric augmentation is applied with probability 0.5: for each binomial the flipped version, with swapped ordering and negated label, is added to the training batch. The input dimensionality follows from the representation type as defined in @sec-methods.
+**Probe training.** The probe is optimized with Adam (learning rate $10^{-3}$, weight decay $10^{-4}$) under mean-squared-error loss, with early stopping (patience 20) against a 10% held-out validation split. Antisymmetric augmentation is applied with probability 0.5: for each binomial the flipped version, with swapped ordering and negated label, is added to the training batch. The input dimensionality follows from the representation type.
 
 **Attention-zeroing.** The mask is supplied to the model as a 4D attention mask rather than a 2D padding mask, so it applies at every transformer layer rather than only the first. This matters because a mask applied at the first layer alone would leave $W_2$ able to recover information about $W_1$ indirectly at greater depth, through positions that did attend to it.
 
-**Recomputing the target.** Because $y_{true}$ is the model's own log-probability ratio, it is recomputed from whichever forward pass produced the representations being probed. The two full-context representation types therefore share a target, while the attention-zeroed condition has its own: blocking cross-word attention changes the model's output probabilities as well as its hidden states. Each attention condition is thus a self-consistent probe problem rather than two input encodings evaluated against a fixed target.
+**Recomputing the target.** Because $y_{\text{true}}$ is the model's own log-probability ratio, it is recomputed from whichever forward pass produced the representations being probed. The two full-context representation types therefore share a target, while the attention-zeroed condition has its own: blocking cross-word attention changes the model's output probabilities as well as its hidden states. Each attention condition is thus a self-consistent probe problem rather than two input encodings evaluated against a fixed target.
 
-\clearpage
+\newpage
 
 # Linear Probe Replication {#sec-appendix-linear}
 
 The MLP probe has many free choices: hidden dimension, depth, activation, learning rate, weight decay, patience, validation fraction, augmentation probability, batch size, and initialization. A skeptical reading is that some of them were tuned toward the reported result. We therefore repeat the analysis with a probe that has one.
 
-The linear probe is a ridge regression on the same antisymmetric features, fit on the same cross-validation folds. It has no intercept, since the antisymmetric feature is odd by construction and the target has zero mean at the origin, and no optimization schedule, since the solution is closed-form. Its only free quantity is the ridge penalty, selected per fold from $\{10^0, \ldots, 10^5\}$ on an inner split of that fold's training data. That inner split is the same size as the MLP's early-stopping split, so both probes receive an identical budget of held-out data for hyperparameter selection.
+The linear probe is a ridge regression on the same features, fit on the same cross-validation folds. Its only free variable is the ridge penalty, selected per fold from $\{10^0, \ldots, 10^5\}$ on an inner split of that fold's training data. That inner split is the same size as the MLP's early-stopping split, so both probes receive an identical budget of held-out data for hyperparameter selection.
 
 ```{r}
 #| label: linear-probe-load
@@ -1228,11 +1241,11 @@ if (nrow(lin_tbl)) {
 
 The gap between the probes is consistently larger on the binomial-held-out split than on the word-held-out split. This is expected: binomial-held-out performance is partly recoverable from word identity alone, which a flexible model can exploit and a linear map on the same features cannot. Word-held-out performance, on which the paper's claims rest, is where the two agree most closely.
 
-\clearpage
+\newpage
 
 # Cross-Validation Split Sizes {#sec-appendix-cv}
 
-Cross-validation is carried out on the novel set only. The attested set is never cross-validated: it is used solely as the transfer target described in @sec-methods-analyses, where a probe trained on the full novel set predicts every attested binomial and those predictions enter the ordering-source regression as $\hat{y}$. Both splits use ten folds with seed 964, and the same folds are reused across models, attention conditions, and probe architectures so that all reported R² values are directly comparable.
+Cross-validation is carried out on the novel set only. The attested set is never cross-validated: it is used solely as the transfer target described in @sec-methods-analyses. Both splits use ten folds, and the same folds are reused across models, attention conditions, and probe architectures so that all reported R² values are directly comparable.
 
 Under the binomial-held-out split, binomials are assigned to folds directly, so each fold trains on nine tenths of the set and tests on the remaining tenth. Under the word-held-out split it is the *vocabulary* that is partitioned into ten folds. A binomial enters the test set for fold $k$ only if both of its words are in fold $k$, and enters the training set only if neither word is. Binomials with one word in fold $k$ and one word outside it are used in neither, and are discarded for that fold. Since a binomial needs both words drawn from the same tenth of the vocabulary to be testable, the word-held-out test set is roughly a hundredth of the set rather than a tenth. @tbl-cv-sizes gives the resulting sizes.
 
@@ -1249,21 +1262,90 @@ tibble::tribble(
   kable_styling(font_size = 9, latex_options = c("repeat_header"))
 ```
 
-No fold under either split fell below the minimum test-set size of 10 binomials required for a fold to be scored, so all ten folds contribute to every reported mean. For reference, the attested set to which the trained probe is transferred contains 48,965 binomials over 21,721 unique words, all of which receive a prediction.
 
-\clearpage
+\newpage
+
+# Frequency-Dependent Preference Regression {#sec-appendix-relfreq}
+
+Full results for @eq-relfreq: abstract preferences $\hat{y}$ (`y_pred`), the binomial's relative frequency in the corpus (`rel_freq`), total binomial frequency (`log_freq`), the two moderations, and the residual-scale term. The two kinds of variable are treated differently, and deliberately so. `y_true` and `y_pred` are properties of the model: both are log-probability ratios, so a unit is nominally the same everywhere, but the spread of that quantity reflects how sharp a given model's output distribution is rather than how much it knows about binomials. Across the models here the standard deviation of `y_true` ranges from 2.71 to 4.85, and it runs opposite to probe R², so a raw coefficient would partly measure output calibration. We therefore z-score both within each fit, which puts every coefficient in units of that model's own preference spread. `rel_freq` and `log_freq`, by contrast, are properties of the training corpus: a proportion of occurrences and a count of them mean the same thing however they are measured, and dividing either by a corpus-specific standard deviation would replace a shared unit with a local one. They are therefore left on their own scales: `rel_freq` is a proportion running from $-0.5$ to $+0.5$ and `log_freq` is centred but not scaled, so both mean the same thing in every corpus. A `rel_freq` coefficient is therefore the change in ordering preference, in standard deviations, between a binomial always attested in one order and one always attested in the other; a `log_freq` coefficient is the change per unit of log frequency, which is a factor of $e \approx 2.72$ in the raw count; multiplying by $0.69$ converts it to the change per doubling. Because `log_freq` is centred within each fit, a main effect is the effect at that corpus's average binomial, which is a different absolute frequency for BabyLM than for the large-scale corpora. Main effects are therefore interpretable within a fit and comparable between attention conditions, but they are not comparable in magnitude across the two corpora. The two predictors are also on different scales, so their coefficients should not be compared with each other.
+
+```{r}
+#| label: tbl-relfreq
+#| tbl-cap: "Frequency-dependent preference regression (@eq-relfreq) for all 16 models at their final checkpoint, by attention condition. `y_true` and `y_pred` are z-scored within each fit; `rel_freq` is a proportion from $-0.5$ to $+0.5$ and `log_freq` is centred but not scaled, so both mean the same thing in every corpus. 95\\% credible intervals in brackets. Holistic storage predicts a negative `y_pred` $\\times$ `log_freq` and a positive `rel_freq` $\\times$ `log_freq`, both attenuating under attention-zeroing."
+#| eval: !expr nrow(relfreq) > 0
+
+# Column names are set via col.names rather than as backtick-quoted variable
+# names: R processes backslash escapes inside backticks (so "\times" would parse
+# as a tab), and with escape = FALSE an unescaped underscore reaches LaTeX as a
+# subscript. Both go through cleanly when written as plain LaTeX here.
+tt <- function(x) paste0("\\texttt{", gsub("_", "\\\\_", x), "}")
+
+relfreq |>
+  mutate(Condition = recode_condition(condition),
+         a = sprintf("%.3f [%.3f, %.3f]", pred_mean, pred_lo, pred_hi),
+         b = sprintf("%.3f [%.3f, %.3f]", rel_mean,  rel_lo,  rel_hi),
+         c = sprintf("%.3f [%.3f, %.3f]", pred_x_mean, pred_x_lo, pred_x_hi),
+         d = sprintf("%.3f [%.3f, %.3f]", rel_x_mean,  rel_x_lo,  rel_x_hi)) |>
+  arrange(model, Condition) |>
+  select(Model = model, Condition, a, b, c, d) |>
+  kbl(longtable = TRUE, booktabs = TRUE, linesep = "", escape = FALSE,
+      col.names = c("Model", "Condition", tt("y_pred"), tt("rel_freq"),
+                    paste(tt("y_pred"), "$\\times$", tt("log_freq")),
+                    paste(tt("rel_freq"), "$\\times$", tt("log_freq")))) |>
+  kable_styling(font_size = 7, latex_options = c("scale_down", "repeat_header")) |>
+  collapse_rows(columns = 1, latex_hline = "major") |>
+  allow_group_breaks()
+```
+
+@fig-relfreq-coefs shows the two moderation terms across models and conditions. The pattern is uniform across all sixteen: `rel_freq`$\times$`log_freq` is credibly positive in every model under full context and much smaller under attention-zeroing, while `y_pred`$\times$`log_freq` is credibly negative in every large-scale model under both conditions.
+
+```{r}
+#| label: fig-relfreq-coefs
+#| fig-cap: "Moderation terms of @eq-relfreq by model and attention condition. Circles = full context; triangles = attention-zeroed. Points = posterior mean; bars = 95\\% credible intervals. Left: relative frequency matters more for frequent binomials, and attention-zeroing removes most of that. Right: abstract preferences matter less for frequent binomials, and attention-zeroing does not remove it."
+#| fig-width: 6.5
+#| fig-height: 4.2
+#| fig-env: "figure*"
+#| eval: !expr nrow(relfreq) > 0
+#| fig-pos: "t"
+
+relfreq |>
+  transmute(model_fct = factor(label, levels = rev(dumbbell_order)),
+            family = factor(family, levels = c("BabyLM","GPT-2","Pythia","OLMo","Llama")),
+            condition = recode_condition(condition),
+            `rel_freq × log_freq` = rel_x_mean, rel_lo = rel_x_lo, rel_hi = rel_x_hi,
+            `y_pred × log_freq`   = pred_x_mean, pred_lo = pred_x_lo, pred_hi = pred_x_hi) |>
+  tidyr::pivot_longer(c(`rel_freq × log_freq`, `y_pred × log_freq`),
+                      names_to = "term", values_to = "est") |>
+  mutate(lo = ifelse(term == "rel_freq × log_freq", rel_lo, pred_lo),
+         hi = ifelse(term == "rel_freq × log_freq", rel_hi, pred_hi),
+         term = factor(term, levels = c("rel_freq × log_freq", "y_pred × log_freq"))) |>
+  ggplot(aes(x = est, y = model_fct, color = family, shape = condition)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.4) +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 0.5,
+                 position = position_dodge(width = 0.6)) +
+  geom_point(size = 1.6, position = position_dodge(width = 0.6)) +
+  facet_wrap(~term, nrow = 1, scales = "free_x") +
+  scale_color_manual(values = family_colors, guide = "none") +
+  scale_shape_manual(values = c("Full context" = 19, "Attention-zeroed" = 17), name = NULL) +
+  labs(x = "Standardized coefficient", y = NULL) +
+  theme_paper(base_size = 8) +
+  theme(legend.position = "bottom", panel.spacing = unit(0.6, "lines"))
+```
+
+
+\newpage
 
 # Experiment 1: Supplementary Results {#sec-appendix-exp1}
 
-This appendix provides supplementary materials for Experiment 1 (§\ref{sec-exp1}), which examined final-layer probe performance for the three BabyLM models. Subsections report full R² tables, control probe results, and a word-level replication. Coefficients for the ordering-source regression are reported together for all models in Appendix\ \ref{sec-appendix-relfreq}.
+This appendix provides supplementary materials for Experiment 1 (§\ref{sec-exp1}), which examined final-layer probe performance for the three BabyLM models. Subsections report full R² tables with their label-shuffle controls, and a word-level replication. Coefficients for the frequency-dependent preference regression are reported together for all models in Appendix \ref{sec-appendix-relfreq}.
 
-## Full Probe R² {#sec-appendix-full-r2-babylm}
+## Probe and Control R² {#sec-appendix-full-r2-babylm}
 
-Probe R² at the final hidden layer for BabyLM models, at the binomial level by attention condition. B = binomial-held-out; W = word-held-out. SD across 10 folds in parentheses.
+Probe R² at the final hidden layer for the BabyLM models, at the binomial level by attention condition, alongside the control probe fit to randomly permuted labels on the same folds. Selectivity is the difference between the two. Control values near zero indicate that the probe recovers linguistic structure and not label artifacts or probe capacity. Each control is reported beside the R² it corresponds to.
 
 ```{r}
 #| label: tbl-r2-babylm
-#| tbl-cap: "Probe R² at the final hidden layer for BabyLM models, at the binomial level by attention condition. B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
+#| tbl-cap: "Probe R² at the final hidden layer for BabyLM models, at the binomial level by attention condition, with the label-shuffle control and selectivity (R² minus control). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses. Control values carry an extra decimal place because they sit near zero."
 #| eval: !expr nrow(all_r2) > 0
 
 all_r2 |>
@@ -1278,35 +1360,12 @@ all_r2 |>
     condition = recode_condition(condition),
     model     = factor(model, levels = model_order),
     Split     = if_else(split == "pair_novel", "B", "W"),
-    `R²`      = sprintf("%.3f (%.3f)", r2_main, sd_main),
-    Ctrl      = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
+    `R²`           = sprintf("%.3f (%.3f)", r2_main, sd_main),
+    `Control R²`   = sprintf("%.4f (%.4f)", r2_ctrl, sd_ctrl),
+    Selectivity    = sprintf("%.3f", r2_main - r2_ctrl)
   ) |>
   arrange(model, condition, split) |>
-  select(Model = model, Condition = condition, Split, `R²`, Ctrl) |>
-  kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
-  kable_styling(font_size = 8, latex_options = c("repeat_header")) |>
-  collapse_rows(columns = 1:2, latex_hline = "major") |>
-  allow_group_breaks()
-```
-
-## Control Probe R² {#sec-appendix-ctrl-exp1}
-
-Control probe R² for BabyLM models at the final hidden layer, at the binomial level by attention condition. Labels are randomly permuted; values near zero confirm the main probe recovers genuine linguistic structure rather than label artifacts or probe capacity.
-
-```{r}
-#| label: tbl-ctrl-r2-babylm
-#| tbl-cap: "Control probe R² for BabyLM models (final layer), at the binomial level by attention condition. SD across 10 folds in parentheses. B = binomial-held-out; W = word-held-out."
-
-all_r2 |>
-  filter(family == "BabyLM", mode == "mean_pooled", is_control) |>
-  mutate(
-    condition    = recode(condition, !!!condition_labels),
-    model        = factor(model, levels = model_order),
-    Split        = if_else(split == "pair_novel", "B", "W"),
-    `Control R²` = sprintf("%.4f (%.4f)", mean_r2, sd_r2)
-  ) |>
-  arrange(model, condition, split) |>
-  select(Model = model, Condition = condition, Split, `Control R²`) |>
+  select(Model = model, Condition = condition, Split, `R²`, `Control R²`, Selectivity) |>
   kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
   kable_styling(font_size = 8, latex_options = c("repeat_header")) |>
   collapse_rows(columns = 1:2, latex_hline = "major") |>
@@ -1317,17 +1376,17 @@ all_r2 |>
 
 A binomial absent from the training corpus cannot have a retrieved preference, but the model still assigns one, and that value is some deterministic function of the two words' representations. Such a function could reflect systematic knowledge, or it could be an arbitrary consequence of a particular set of weights. Probe generalization cannot distinguish these, because both are systematic functions of the input and both transfer to held-out words. Agreement between independently trained models can: an arbitrary function of one model's weights has no reason to match another's.
 
-We therefore correlate $y_{true}$ across models on identical binomials, separately for the attested and novel sets and for both attention conditions. As a baseline we shuffle one model's values, which removes any pairing between models while preserving both distributions.
+We therefore correlate $y_{\text{true}}$ across models on identical binomials, separately for the attested and novel sets and for both attention conditions. As a baseline we shuffle one model's values, which removes any pairing between models while preserving both distributions.
 
-The three BabyLM models are the decisive comparison. They share a training corpus and its ordering but differ in capacity, and they are the only models for which the novel binomials are genuinely absent from training (@sec-exp2, Methods). On novel binomials they agree at $r = 0.45$ under full context and $r = 0.41$ under attention-zeroing, against a shuffled baseline of $r \approx 0.00$. Preferences for binomials the models never encountered are therefore reproducible across models of different sizes trained on the same data, which rules out their being arbitrary.
+The three BabyLM models are the decisive comparison. They share a training corpus and its ordering but differ in capacity, and they are the only models for which the novel binomials are genuinely absent from training (@sec-exp2, Methods). On novel binomials they agree at $r = 0.45$ under full context and $r = 0.41$ under attention-zeroing, against a shuffled baseline of $r \approx 0.00$. In other words, preferences for binomials the models never encountered are reproducible across models of different sizes trained on the same data. They are therefore not arbitrary.
 
-Because a Pearson correlation can in principle be carried by a minority of high-magnitude items, we checked whether the agreement is concentrated in strong preferences while the bulk of binomials agree at chance. It is not. Preferences on novel binomials are not weak to begin with: median $|y_{true}|$ ranges from 1.79 to 3.21 across the three models, so the preferred ordering is between roughly six and twenty-five times more likely, and only 9% to 17% of binomials fall below 0.5. Rank correlations track the Pearson values closely (0.371–0.406 for BabyLM on novel binomials), and the models order the same binomial the same way on 60% to 70% of items against a chance rate of 50%, a statistic that ignores magnitude and weights every binomial equally. Stratifying by preference strength, using the third model's $|y_{true}|$ so that the bins are independent of the two series being correlated, agreement is graded but present throughout: in the weakest quintile $r = 0.30$ under full context and $0.28$ under attention-zeroing, with directional agreement near 59% in both, rising to $r = 0.61$ and 73% in the strongest. That gradient is itself informative, since agreement increasing with preference strength is the signature of a signal measured with noise rather than of an arbitrary function of a particular set of weights.
+Because a Pearson correlation can in principle be carried by a minority of high-magnitude items, we checked whether the agreement is concentrated in strong preferences while the bulk of binomials agree at chance. It is not. Preferences on novel binomials are not weak to begin with: median $|y_{\text{true}}|$ ranges from 1.79 to 3.21 across the three models, so the preferred ordering is between roughly six and twenty-five times more likely, and only 9% to 17% of binomials fall below 0.5. Rank correlations track the Pearson values closely (0.371–0.406 for BabyLM on novel binomials), and the models order the same binomial the same way on 60% to 70% of items against a chance rate of 50%, a statistic that ignores magnitude and weights every binomial equally. Stratifying by preference strength, using the third model's $|y_{\text{true}}|$ so that the bins are independent of the two series being correlated, agreement is graded but present throughout: in the weakest quintile $r = 0.30$ under full context and $0.28$ under attention-zeroing, with directional agreement near 59% in both, rising to $r = 0.61$ and 73% in the strongest. That gradient is itself informative, since agreement increasing with preference strength is the signature of a signal measured with noise rather than of an arbitrary function of a particular set of weights.
 
 Two further patterns appear in @tbl-agreement. Agreement within a family is roughly constant across all four cells, near $r = 0.68$, whereas agreement between families falls from 0.56 on attested binomials under full context to 0.28 on novel binomials under attention-zeroing. What the models share thus survives novelty when the training corpus is shared and degrades when it is not, as expected if the preference is driven by distributional structure in the training data. This also rules out the shared sentence frame as the source of the agreement: the frame is identical for all sixteen models, so it cannot produce a gap between within-family and between-family agreement.
 
 ```{r}
 #| label: tbl-agreement
-#| tbl-cap: "Cross-model agreement (Pearson $r$ on $y_{true}$) for identical binomials, by item set and attention condition. Shuffled = one model's values permuted. Within-family averages over model pairs from the same family; BabyLM is broken out because its novel binomials are genuinely unseen."
+#| tbl-cap: "Cross-model agreement (Pearson $r$ on $y_{\text{true}}$) for identical binomials, by item set and attention condition. Shuffled = one model's values permuted. Within-family averages over model pairs from the same family; BabyLM is broken out because its novel binomials are genuinely unseen."
 
 read_csv(file.path(RES, "cross_model_agreement_summary.csv"),
          show_col_types = FALSE) |>
@@ -1359,7 +1418,7 @@ read_csv(file.path(RES, "cross_model_agreement_summary.csv"),
 
 We trained the MLP probe using word-level representations for the three BabyLM models to verify that the preference signal is not an artifact of mean pooling across the full binomial phrase. Under this condition the probe receives a concatenation of two word vectors extracted from isolated sentence contexts ("*the bread*", "*the butter*"), so it cannot rely on any co-occurrence signal from the two words' shared sentence context.
 
-Binomial-held-out R² ranges from 0.31 to 0.33, within a few percentage points of the corresponding binomial-level values (0.29–0.34). The generalization pattern is preserved: word-held-out R² is consistently lower than binomial-held-out R² for all three models (word-held-out 0.18–0.20; binomial-minus-word gap 0.127–0.129), confirming that the lexical generalization cost seen at the binomial level is a property of the preference encoding itself rather than an artifact of the mean-pooled representation. The ordering-source regression was fit at the binomial level only, so it has no word-level counterpart. Full results are in @tbl-r2-babylm-words-only.
+Binomial-held-out R² ranges from 0.31 to 0.33, within a few percentage points of the corresponding binomial-level values (0.29–0.34). The generalization pattern is preserved: word-held-out R² is consistently lower than binomial-held-out R² for all three models (word-held-out 0.18–0.20; binomial-minus-word gap 0.127–0.129), confirming that the lexical generalization cost seen at the binomial level is a property of the preference encoding itself rather than an artifact of the mean-pooled representation. The frequency-dependent preference regression was fit at the binomial level only, so it has no word-level counterpart. Full results are in @tbl-r2-babylm-words-only.
 
 ```{r}
 #| label: tbl-r2-babylm-words-only
@@ -1390,17 +1449,19 @@ all_r2 |>
   allow_group_breaks()
 ```
 
+\newpage
+
 # Experiment 2: Supplementary Results {#sec-appendix-exp2}
 
-This appendix provides supplementary materials for Experiment 2 (§\ref{sec-exp2}), which examined final-layer representations across all 16 models from five families. Subsections report full R² tables, control probe results, and a word-level replication. Coefficients for the ordering-source regression are in Appendix\ \ref{sec-appendix-relfreq}.
+This appendix provides supplementary materials for Experiment 2 (§\ref{sec-exp2}), which examined final-layer representations across all 16 models from five families. Subsections report full R² tables with their label-shuffle controls, and a word-level replication. Coefficients for the frequency-dependent preference regression are in Appendix \ref{sec-appendix-relfreq}.
 
-## Full Probe R² {#sec-appendix-full-r2}
+## Probe and Control R² {#sec-appendix-full-r2}
 
-Probe R² for all 16 models at the final hidden layer, binomial-level input mode, by attention condition and cross-validation split. B = binomial-held-out; W = word-held-out. SD across 10 folds in parentheses.
+Probe R² for all 16 models at the final hidden layer, binomial-level input mode, by attention condition and cross-validation split, alongside the label-shuffle control fit on the same folds and the resulting selectivity. B = binomial-held-out; W = word-held-out. SD across 10 folds in parentheses.
 
 ```{r}
 #| label: tbl-r2
-#| tbl-cap: "Probe R² at the final hidden layer for all 16 models, at the binomial level by attention condition. B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
+#| tbl-cap: "Probe R² at the final hidden layer for all 16 models, at the binomial level by attention condition, with the label-shuffle control and selectivity (R² minus control). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses. Control values carry an extra decimal place because they sit near zero."
 #| eval: !expr nrow(all_r2) > 0
 
 all_r2 |>
@@ -1415,44 +1476,21 @@ all_r2 |>
     condition = recode_condition(condition),
     model     = factor(model, levels = model_order),
     Split     = if_else(split == "pair_novel", "B", "W"),
-    `R²`      = sprintf("%.3f (%.3f)", r2_main, sd_main),
-    Ctrl      = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
+    `R²`         = sprintf("%.3f (%.3f)", r2_main, sd_main),
+    `Control R²` = sprintf("%.4f (%.4f)", r2_ctrl, sd_ctrl),
+    Selectivity  = sprintf("%.3f", r2_main - r2_ctrl)
   ) |>
   arrange(model, condition, split) |>
-  select(Model = model, Condition = condition, Split, `R²`, Ctrl) |>
+  select(Model = model, Condition = condition, Split, `R²`, `Control R²`, Selectivity) |>
   kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
   kable_styling(font_size = 7, latex_options = c("scale_down", "repeat_header")) |>
   collapse_rows(columns = 1:2, latex_hline = "major") |>
   allow_group_breaks()
 ```
 
-## Control Probe R² {#sec-appendix-ctrl-exp2}
-
-Control probe R² for all 16 models at the final hidden layer, at the binomial level by attention condition.
-
-```{r}
-#| label: tbl-ctrl-r2
-#| tbl-cap: "Control probe R² for all 16 models (final layer), at the binomial level by attention condition. SD across 10 folds in parentheses. B = binomial-held-out; W = word-held-out."
-
-all_r2 |>
-  filter(mode == "mean_pooled", is_control) |>
-  mutate(
-    condition    = recode(condition, !!!condition_labels),
-    model        = factor(model, levels = model_order),
-    Split        = if_else(split == "pair_novel", "B", "W"),
-    `Control R²` = sprintf("%.4f (%.4f)", mean_r2, sd_r2)
-  ) |>
-  arrange(family, model, condition, split) |>
-  select(Family = family, Model = model, Condition = condition, Split, `Control R²`) |>
-  kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
-  kable_styling(font_size = 8, latex_options = c("repeat_header")) |>
-  collapse_rows(columns = 1:3, latex_hline = "major") |>
-  allow_group_breaks()
-```
-
 ## Word-Level Replication {#sec-appendix-words-only-exp2}
 
-Across all 16 models, word-level probing reproduces the main findings from Experiment 2. Binomial-held-out R² is slightly lower than the corresponding binomial-level values (by roughly 5–10 percentage points for most large-scale models), but rank order across families and the generalization pattern (binomial-held-out \> word-held-out) are preserved in every case. For GPT-2, binomial-held-out R² under word-level probing ranges from 0.46 to 0.62 (vs. 0.49–0.65 at the binomial level); for Pythia, 0.51–0.57 (vs. 0.53–0.59); for OLMo, 0.52–0.57 (vs. 0.56–0.62); for Llama, 0.36–0.45 (vs. 0.43–0.55). The generalization gaps (binomial-held-out minus word-held-out) range from 0.044 to 0.073 across large-scale models, closely matching the corresponding binomial-level gaps (0.035–0.080). The ordering-source regression was fit at the binomial level only, so it has no word-level counterpart. Full results are in @tbl-r2-words-only.
+Across all 16 models, word-level probing reproduces the main findings from Experiment 2. Binomial-held-out R² is slightly lower than the corresponding binomial-level values (by roughly 5–10 percentage points for most large-scale models), but rank order across families and the generalization pattern (binomial-held-out \> word-held-out) are preserved in every case. For GPT-2, binomial-held-out R² under word-level probing ranges from 0.46 to 0.62 (vs. 0.49–0.65 at the binomial level); for Pythia, 0.51–0.57 (vs. 0.53–0.59); for OLMo, 0.52–0.57 (vs. 0.56–0.62); for Llama, 0.36–0.45 (vs. 0.43–0.55). The generalization gaps (binomial-held-out minus word-held-out) range from 0.044 to 0.073 across large-scale models, closely matching the corresponding binomial-level gaps (0.035–0.080). Full results are in @tbl-r2-words-only.
 
 ```{r}
 #| label: tbl-r2-words-only
@@ -1483,11 +1521,11 @@ all_r2 |>
   allow_group_breaks()
 ```
 
-\clearpage
+\newpage
 
 # Experiment 3: Supplementary Results {#sec-appendix-exp3}
 
-This appendix provides supplementary materials for Experiment 3 (§\ref{sec-exp3}), which tracked probe R² and the ordering-source regression across training checkpoints for BabyLM and Pythia. Subsections report full numerical checkpoint tables and a word-level replication of the probe results.
+This appendix provides supplementary materials for Experiment 3 (§\ref{sec-exp3}), which tracked probe R² and the frequency-dependent preference regression across training checkpoints for BabyLM and Pythia. Subsections report full numerical checkpoint tables and a word-level replication of the probe results.
 
 ## Checkpoint Probe Tables {#sec-appendix-ckpt-tables}
 
@@ -1557,7 +1595,7 @@ if (nrow(pythia_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-relfreq-checkpoints
-#| tbl-cap: "Ordering-source regression (@eq-relfreq) at every training checkpoint, both attention conditions. All four variables are z-scored within each fit, so coefficients are standardized betas comparable across checkpoints and models. 95\\% credible intervals in brackets."
+#| tbl-cap: "Frequency-dependent preference regression (@eq-relfreq) at every training checkpoint, both attention conditions. `y_true` and `y_pred` are z-scored within each fit; `rel_freq` is a proportion from $-0.5$ to $+0.5$ and `log_freq` is centred but not scaled, so both mean the same thing in every corpus. 95\\% credible intervals in brackets."
 #| eval: !expr nrow(relfreq_ckpt) > 0
 
 tt2 <- function(x) paste0("\\texttt{", gsub("_", "\\\\_", x), "}")
@@ -1581,7 +1619,7 @@ relfreq_ckpt |>
 
 ## Word-Level Replication {#sec-appendix-words-only-exp3}
 
-Word-level probe results across BabyLM and Pythia checkpoints replicate the key patterns from the binomial-level analysis. The generalization gap (binomial-held-out minus word-held-out) is largest at the earliest checkpoints and shrinks over the course of training. For BabyLM, the gap at the first checkpoint ranges from 0.15 to 0.36 across model sizes, narrowing to 0.13–0.14 by the final checkpoint, the same qualitative trajectory observed at the binomial level. Full R² results are in @tbl-r2-checkpoints-babylm-default-words and @tbl-r2-checkpoints-pythia-default-words. The ordering-source regression was fit at the binomial level only, so it has no word-level counterpart here; its checkpoint coefficients are in @tbl-relfreq-checkpoints.
+Word-level probe results across BabyLM and Pythia checkpoints replicate the key patterns from the binomial-level analysis. The generalization gap (binomial-held-out minus word-held-out) is largest at the earliest checkpoints and shrinks over the course of training. For BabyLM, the gap at the first checkpoint ranges from 0.15 to 0.36 across model sizes, narrowing to 0.13–0.14 by the final checkpoint, the same qualitative trajectory observed at the binomial level. Full R² results are in @tbl-r2-checkpoints-babylm-default-words and @tbl-r2-checkpoints-pythia-default-words. The frequency-dependent preference regression was fit at the binomial level only, so it has no word-level counterpart here; its checkpoint coefficients are in @tbl-relfreq-checkpoints.
 
 ```{r}
 #| label: tbl-r2-checkpoints-babylm-default-words
@@ -1599,7 +1637,7 @@ if (nrow(pythia_ckpt_r2) > 0)
   make_ckpt_r2_tbl(pythia_ckpt_r2, "default", "words_only")
 ```
 
-\clearpage
+\newpage
 
 # Corpus Frequency Distributions {#sec-appendix-corpus-freq}
 
@@ -1663,74 +1701,3 @@ p_hist + p_rank + plot_layout(ncol = 2, widths = c(1, 1))
 The BabyLM training corpus is a 150M-token collection of child-directed and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles, Wikipedia), trained for 20 epochs. The Pile is a \~300B-token web-scraped corpus used to train the Pythia family. For each of the \~47K corpus binomials, we extracted 3-gram counts (i.e., the frequency of "word$_1$ and word$_2$" and its reverse) from each corpus via infini-gram [@liu2024infinigram]. As @fig-corpus-freq shows, the BabyLM corpus produces a highly degenerate frequency distribution: 70.7% of binomials appear exactly once, 87.4% appear at most twice, and 98.2% appear at most ten times, with a maximum of 1,095 occurrences. The Pile distribution is far richer: the median binomial appears 365 times, the 25th percentile is 62 occurrences, and the 99th percentile exceeds 77,000.
 
 In absolute training exposure terms (accounting for BabyLM's 20 epochs), the most frequent BabyLM binomials are seen at most \~21,900 times total across all training steps, while the equivalent Pile binomials are seen over 1.5 million times in a single pass. Even the median Pile binomial (365 occurrences per pass) substantially exceeds BabyLM's total exposure for a typical singleton binomial (1 × 20 = 20 exposures). This gap in absolute exposure is why the two corpora cannot be placed on a common developmental axis, and why the frequency range available for the moderation analysis differs so sharply between them.
-
-# Ordering-Source Regression {#sec-appendix-relfreq}
-
-Full results for @eq-relfreq: the abstract component $\hat{y}$ (`y_pred`), the corpus's own attested order for that binomial (`rel_freq`), total binomial frequency (`log_freq`), the two moderations, and the residual-scale term. All four variables are z-scored within each fit, so coefficients are standardized betas: a one-standard-deviation change in the predictor moves the model's ordering preference by that many standard deviations. Standardizing the outcome as well is what makes the coefficients comparable across models, attention conditions, and training checkpoints, since the spread of `y_true` differs between fits.
-
-`r if (nrow(relfreq)) format(min(relfreq$n), big.mark=",") else "--"` binomials enter the smallest fit and `r if (nrow(relfreq)) format(max(relfreq$n), big.mark=",") else "--"` the largest.
-
-Two limits on how far the moderation terms should be read. `rel_freq` is estimated from counts, so it is less reliable for rare binomials, and a less reliable predictor carries an attenuated coefficient: part of every positive `rel_freq`$\times$`log_freq` estimate is that attenuation rather than storage. Admitting singly-attested binomials trades one form of this problem for another. Nothing is discarded, but a binomial seen once now sits at the boundary $\pm 0.5$, indistinguishable from one seen a thousand times in a single order. The effect is strongest for BabyLM, where 92% of items take a boundary value and the first seven frequency deciles are entirely singletons, and mild for the large-scale models, where roughly 8% sit at a boundary and `rel_freq` varies continuously through its range. The two nevertheless return moderation estimates of the same magnitude, which is the reassuring outcome: if the coefficient were mostly a record of how often the predictor saturates, the corpus at 92% saturation and the corpora at 8% would not agree. The comparison between attention conditions is unaffected in either case, since `rel_freq` is the identical predictor carrying identical noise in both conditions, so whatever attenuation contributes cancels from the difference. Where a single number is wanted, the condition contrast is the defensible one.
-
-```{r}
-#| label: tbl-relfreq
-#| tbl-cap: "Ordering-source regression (@eq-relfreq) for all 16 models at their final checkpoint, by attention condition. All four variables are z-scored within each fit, so these are standardized betas, comparable across models and conditions. 95\\% credible intervals in brackets. Holistic storage predicts a negative `y_pred` $\\times$ `log_freq` and a positive `rel_freq` $\\times$ `log_freq`, both attenuating under attention-zeroing."
-#| eval: !expr nrow(relfreq) > 0
-
-# Column names are set via col.names rather than as backtick-quoted variable
-# names: R processes backslash escapes inside backticks (so "\times" would parse
-# as a tab), and with escape = FALSE an unescaped underscore reaches LaTeX as a
-# subscript. Both go through cleanly when written as plain LaTeX here.
-tt <- function(x) paste0("\\texttt{", gsub("_", "\\\\_", x), "}")
-
-relfreq |>
-  mutate(Condition = recode_condition(condition),
-         a = sprintf("%.3f [%.3f, %.3f]", pred_mean, pred_lo, pred_hi),
-         b = sprintf("%.3f [%.3f, %.3f]", rel_mean,  rel_lo,  rel_hi),
-         c = sprintf("%.3f [%.3f, %.3f]", pred_x_mean, pred_x_lo, pred_x_hi),
-         d = sprintf("%.3f [%.3f, %.3f]", rel_x_mean,  rel_x_lo,  rel_x_hi)) |>
-  arrange(model, Condition) |>
-  select(Model = model, Condition, a, b, c, d) |>
-  kbl(longtable = TRUE, booktabs = TRUE, linesep = "", escape = FALSE,
-      col.names = c("Model", "Condition", tt("y_pred"), tt("rel_freq"),
-                    paste(tt("y_pred"), "$\\times$", tt("log_freq")),
-                    paste(tt("rel_freq"), "$\\times$", tt("log_freq")))) |>
-  kable_styling(font_size = 7, latex_options = c("scale_down", "repeat_header")) |>
-  collapse_rows(columns = 1, latex_hline = "major") |>
-  allow_group_breaks()
-```
-
-@fig-relfreq-coefs shows the two moderation terms across models and conditions. The pattern is uniform across all sixteen: `rel_freq`$\times$`log_freq` is credibly positive in every model under full context and much smaller under attention-zeroing, while `y_pred`$\times$`log_freq` is credibly negative in every large-scale model under both conditions. The BabyLM models match the large-scale ones on the first term and sit nearer zero on the second, which is what the restricted frequency range would predict: `y_pred`$\times$`log_freq` is the term that needs exposure to vary over orders of magnitude before it can be estimated apart from the main effect.
-
-```{r}
-#| label: fig-relfreq-coefs
-#| fig-cap: "Moderation terms of @eq-relfreq by model and attention condition. Circles = full context; triangles = attention-zeroed. Points = posterior mean; bars = 95\\% credible intervals. Left: the corpus's attested order matters more for frequent binomials, and attention-zeroing removes most of that. Right: the abstract component matters less for frequent binomials, and attention-zeroing does not remove it."
-#| fig-width: 6.5
-#| fig-height: 4.2
-#| fig-env: "figure*"
-#| eval: !expr nrow(relfreq) > 0
-#| fig-pos: "t"
-
-relfreq |>
-  transmute(model_fct = factor(label, levels = rev(dumbbell_order)),
-            family = factor(family, levels = c("BabyLM","GPT-2","Pythia","OLMo","Llama")),
-            condition = recode_condition(condition),
-            `rel_freq × log_freq` = rel_x_mean, rel_lo = rel_x_lo, rel_hi = rel_x_hi,
-            `y_pred × log_freq`   = pred_x_mean, pred_lo = pred_x_lo, pred_hi = pred_x_hi) |>
-  tidyr::pivot_longer(c(`rel_freq × log_freq`, `y_pred × log_freq`),
-                      names_to = "term", values_to = "est") |>
-  mutate(lo = ifelse(term == "rel_freq × log_freq", rel_lo, pred_lo),
-         hi = ifelse(term == "rel_freq × log_freq", rel_hi, pred_hi),
-         term = factor(term, levels = c("rel_freq × log_freq", "y_pred × log_freq"))) |>
-  ggplot(aes(x = est, y = model_fct, color = family, shape = condition)) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.4) +
-  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 0.5,
-                 position = position_dodge(width = 0.6)) +
-  geom_point(size = 1.6, position = position_dodge(width = 0.6)) +
-  facet_wrap(~term, nrow = 1, scales = "free_x") +
-  scale_color_manual(values = family_colors, guide = "none") +
-  scale_shape_manual(values = c("Full context" = 19, "Attention-zeroed" = 17), name = NULL) +
-  labs(x = "Standardized coefficient", y = NULL) +
-  theme_paper(base_size = 8) +
-  theme(legend.position = "bottom", panel.spacing = unit(0.6, "lines"))
-```

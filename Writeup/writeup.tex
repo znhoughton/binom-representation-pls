@@ -107,19 +107,19 @@ infrequent binomials, while idiosyncratic knowledge drives the ordering
 preferences for frequent ones. Evaluating 16 language models across five
 families, we uncover a parallel trade-off. Probing hidden-state
 representations shows that language models do learn abstract
-preferences, recovering the ordering of binomials built from words they
-never saw together. But a binomial's own attested order in the training
+preferences. However, a binomial's relative frequency in the training
 corpus predicts a model's preference over and above anything those
-abstract preferences supply, and predicts it more strongly the more
-often the model encountered it. To locate that item-specific component,
-we zero out cross-word attention, forcing the representation into a
-strictly additive function of the two words. The intervention removes
-roughly half of it while the abstract component survives undiminished,
-showing that what is stored requires the two words to be encoded
-together. Tracking training checkpoints shows that abstract preferences
-are present early while the item-specific component is absent at first
-and accumulates with exposure, its onset governed by training tokens
-rather than model scale.
+abstract preferences supply, and predicts it more strongly for
+high-frequency binomials. To locate that item-specific component, we
+zero out cross-word attention, forcing the representation into a
+strictly additive function of the two words. The intervention mitigates
+but does not remove the idiosyncrasy of high-frequency binomials,
+indicating that storage shifts the representations of the individual
+words and not only the representation of the phrase. Tracking training
+checkpoints further demonstrates that abstract preferences are present
+early while the frequency-dependent storage is not observable until
+later, the point at which it becomes detectable being governed by
+training tokens rather than model scale.
 \end{abstract}
 
 \section{Introduction}\label{introduction}
@@ -200,43 +200,42 @@ but a human speaker's history with any particular expression can only be
 estimated reasonably using corpus frequency. In a language model, that
 history is the training corpus itself, and it can be counted exactly.
 The representations are also directly inspectable, and the computation
-that produces them can be intervened on. The same is not true for
-humans, at least not without throwing away our ethics.
+that produces them can be intervened on. Neither is possible for human
+learners.
 
 The evidence for abstract preferences and holistic storage in language
-models has been much more mixed than in the human behavioral literature.
+models has been more mixed than in the human behavioral literature.
 Models clearly generalize beyond what they have seen:
 \citet{misraLanguageModelsLearn2024} show that language models can
 produce the rare \emph{a beautiful five days} construction even when it
 is withheld from training, generalizing to it from related constructions
 that are better attested, and \citet{yaoBothDirectIndirect2025} find
-that dative alternation preferences are shaped by abstract constraints
-rather than direct experience alone. At the same time, models retain a
-great deal item-specifically. \citet{mccoy2023howmuchlanguage} find that
-while model-generated text is often as structurally novel as human text,
-the same models also reproduce passages of over a thousand words
-verbatim from their training data. As such, it is clear that both
-abstract preferences and holistic storage are clearly at play within
-language models, however what remains unclear is how these types of
-knowledge trade off and when they emerge during training.
+that dative alternation preferences are shaped by abstract constraints.
+At the same time, models retain a great deal item-specifically.
+\citet{mccoy2023howmuchlanguage} find that while model-generated text is
+often as structurally novel as human text, the same models also
+reproduce passages of over a thousand words verbatim from their training
+data. As such, it is clear that both abstract preferences and holistic
+storage are clearly at play within language models, however what remains
+unclear is how these types of knowledge trade off and when they emerge
+during training.
 
 Perhaps most related to the present study, language models' ordering
 preferences for binomials appear not to be driven by abstract
 preferences at all \citep{houghton2025role}. \citet{houghton2025role}
-examined whether language models showed the same abstract preferences
-that humans show in the ordering of binomials, and found that the
-models' ordering preferences were driven exclusively by frequency
-statistics, with no evidence of an effect of the abstract preferences
-that affect human ordering preferences. However, that finding faces
-limitations along two main dimensions. First, the study can only claim
-to find no evidence that the models' ordering preferences were driven by
-\emph{human} ordering preferences; it may very well be that their
-preferences are driven by abstract preferences that simply differ from
-those humans show. Second, the examination was conducted on model
-behavior, in the form of output probabilities, rather than over the
-representations that produce it. A model could in principle derive an
-ordering from abstract properties of the binomial and still produce
-output statistics that look frequency-driven.
+examined whether language models showed the same abstract preferences as
+humans, and found that the models' ordering preferences were driven
+exclusively by frequency statistics, with no evidence of an effect of
+abstract preferences. However, that finding faces limitations along two
+main dimensions. First, the study can only claim to find no evidence
+that the models' ordering preferences were driven by \emph{human}
+ordering preferences; it may very well be that their preferences are
+driven by abstract preferences that simply differ from those humans
+show. Second, the examination was conducted on model behavior, in the
+form of output probabilities, rather than over the representations that
+produce it. A model could in principle derive an ordering from abstract
+properties of the binomial and still produce output statistics that look
+frequency-driven.
 
 \subsection{Present Study}\label{present-study}
 
@@ -264,36 +263,35 @@ parameters but differing in the size of their training corpus.
 Our main contributions are:
 
 \begin{itemize}
+\tightlist
+\item
+  \textbf{Empirical evidence for both abstract preferences and
+  frequency-driven holistic storage.} We show that a probe trained on
+  LLM hidden-state representations for binomials can predict the
+  ordering preferences for binomials it hasn't seen, however the order a
+  binomial's own training corpus attests for it predicts a model's
+  preference over and above anything those abstract preferences predict,
+  and does so more strongly the more often the model encountered it.
 \item
   \textbf{An architectural intervention separating holistic storage from
   abstract preferences.} Zeroing out cross-word attention between the
   individual words isolates a model's abstract preferences from its
   binomial-specific representations.
 \item
-  \textbf{Empirical evidence for both abstract preferences and
-  frequency-driven holistic storage.} We show that ordering preferences
-  are recoverable from a model's representations and generalize to
-  binomials composed of words the probe never saw, establishing that
-  they are driven by abstract preferences. At the same time, the order a
-  binomial's own training corpus attests for it predicts a model's
-  preference over and above anything those abstract preferences supply,
-  and does so more strongly the more often the model encountered it,
-  showing that frequent items are additionally stored.
-\item
-  \textbf{Demonstrating that exposure, not scale, drives the shift.}
-  Across a tenfold range in parameters, the stored component becomes
-  detectable at nearly the same point in training: between 298M and 315M
-  tokens for the three BabyLM models. What governs the transition is how
-  much text a model has read rather than its representational capacity.
+  \textbf{Evidence that storage shifts lexical, not only phrasal,
+  representations.} Part of what a model knows about a particular
+  binomial survives an intervention that removes its phrasal
+  representation, indicating that repeated exposure to a phrase also
+  changes the representations of the individual words it contains.
 \end{itemize}
 
 \section{Methods}\label{sec-methods}
 
 All three experiments apply the same procedure and differ only in which
-models and checkpoints it is applied to;
-Appendix~\ref{sec-appendix-models} lists all sixteen with their
-parameter counts and training-token estimates. This section describes
-that shared procedure: the datasets, the probes, and the analyses.
+models\footnote{Appendix \ref{sec-appendix-models} lists all sixteen
+  models with their parameter counts and training-token estimates.} and
+checkpoints it is applied to. This section describes that procedure: the
+datasets, the probes, and the analyses.
 
 \subsection{Datasets}\label{datasets}
 
@@ -313,8 +311,8 @@ Both sets were extracted automatically, using spaCy \citep{spacy2}
 part-of-speech tags to find candidate sequences and the Berkeley Neural
 Parser
 \citep{kitaev-klein-2018-constituency, kitaev-etal-2019-multilingual} to
-confirm that the two words form a minimal coordinate phrase;
-Appendix~\ref{sec-appendix-extraction} gives the full criteria.
+confirm that the two words form a minimal coordinate phrase (See
+Appendix~\ref{sec-appendix-extraction}).
 
 For each corpus binomial and each model, we also calculate the ordering
 preference, which is operationalized as the model's own log-probability
@@ -365,16 +363,14 @@ We additionally probe representations under two attention conditions:
   attention logits to \(-\infty\) before the softmax, at every
   transformer layer, so no cross-word information reaches \(W_2\) or the
   conjunction at any depth (Appendix~\ref{sec-appendix-implementation}).
-  This condition tests whether the second word's representation is
-  specifically shaped by direct cross-word attention to the first word.
 \end{itemize}
 
 This gives three representation types per model: binomial-level under
 each attention condition, and full-context word-level.
 
-Because \(y_{true}\) is a difference of log-probabilities over the two
-orderings, and because causal masking already prevents \(W_1\) from
-attending to \(W_2\), blocking attention from \(W_2\) and the
+Because \(y_{\text{true}}\) is a difference of log-probabilities over
+the two orderings, and because causal masking already prevents \(W_1\)
+from attending to \(W_2\), blocking attention from \(W_2\) and the
 conjunction to \(W_1\) leaves the model blind to the other word. The
 resulting preference is necessarily of the form \(g(W_1) - g(W_2)\): an
 additive function of the two words evaluated separately, with no
@@ -389,19 +385,19 @@ For each representation type, we train a two-layer MLP classifier
 preferences from the extracted representations. The probe takes the
 concatenated representations for a binomial and outputs a single
 continuous value \(\hat{y}\), trained under mean-squared-error loss
-against \(y_{true}\), with antisymmetric augmentation so that a swapped
-ordering carries the negated label. Optimizer settings, early stopping,
-and the augmentation rate are given in
+against \(y_{\text{true}}\), with antisymmetric augmentation so that a
+swapped ordering carries the negated label. Optimizer settings, early
+stopping, and the augmentation rate are given in
 Appendix~\ref{sec-appendix-implementation}. We report cross-validated R²
-(the squared Pearson correlation between \(\hat{y}\) and \(y_{true}\) on
-held-out folds), averaged across 10 folds.\footnote{The results below do
-  not depend on the MLP's capacity. A ridge regression on the same
-  antisymmetric features, using the same folds and a single tuned
-  hyperparameter, recovers most of the MLP's performance and orders the
-  models the same way; on the word-held-out split the two agree most
-  closely. Full comparison in Appendix~\ref{sec-appendix-linear}.}
+(the squared Pearson correlation between \(\hat{y}\) and
+\(y_{\text{true}}\) on held-out folds), averaged across 10
+folds.\footnote{The results below do not depend on the MLP's capacity. A
+  ridge regression on the same antisymmetric features, using the same
+  folds and a single tuned hyperparameter, recovers most of the MLP's
+  performance. Full comparison in Appendix~\ref{sec-appendix-linear}.}
 
-We evaluate generalization under two cross-validation splits:
+We evaluate generalization under two 10-fold cross-validation
+conditions:
 
 \begin{itemize}
 \tightlist
@@ -412,12 +408,10 @@ We evaluate generalization under two cross-validation splits:
   not excluded from the training even if \emph{radios and televisions}
   is in the test set).
 \item
-  \textbf{Word-held-out}: the vocabulary is partitioned into ten folds;
-  the test set for a fold is the binomials whose \emph{both} words fall
-  in that fold, and the training set is the binomials whose
-  \emph{neither} word does. Binomials with one word on each side are
-  discarded for that fold. This tests generalization to completely novel
-  lexical items.
+  \textbf{Word-held-out}: binomials with overlapping words are excluded
+  from the training set. For example, if \emph{radios and televisions}
+  is in the test set, then \emph{radios and computers} is excluded from
+  the training set.
 \end{itemize}
 
 Both splits are applied to the novel set; the attested set is not
@@ -427,40 +421,42 @@ and its R² is correspondingly more variable, which is why we report fold
 standard deviations throughout (Appendix~\ref{sec-appendix-cv}).
 
 Finally, following \citet{hewitt-liang-2019-designing}, we train a
-matched control probe on randomly permuted labels under identical
-settings; near-zero control R² indicates the probe is recovering
-linguistic structure rather than label artifacts or probe capacity.
+matched control probe on randomly permuted labels; near-zero control R²
+indicates the probe is recovering linguistic structure rather than label
+artifacts or probe capacity.
 
 \subsection{Analyses}\label{sec-methods-analyses}
 
 We report two measurements. The first is the probe's cross-validated
 \(R^2\) under the two splits above, of which word-held-out is the
-stricter: binomial-held-out \(R^2\) may be inflated by lexical
-preferences, such as a general tendency for \emph{bread} to come first.
+stricter (since binomial-held-out \(R^2\) may be inflated by general
+lexical preferences).
 
-The second measurement uses the probe rather than evaluating it. A probe
-trained on the full novel set is applied to the attested set. Since that
-probe has seen only binomials the model encountered rarely or not at
-all, its prediction \(\hat{y}\) for an attested binomial estimates what
-generalizable knowledge alone would predict, and cannot reflect the
-probe having learned that binomial.
-
-Two things could govern the model's preference for an attested binomial:
-the abstract component \(\hat{y}\), and the order the corpus itself
-attests for that particular pair. The latter is item-specific and
-external to the model, so it is the natural measure of stored knowledge.
-Writing each pair with \(w_1\) alphabetically first, we measure it as
-\(r = \text{freq}_{w_1 \text{and} w_2} / (\text{freq}_{w_1 \text{and} w_2} + \text{freq}_{w_2 \text{and} w_1}) - 0.5\),
-the share of the corpus's occurrences that place the alphabetically
-first word first, centered so that \(r\) runs from \(-0.5\) to \(+0.5\)
-and zero means the corpus attests both orders equally often.
-Alphabetical order is an arbitrary reference frame rather than a
-preferred one: it is the majority order for almost exactly half of the
-binomials in each corpus, and \(r\), \(\hat{y}\), and
-\(y_{\text{true}}\) are all signed the same way, so a positive value on
-any of the three means the alphabetically first word comes first.
-Entering both predictors together, and letting each be moderated by how
-often the model saw the binomial (\(f\), log total frequency), gives
+The second measurement evaluates the probe on the attested set. Since
+that probe has seen only binomials the model encountered rarely or not
+at all, its prediction \(\hat{y}\) for an attested binomial estimates
+what abstract knowledge alone would predict, and cannot reflect the
+probe (or the LLM) having memorized that binomial. In order to analyze
+the extent to which the model's ordering preference within the attested
+set is driven by abstract vs holistic knowledge, we implement a Bayesian
+regression model using \emph{brms} \citep{burkner2017brms} with default
+priors. Our dependent variable is \(y_{\text{true}}\), the model's
+ordering preference. The probe's prediction, \(\hat{y}\), stands in for
+abstract preferences. Relative frequency, \(r\), is the centered
+proportion of occurrences in alphabetical ordering: \(0.5\) means the
+binomial always occurs in alphabetical ordering in the corpus, \(0\)
+means it occurs evenly in both orderings, and \(-0.5\) means it always
+occurs in non-alphabetical ordering. Letting \(f\) be log overall
+frequency (overall occurrences in the model's corpus,
+logged\footnote{Frequency is each binomial's exposure in the model's own
+  training corpus: exact counts in the BabyLM corpus
+  \citep{warstadt-etal-2023-findings} for the BabyLM models, and
+  infini-gram counts in the Pile \citep{gao2020pile, liu2024infinigram}
+  for the rest, which are exact only for Pythia and stand in as a proxy
+  for GPT-2, OLMo, and Llama (Appendix~\ref{sec-appendix-relfreq}). The
+  two corpora differ sharply in the frequency range they afford;
+  Appendix~\ref{sec-appendix-corpus-freq} gives the distributions.}),
+our regression equation is:
 
 \begin{equation}\phantomsection\label{eq-relfreq}{
 \begin{aligned}
@@ -470,42 +466,21 @@ y_{\text{true}} &\sim \beta_0 + \beta_1\hat{y} + \beta_2 r + \beta_3 f\\
 \end{aligned}
 }\end{equation}
 
-fit in \emph{brms} \citep{burkner2017brms} with default priors. Holistic
-storage makes two predictions about the moderators: as a binomial
-becomes entrenched, the abstract component should lose ground
-(\(\beta_4 < 0\)) while its own attested order should gain ground
-(\(\beta_5 > 0\)). Attention-zeroing should attenuate both, since it
-prevents any information about the two words jointly from reaching the
-probe.
-
 The residual scale is modeled rather than assumed constant. The spread
 of \(y_{\text{true}}\) varies with frequency, and an unmodeled trend
-there would inflate the slopes at one end of the range; \(\gamma_1\)
-absorbs it, leaving the interaction terms to capture changes in how
-strongly each predictor governs the ordering.
-
-Frequency is each binomial's exposure in the model's own training
-corpus: exact counts in the BabyLM corpus
-\citep{warstadt-etal-2023-findings} for the BabyLM models, and
-infini-gram counts in the Pile \citep{gao2020pile, liu2024infinigram}
-for the rest, which are exact only for Pythia and stand in as a proxy
-for GPT-2, OLMo, and Llama. Reduplicatives such as \emph{again and
-again} are excluded, since the two orderings are the same string
-(Appendix~\ref{sec-appendix-relfreq}).
+there would inflate the slopes at one end of the range.
 
 \section{Experiment 1: BabyLM Representations}\label{sec-exp1}
 
 In this first experiment, we probe three BabyLMs (125M, 350M, and 1.3B
 parameters)\footnote{The BabyLM models used here are OPT-based models
-  trained for 20 epochs on a 150M-token subset of the BabyLM benchmark
-  corpus
+  trained for 20 epochs on the BabyLM v3 corpus
   \citep{houghton2026holisticstorageverbupphrases, warstadt-etal-2023-findings}.}
 at their final training checkpoint. Because these models were trained on
 an amount of data comparable to humans, and because the novel set
 excludes binomials in their training corpus, they give the cleanest test
 of whether a language model encodes abstract binomial ordering
-preferences: any preference the probe recovers for a novel binomial must
-have been generalized rather than retrieved.
+preferences.
 
 \subsection{Results}\label{results}
 
@@ -514,9 +489,9 @@ have been generalized rather than retrieved.
 Results are shown in Figure~\ref{fig-r2-babylm}; full numerical results
 are in Appendix~\ref{sec-appendix-exp1} (Table~\ref{tbl-r2-babylm}). The
 control probe R² values were consistently near zero across all
-conditions and all three models (mean ± SD = 0.0001 ± 0.0001; full
-control results are in Table~\ref{tbl-ctrl-r2-babylm}), confirming that
-the probe doesn't recover spurious signal from label noise.
+conditions and all three models (reported alongside each R² in
+Table~\ref{tbl-r2-babylm}), confirming that the probe doesn't recover
+spurious signal from label noise.
 
 \begin{figure}
 
@@ -528,9 +503,7 @@ the probe doesn't recover spurious signal from label noise.
 
 \caption{\label{fig-r2-babylm}Cross-validated probe R² at the final
 hidden layer for the BabyLM models, binomial level, by attention
-condition. Bars = ±1 SD across 10 folds (minimum width enforced for
-visibility). The drop from the left to the right of each panel is the
-lexical generalization cost.}
+condition. Bars = ±1 SD across 10 folds.}
 
 \end{figure}%
 
@@ -547,39 +520,18 @@ report but do not build on.
 \subsubsection{Abstract and Stored
 Contributions}\label{abstract-and-stored-contributions}
 
-Both sources predict the model's ordering preference, and both do so
-credibly in all three models. Under full context, \(\hat{y}\) carries a
-coefficient between +0.332 and +0.434, and \(r\) one between +0.221 and
-+0.341, with 95\% credible intervals excluding zero throughout
-(Appendix~\ref{sec-appendix-relfreq}). A BabyLM's preference for an
-attested binomial is thus governed partly by what generalizes from
-binomials it never saw, and partly by the order its own corpus happens
-to attest for that specific pair. Neither alone accounts for the
-ordering.
+Both abstract preferences and relative corpus frequency predict the
+model's ordering preference, and both do so credibly in all three models
+(Appendix~\ref{sec-appendix-relfreq}). The effect of relative frequency
+is stronger for high-frequency binomials, while the effect of
+\(\hat{y}\) is constant across different frequencies.
 
-Attention-zeroing separates the two. Blocking cross-word attention
-reduces the contribution of the corpus's attested order by 9--26\%,
-against 7--17\% for the abstract component. The two ranges overlap, but
-the asymmetry holds within each model taken separately: the attested
-order loses more than the abstract component does in all three. Since
-the zeroed representation is additive in the two words and can carry no
-information about them jointly, the component that gives way is the one
-that required them to interact.
-
-The frequency moderation is present here too. The attested order gains
-ground with exposure in all three models (+0.115 {[}+0.107, +0.124{]},
-+0.104 {[}+0.095, +0.113{]} and +0.103 {[}+0.094, +0.111{]}), and in
-each case that gain is roughly halved under attention-zeroing (+0.055,
-+0.060 and +0.034). These are the same magnitudes the large-scale models
-show in Experiment 2, so the models trained on a human-scale corpus need
-no separate account: the frequency-dependent trade-off appears at 100M
-tokens and does not require web-scale exposure to emerge. The caveat is
-on precision rather than direction. 70\% of BabyLM's binomials occur
-exactly once, so \(r\) sits at a boundary value for most of the set and
-its lowest frequency deciles consist entirely of singletons, leaving the
-measure coarse at the low-frequency end
-(Appendix~\ref{sec-appendix-relfreq}). Experiment 2 supplies the
-frequency range these models lack.
+Zeroing out attention reduces both the effects of abstract preferences
+and relative frequency for the BabyLMs and additionally results in a
+negative interaction effect between \(\hat{y}\) and overall frequency,
+suggesting that abstract preferences are a \emph{worse} predictor of
+ordering preferences for high-frequency binomials when attention is
+zeroed.
 
 \begin{figure}
 
@@ -591,17 +543,8 @@ frequency range these models lack.
 
 \caption{\label{fig-relfreq-babylm}How strongly each source contributes
 to the BabyLM models' ordering preference, by binomial frequency. Values
-are simple slopes from the fitted posteriors of
-Equation~\ref{eq-relfreq}, evaluated at each decile's median frequency
-and plotted against that frequency. The lines are straight because
-Equation~\ref{eq-relfreq} is linear in \texttt{log\_freq}, so a simple
-slope is exactly linear in it; points mark the decile medians, and their
-spacing shows where the binomials actually are. Bands are 95\% credible
-intervals, widest at the extremes because a simple slope is least
-precisely estimated far from the mean. Under full context relative
-frequency gains ground as frequency rises while the abstract component
-loses it; under attention-zeroing relative frequency sits lower
-throughout.}
+are slopes from the fitted posteriors of Equation~\ref{eq-relfreq}.
+Bands are 95\% credible intervals.}
 
 \end{figure}%
 
@@ -621,18 +564,17 @@ comparison (Appendix~\ref{sec-appendix-models}).
 
 Figure~\ref{fig-r2} shows both cross-validation splits for all 16
 models; full numbers, control probes, and the word-level replication are
-in Appendix~\ref{sec-appendix-exp2}. Control R² was near zero throughout
-(mean ± SD = 0.0002 ± 0.0002). All large-scale models substantially
-outperform BabyLM: full-context binomial-held-out R² spans 0.43 to 0.65
-against 0.29--0.34, and word-held-out R² is lower than binomial-held-out
-for every model and condition. Attention-zeroing raises
-binomial-held-out R² in every large-scale family, most sharply in GPT-2,
-where it reaches 0.79 at 117M against 0.65 under full context;
-Llama-3-8B is the sole exception. Scale effects within families are
-non-monotonic, with GPT-2 R² \emph{decreasing} with size, from 0.65 at
-117M to 0.49 at XL.
+in Appendix~\ref{sec-appendix-exp2}. Control R² was near zero
+throughout. All large-scale models substantially outperform BabyLM:
+full-context binomial-held-out R² spans 0.43 to 0.65 against 0.29--0.34,
+and word-held-out R² is lower than binomial-held-out for every model and
+condition. Attention-zeroing raises binomial-held-out R² in every
+large-scale family, most sharply in GPT-2, where it reaches 0.79 at 117M
+against 0.65 under full context; Llama-3-8B is the sole exception. Scale
+effects within families are non-monotonic as a function of number of
+parameters.
 
-\begin{figure*}
+\begin{figure*}[t]
 
 \centering{
 
@@ -644,62 +586,41 @@ non-monotonic, with GPT-2 R² \emph{decreasing} with size, from 0.65 at
 attention condition and cross-validation split. Circles =
 binomial-held-out; triangles = word-held-out. Bars = 95\% CI across 10
 folds. Models ordered by parameter count within each family and colored
-by family. Control R² \(\approx\) 0 (Appendix~\ref{sec-appendix-exp2}).}
+by family.}
 
 \end{figure*}%
 
 \subsubsection{Abstract and Stored
 Contributions}\label{abstract-and-stored-contributions-1}
 
-The frequency range BabyLM lacks sharpens the moderation and separates
-the two moderators. Under full context, the contribution of the corpus's
-attested order grows with exposure in all 13 large-scale models, and the
-abstract component's shrinks in all 13, with 95\% credible intervals
-excluding zero in every case (Table~\ref{tbl-relfreq};
-Figure~\ref{fig-relfreq-coefs}). The two moderators run in opposite
-directions on the same items: the more often a model saw a binomial, the
-more its ordering is governed by that binomial's own attested order and
-the less by what generalizes from binomials it never saw.
+Similar to the BabyLMs, there is an effect of both abstract preferences
+and relative frequency for all models. Further, the effect of relative
+frequency is stronger for frequent binomials compared to infrequent
+ones. Unlike the BabyLMs, however, the effect of abstract preferences
+\emph{decreases} as a function of frequency. In other words, the more
+the models encounter a binomial, the more their ordering preferences are
+governed by that binomial's frequency and the less by abstract
+preferences.
 
-The effect is substantial rather than marginal. In GPT-2 the two sources
-cross over: the attested order's standardized slope climbs from 0.05 in
-the rarest frequency decile to 0.51 in the most frequent, while the
-abstract component's falls from 0.51 to 0.47, so that for the most
-frequent binomials the corpus's own attested order is the better
-predictor of the two (Figure~\ref{fig-relfreq-pile}). The crossing is
-not universal: in Llama-3-8B the attested order climbs from 0.11 to 0.40
-while the abstract component falls from 0.67 to 0.55, converging without
-meeting. The direction is the same in every model; whether the two
-actually cross depends on where each starts.
+Zeroing out attention mitigates the effect of relative frequency
+substantially for both the main-effect and the interaction with overall
+frequency, however both remain credible. Further, the effect of abstract
+preferences \emph{increases} in every one of the large-scale models,
+while the interaction effect grows more negative in all but one. In
+other words, the effect of abstract preferences is generally stronger
+with attention zeroed out, but this increase is weaker for
+high-frequency binomials.
 
-Attention-zeroing removes this selectively, which is what identifies
-where the stored component lives. The attested order's contribution
-falls by 40--70\% across the large-scale models, and its moderation by
-frequency falls by roughly 72\% alongside it, though it remains credible
-in 13 of 13 models rather than vanishing outright. The abstract
-component moves the other way: it is \emph{larger} under
-attention-zeroing in every one of the 13, by 5--43\%. Since the zeroed
-representation is additive in the two words, no information about them
-jointly can reach the probe, so what the intervention strips is the
-component that required the two words to be encoded together. A blunt
-degradation of the representation would have reduced both terms; this
-reduces one and raises the other. It is worth being clear about what
-remains: roughly half of the attested order's contribution survives an
-additive representation, so the item-specific knowledge is not carried
-by a pair representation alone. Experiment 3 shows this surviving
-portion is the part that appears first, and Section~\ref{sec-discussion}
-takes up what it is likely to be.
-
-One term does not behave as the storage account predicts. The abstract
-component's moderation stays negative under attention-zeroing in all 13
-large-scale models rather than flattening, so its decline with frequency
-is not caused by stored orderings displacing it. The probe is trained on
-novel binomials, which by construction have no corpus frequency; the
-words of frequent attested binomials have had their representations
-shaped by those binomial contexts, and a mapping learned from nonce
-items transfers less well to them. That is a claim about lexical
-representations rather than phrasal storage, and the intervention leaves
-it intact because word-additive representations survive the mask.
+Notably, the effect of zeroing out attention differs between the BabyLMs
+and the other models. For the BabyLMs, zeroing out attention weakens the
+effect of both abstract preferences and relative frequency; for the
+large-scale models, it weakens the effect of relative frequency but
+\emph{strengthens} the effect of abstract preferences. Further, the
+reduction in the effect of relative frequency is smaller for the BabyLMs
+than for the other models. In other words, abstract preferences appear
+to depend on cross-word attention for the BabyLMs, while for the
+large-scale models they are recoverable from the individual word
+representations alone.
 
 \begin{figure}[t]
 
@@ -714,12 +635,7 @@ the ordering preference, by binomial frequency, for the 13 large-scale
 models. Values are simple slopes from the fitted posteriors of
 Equation~\ref{eq-relfreq}, evaluated at each decile's median frequency
 and plotted against that frequency; faint lines are individual models
-with their 95\% credible intervals, bold lines their mean. The lines are
-straight because Equation~\ref{eq-relfreq} is linear in
-\texttt{log\_freq}. Under full context the abstract component weakens
-and relative frequency strengthens in all 13; the two cross in Pythia,
-GPT-2 and Llama-1.3B but not in OLMo or Llama-3-8B. Under
-attention-zeroing relative frequency sits far lower throughout.}
+with their 95\% credible intervals, bold lines their mean.}
 
 \end{figure}%
 
@@ -733,19 +649,14 @@ exposure. Experiment 3 examines the same probe at multiple training
 checkpoints.
 
 The probe, input modes, attention conditions, and cross-validation
-splits are as described in Section~\ref{sec-methods}. We refit
-Equation~\ref{eq-relfreq} at each saved checkpoint of the three BabyLM
-models and the three Pythia models for which checkpoints were available,
-in both attention conditions: 72 fits in all. Because every variable is
-standardized within each fit, coefficients are comparable across
-checkpoints as well as across models.
-
-The two sets of checkpoints cover very different portions of training
-and should not be read as a common axis. BabyLM's six steps span roughly
-the first two-thirds of its run, whereas Pythia's stop at step 1000 of
-about 143,000, or the first 0.7\%. Pythia therefore shows what happens
-very early, and its final-checkpoint models from Experiment 2 show where
-that leads, with nothing in between.
+splits are as described previously. We refit Equation~\ref{eq-relfreq}
+at each saved checkpoint of the three BabyLM models and the three Pythia
+models, in both attention conditions: 72 fits in all.
+\(y_{\text{true}}\) and \(\hat{y}\) are standardized within each fit,
+since their spread differs across models, conditions and checkpoints;
+\(r\) is a proportion on a fixed scale that means the same thing in
+every corpus. Coefficients are therefore comparable across checkpoints
+as well as across models.
 
 \subsection{Results}\label{results-2}
 
@@ -760,57 +671,40 @@ vs.~0.67--0.72); this ordering reverses between \textasciitilde120M and
 attention-zeroed at the final checkpoint for all three model sizes.
 Pythia shows an inverted-U trajectory instead: R² rises from 0.68--0.74
 at 33.6M tokens to a peak of 0.80--0.86 at 537M tokens, then declines to
-0.71--0.76 at 1074M--2097M tokens, consistent with large-scale models
-still consolidating preference representations during this early window
-(the first 0.7\% of 300B tokens). The attention condition flip for
+0.71--0.76 at 1074M--2097M tokens. The attention condition flip for
 Pythia follows the same qualitative pattern as BabyLM. Full numerical
 and word-level results are in Appendix~\ref{sec-appendix-exp3}.
 
-The stored contribution accumulates. Across the first three checkpoints
-\texttt{rel\_freq} is negligible in every model, never exceeding 0.034
-in absolute value and credibly different from zero in only 19 of 36
-cells, in both directions. From the fourth checkpoint it is credibly
+The effect of relative frequency is negligible across the first three
+checkpoints of every model. From the fourth checkpoint it is credibly
 positive in 36 of 36 model-by-condition cells and climbs thereafter: to
-0.224, 0.200 and 0.387 in the three BabyLM models and to 0.140, 0.140
-and 0.152 in the three Pythia models. This holds in both attention
-conditions, so what grows is not solely the part that requires the two
-words to interact. Item-specific ordering information is not present
-from the outset; it is acquired, and it keeps accruing for as long as we
-can observe.
+0.463, 0.414 and 0.802 in the three BabyLM models and to 0.488, 0.488
+and 0.530 in the three Pythia models. This holds in both attention
+conditions, so what grows is not solely the binomial-specific
+representation.
 
-What the intervention removes appears later than the contribution
-itself, and the lag is informative. At the fourth checkpoint, the first
-at which \texttt{rel\_freq} is credibly positive in every model,
-attention-zeroing removes none of it: the gap between conditions is
-0.025 at most and as often slightly negative as positive, in both
-corpora and on both terms. Item-specific ordering information is
-therefore already measurable at a point where it survives a strictly
-additive representation intact. Whatever carries it at this stage is not
-holistic storage, which by definition requires the pair: it is the
-individual lexical representations.
+At the fourth checkpoint, the first at which \texttt{rel\_freq} is
+credibly positive in every model, attention-zeroing removes none of the
+effect. In other words, at the point where storage is first measurable,
+it survives an intervention that removes the phrasal representation, so
+what has shifted at that point is the lexical representations. Storage
+in the phrasal representation then accumulates on top of it. The share
+of \texttt{rel\_freq} that attention-zeroing removes rises from nothing
+at the fourth checkpoint to 20--23\% by the last in the three Pythia
+models and 8--24\% in the three BabyLM models, and reaches 40--70\% in
+the fully trained large-scale models. The interaction effect between
+relative frequency and overall frequency follows the same course,
+reaching 0.142, 0.103 and 0.291 in BabyLM and 0.052, 0.042 and 0.054 in
+Pythia.
 
-Holistic storage then accumulates on top of it. The share of
-\texttt{rel\_freq} that attention-zeroing removes rises from nothing at
-the fourth checkpoint to 20--23\% by the last in the three Pythia models
-and 8--24\% in the three BabyLM models, and reaches 40--70\% in the
-fully trained large-scale models. The frequency moderation follows the
-same course, its condition gap reaching 0.041, 0.030 and 0.085 in BabyLM
-and 0.037, 0.029 and 0.038 in Pythia. Repeated exposure to a binomial
-thus leaves item-specific knowledge in two forms, and they arrive in
-order: first in the lexical representations, and only later as holistic
-storage. The abstract component moves independently of all this.
-\texttt{y\_pred} declines steadily across BabyLM training in both
-conditions (0.625 to 0.428 in BabyLM-125M under full context) while
-rising over Pythia's early window and then falling below its starting
-value by the final model (0.528 at step 16, 0.686 at step 256, 0.462
-fully trained). Its moderation,
-\texttt{y\_pred}\(\times\)\texttt{log\_freq}, is credibly negative under
-attention-zeroing in 26 of the 36 checkpoint cells, but with no trend
-common to the two corpora: it drifts further from zero across BabyLM
-training and back toward zero across Pythia's. Full numerical results
-are in Appendix~\ref{sec-appendix-exp3}.
+The effect of abstract preferences moves independently of all this.
+\(\hat{y}\) declines steadily across BabyLM training in both conditions.
+For Pythia it rises over the early window, then falls below its starting
+value by the final model. Its interaction with overall frequency is
+credibly negative under attention-zeroing in 26 of the 36 checkpoint
+cells. Full numerical results are in Appendix~\ref{sec-appendix-exp3}.
 
-\begin{figure}
+\begin{figure}[t]
 
 \centering{
 
@@ -820,13 +714,11 @@ are in Appendix~\ref{sec-appendix-exp3}.
 
 \caption{\label{fig-checkpoints}Cross-validated probe R² across BabyLM
 and Pythia training checkpoints, by attention condition and
-cross-validation split. BabyLM's checkpoints span most of its training
-run, Pythia's only the first 0.7\% of its own, so the two x-axes are not
-on a common footing. Control R² \(\approx\) 0.}
+cross-validation split. Control R² \(\approx\) 0.}
 
 \end{figure}%
 
-\begin{figure}
+\begin{figure}[t]
 
 \centering{
 
@@ -836,123 +728,125 @@ on a common footing. Control R² \(\approx\) 0.}
 
 \caption{\label{fig-ckpt-sources}All four terms of
 Equation~\ref{eq-relfreq} across training, with 95\% credible intervals.
-Rows are the two sources and their moderations by frequency, on separate
-y-scales because they occupy very different ranges; color marks the
-attention condition and linetype the model size. All variables are
+Rows are the two main-effects and their interaction with frequency, on
+separate y-scales because they occupy very different ranges; color marks
+the attention condition and linetype the model size. All variables are
 standardized within each fit, so values are comparable across
-checkpoints and models. The abstract component is substantial from the
-earliest checkpoint while the attested order starts near zero and
-accumulates. The two conditions track each other on the main effects
-until the final checkpoints; they separate most clearly on the attested
-order's moderation (bottom row), where attention-zeroing roughly halves
-the coefficient by the end of training in every model. The abstract
-component's moderation stays near zero throughout and shows no trend
-common to the two corpora. Neither the y-axes nor the x-axes are on a
-common footing across panels: BabyLM's checkpoints span most of its
-training run, Pythia's only the first 0.7\% of its own.}
+checkpoints and models.}
 
 \end{figure}%
 
-\section{Discussion and Conclusion}\label{sec-discussion}
+\section{Discussion and Conclusion}\label{discussion-and-conclusion}
 
 The present study examined whether language models' binomial ordering
 preferences are driven by abstract structure, and if so, how that
 structure emerges throughout training. Across 16 models from five
-families, we found that ordering preferences are recoverable and
-generalize to unseen words, that a model's preference for an attested
-binomial is governed jointly by what generalizes from binomials it never
-saw and by the order its own corpus attests for that particular pair,
-that the balance between the two shifts toward the attested order as a
-binomial becomes more frequent, and that zeroing out cross-word
-attention removes roughly half of the attested-order contribution in the
-large-scale models while the abstract one survives, growing rather than
-shrinking in every one of them.
+families, we found evidence for both abstract and item-specific sources
+of ordering preference. Preferences generalize to binomials composed
+entirely of words absent from training, demonstrating abstract structure
+that is shared across independently trained models. At the same time, a
+binomial's relative frequency contributes over and above abstract
+preferences, and contributes more as the binomial becomes more frequent.
+These two sources also behave differently over training: abstract
+preferences are present early, whereas the item-specific contribution
+only becomes measurable later, which bounds when it can be observed
+rather than when it arises. Finally, zeroing out cross-word attention
+removes only part of the relative-frequency contribution, suggesting
+that storage shifts the lexical representations as well as the phrasal
+one.
 
-Ordering preferences are therefore clearly driven by abstract
-preferences. The probe recovers a model's preference for binomials built
-entirely from words it was never trained on, which is not something a
-lookup of stored items can do, and a ridge probe with a single tuned
-hyperparameter recovers the same pattern, so the result does not depend
-on the MLP's capacity (Appendix~\ref{sec-appendix-linear}), and the
-answer to the question left open by \citet{houghton2025role} is that
-models do have abstract preferences, but ones a test for human
+The evidence for abstract preferences is particularly strong because it
+does not depend on generalization across familiar words alone. The probe
+recovers a model's preference for binomials built entirely from words it
+was never trained on. A ridge probe with a single tuned hyperparameter
+recovers the same pattern, showing that the result does not depend on
+the MLP's capacity (Appendix~\ref{sec-appendix-linear}). The answer to
+the question left open by \citet{houghton2025role} is therefore that
+models do have abstract preferences, but ones that a test for human
 constraints failed to detect. Further evidence that these preferences
-are systematic rather than an arbitrary consequence of the weights is
-established without the probe at all: independently trained models
-converge on the same preferences for the same novel binomials
-(\(r = 0.45\), against a shuffled baseline of \(r \approx 0.00\)),
-including the three BabyLM models, which share a training corpus but
-differ in capacity. Agreement is also higher within a family than
-between families, which rules out the shared sentence frame as its
-source: the frame is identical for all sixteen models, so it could not
-produce such a gap. At the same time, a binomial's own attested order
-contributes over and above anything the abstract mapping supplies, and
-contributes more the more often the model saw it. That contribution is
-item-specific by construction: it is a fact about one pair of words, not
-a constraint that generalizes. This is the same trade-off between
-abstract preferences and holistic storage that \citet{morgan2016} found
-in humans, emerging in a system that does not have them innately encoded
-in them.
+are systematic comes without the probe at all: independently trained
+models converge on the same preferences for the same novel binomials
+(\(r = 0.45\), against a shuffled baseline of \(r \approx 0.00\)). This
+agreement holds even among the three BabyLM models, which share a
+training corpus but differ in capacity, and is stronger within model
+families than between families. Because all sixteen models received the
+same sentence frame, the latter pattern cannot be attributed to the
+frame itself.
 
-The developmental trajectory separates the two components in time.
-Abstract preferences are present very early: probe R² is already high at
-the earliest BabyLM checkpoint, at roughly 20M tokens, and the abstract
-component of Equation~\ref{eq-relfreq} is large from the first
-checkpoint in every model. The stored contribution is not. It is
-negligible through the first three checkpoints of every model, becomes
-credibly positive everywhere from the fourth, and climbs monotonically
-thereafter under full context, without levelling off. Item-specific
-ordering information is therefore acquired rather than present from the
-outset, and it is still accumulating at the last point we can observe.
-What the intervention removes grows too, and it lags the contribution
-itself. At the first checkpoint where a binomial's attested order
-predicts the model's preference at all, attention-zeroing removes none
-of that prediction; the share it removes then climbs to roughly half by
-the end of training. Item-specific ordering knowledge therefore arrives
-in the lexical representations before it arrives as holistic storage.
+Abstract structure, however, does not fully determine a model's
+preference for a particular binomial. A binomial's relative frequency
+predicts the model's preference over and above what the abstract
+structure predicts, and this item-specific contribution increases with
+frequency. Unlike the abstract structure, this information is specific
+to the particular binomial. The result therefore reveals a
+frequency-dependent division between generalizable structure and
+experience with individual items, closely paralleling the trade-off
+between abstract preferences and item-specific experience observed by
+\citet{morgan2016} in humans.
 
-Usage-based accounts have long held that frequently encountered
-expressions become stored and retrieved as units rather than assembled
-from their parts, and behavioral work on binomials has shown that human
-ordering preferences reflect both abstract constraints and direct
-experience with particular items. The present study corroborates these
-accounts in a system with no innate linguistic preferences at all: the
-same frequency-dependent trade-off emerges in a distributed network
-trained only to predict text, suggesting that it need not be built in,
-and can emerge from exposure alone. Zeroing out cross-word attention
-then shows where the stored component lives. Because the intervention
-makes the representation additive in the two words, it can carry nothing
-about them jointly, and what it removes is drawn specifically from the
-contribution of the binomial's own attested order. What it does
-\emph{not} remove is equally informative. Roughly half of that
-contribution survives an additive representation, and it is not, at
-least, the part the probe's abstract prediction already explains, since
-that prediction is a covariate in the same fit and is computed from the
-same additive representation. The probe is not a complete account of
-abstract structure, so some of what survives may be generalizable
-knowledge it failed to recover. The more interesting possibility is that
-repeated exposure to a binomial in its own frame shifts the
-representations of its individual words, so that a word encountered
-overwhelmingly in first position comes to encode something of that
-tendency on its own. That is still item-specific knowledge, a fact about
-particular words rather than a constraint that generalizes, but it is
-not holistic storage: it has been distilled into the lexical
-representations and no longer needs the pair. On this reading,
-entrenchment yields item-specific knowledge in two forms rather than
-one, and the developmental data orders them: the lexical form is present
-as soon as the attested order predicts anything at all, and holistic
-storage accumulates afterwards. The trade-off \citet{morgan2016}
-describe in humans is then not a single dial between abstract
-preferences and holistic storage, but a sequence, with the lexicon
-carrying the earliest item-specific knowledge and the pair
-representation taking over later. The abstract component survives the
-same intervention: it is \emph{larger} under attention-zeroing in all 13
-large-scale models, by 5--43\%, and smaller by only 7--17\% in the three
-BabyLM models. A representation that had merely been degraded would have
-lost both. Repeated exposure does not simply add a stored preference
-alongside an abstract one: it builds something that requires the two
-words to be encoded together, and that can be switched off without
-disturbing what generalizes.
+Abstract preferences are present from the beginning of training. Probe
+R² is already high at the earliest BabyLM checkpoint, at roughly 20M
+tokens, and the effect of abstract preferences in
+Equation~\ref{eq-relfreq} is large from the first checkpoint in every
+model. The item-specific contribution follows a different trajectory: it
+is negligible through the first three checkpoints of every model,
+becomes credibly positive everywhere from the fourth, and then climbs
+monotonically under full context without leveling off. This is not
+conclusive evidence against item-specific knowledge being learned early,
+however, since the measurement relies on a frequency-difference in
+representations to detect holistic storage. The absence of a frequency
+difference, consequently, does not necessarily indicate lack of storage.
+
+Finally, the attention intervention provides further insight into how
+this item-specific information is represented. Zeroing out cross-word
+attention mitigates but does not eliminate the contribution of relative
+frequency: at the first checkpoint where a binomial's relative frequency
+predicts the model's ordering preference at all, attention-zeroing
+removes none of that prediction; the share removed then increases over
+training. This pattern suggests that item-specific information is not
+exclusively stored as a holistic representation of the binomial.
+Instead, it seems possible that repeated exposure to a binomial
+gradually shifts the representations of its individual words, so that a
+word encountered overwhelmingly in first position comes to encode
+something of that tendency on its own. Such information remains
+item-specific in that it concerns particular words and their learned
+positional tendencies rather than a general constraint, but it no longer
+requires the model to represent the specific binomial context. On this
+interpretation, entrenchment shifts the lexical representations before
+it shifts the phrasal one. That the phrasal representation comes to
+carry ordering information is not especially surprising, since attention
+is what allows a representation of the pair to be built at all. That the
+\emph{lexical} representations shift is the more interesting result, and
+it parallels evidence from human processing that the internal
+representations of a stored multi-word phrase are themselves altered by
+experience with the phrase
+\citep{houghton2025multiwordrepresentationsminds}.
+
+The same interpretation may extend to the abstract preferences. Zeroing
+out attention weakens the effect of abstract preferences for the
+BabyLMs, but strengthens it for the other models. Suppose exposure to a
+diverse corpus gradually shifts generalizable regularities into the
+individual word representations. For the large-scale models, the
+abstract preferences would then survive the intervention. For the
+BabyLMs, whose corpus was repeated 20 times rather than varied, they
+would still need to be computed across words. On this interpretation,
+both kinds of knowledge follow the same course from computed to lexical,
+differing only in how much exposure each requires.
+
+Overall, the findings bridge a longstanding gap between artificial
+language models and usage-based accounts of language. Such accounts have
+long proposed that frequent expressions become increasingly entrenched,
+with behavioral work on binomials showing that human ordering
+preferences reflect both abstract constraints and holistic storage. The
+present results show a similar division emerging in a system with no
+innate linguistic preferences: trained only to predict text, the models
+develop both generalizable ordering preferences and frequency-sensitive
+knowledge of individual expressions. The results therefore suggest that
+the interaction between abstraction and entrenchment need not be
+explicitly built into a learner. It can emerge from exposure itself,
+with generalizable structure and item-specific knowledge developing
+together but on different timescales and, potentially, in different
+parts of the representation.
 
 \section*{Limitations}\label{limitations}
 \addcontentsline{toc}{section}{Limitations}
@@ -960,58 +854,36 @@ disturbing what generalizes.
 The novel binomials were selected to be absent from BabyLM's training
 corpus, so they are genuinely novel only for the three BabyLM models;
 indexed against Dolma \citep{dolma}, a trillion-token corpus, roughly
-98.4\% occur at non-zero frequency. For the thirteen large-scale models
-the probe is therefore trained on infrequent attested binomials rather
-than unseen ones. This is why Experiment 1 anchors the interpretation:
-the inference that a recovered preference must have been generalized
-rather than retrieved rests on BabyLM, and the larger models extend that
-pattern rather than establish it. Corpus frequency is likewise an exact
-measure of what the model saw only for BabyLM and Pythia; for GPT-2,
-OLMo, and Llama, Pile counts stand in as a proxy for web-scale exposure.
+98.4\% occur at non-zero frequency. For the thirteen large-scale models,
+then, the probe is trained on infrequent attested binomials, not unseen
+ones. This is why Experiment 1 anchors the interpretation. If a
+recovered preference must have been generalized and not retrieved, that
+inference rests on the BabyLMs; the larger models extend the pattern but
+don't establish it. Corpus frequency is likewise an exact measure of
+what the model saw only for BabyLM and Pythia; for GPT-2, OLMo, and
+Llama, Pile counts stand in as a proxy for web-scale exposure.
 
-The stored-ordering measure is estimated from counts, so it is least
-reliable exactly where exposure is lowest. A binomial seen once takes
-the same boundary value as one seen a thousand times in a single order,
-which makes the predictor coarse for rare items and attenuates its
-coefficient there. The effect is strongest for BabyLM, where most items
-sit at a boundary and the measure is close to binary, and mild for the
-large-scale models, where it varies continuously through its range. That
-the two return moderation estimates of similar size argues against the
-coefficient being mostly an artifact of saturation, but attenuation and
-growing storage do push it in the same direction, so part of any
-positive estimate reflects improving measurement. This is why we read
-the comparison between attention conditions rather than the moderation
-on its own, since the counts, and therefore the attenuation, are
-identical in both conditions and cancel from the difference.
-
-Separately, BabyLM and Pythia deliver cumulative exposure to individual
-binomials at nearly the same rate per training token, so total text read
-and per-binomial exposure cannot be told apart here; distinguishing them
-would require matched models trained on repeated versus varied text.
-
-Probe performance establishes that ordering information is present in a
-model's representations and recoverable by a mapping that generalizes to
-unseen words, but not that the model uses that information in the way
-the probe reads it. Our central claims are accordingly framed as
-differences between attention conditions and across frequency strata
-rather than as inferences from absolute decodability, and the
-attention-zeroed quantity is guaranteed by the architecture rather than
-estimated by the probe. This distinction does real work: a
-representation that merely carried the outcome of the computation would
-be read equally well at every frequency, predicting neither a shift in
-which source governs the ordering nor any change in that shift when
-cross-word attention is blocked, and both are observed in every
-large-scale model. Overall R² does also differ between the two attention
-conditions in a direction that is not stable across families or across
-training, and we draw no conclusions from it.
-
-Finally, the results are limited to English and to a single
-construction, and checkpoints were available for two of the five
+Additionally, the results are limited to English and to a single
+construction, and checkpoints were only examined for two of the five
 families, so the developmental claims rest on BabyLM and Pythia. Whether
 attention-zeroing separates per-word from relational information as
 cleanly in constructions with a different structure is untested, though
 the argument that it should is architectural rather than empirical and
 does not depend on properties peculiar to binomials.
+
+Finally, the intervention separates additive from non-additive
+information, not abstract from holistic information directly. The two
+line up only if abstract constraints can be stated over each word on its
+own. Most of the constraints in \citet{morgan2016} can be: relative word
+length or frequency compares two quantities that each word carries by
+itself, so an additive representation preserves them. A constraint over
+the juncture between the two words is different. Avoiding a stress clash
+across the boundary, for instance, is abstract and generalizable, but
+the mask would remove it and we would count it as holistic storage. The
+dissociation between the two effects suggests this isn't what's driving
+our results, since losing information indiscriminately would have
+weakened both effects rather than only one. Even so, the design doesn't
+rule it out.
 
 \bibliography{references}
 \clearpage
@@ -1051,6 +923,13 @@ token counts.
 \begingroup\fontsize{9}{11}\selectfont
 
 \begin{longtable}[t]{llll}
+
+\caption{\label{tbl-models}Models used across experiments. Training
+token counts for full-scale models are approximate; GPT-2 counts are
+estimated from the reported 40GB WebText corpus. BabyLM models train for
+20 epochs over 150M tokens (3B effective token exposures).}
+
+\tabularnewline
 
 \toprule
 Family & Model & Parameters & Tokens\\
@@ -1097,26 +976,18 @@ Family & Model & Parameters & Tokens\\
 \nopagebreak
 \multirow{-2}{*}{\raggedright\arraybackslash Llama} & Llama-3-8B & 8B & \textasciitilde{}15T\\*
 
-
-\caption{\label{tbl-models}Models used across experiments. Training
-token counts for full-scale models are approximate; GPT-2 counts are
-estimated from the reported 40GB WebText corpus. BabyLM models train for
-20 epochs over 150M tokens (3B effective token exposures).}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
 
-\clearpage
+\newpage
 
 \section{Binomial Extraction Criteria}\label{sec-appendix-extraction}
 
-Candidate ``\(W_1\) and \(W_2\)'' sequences were first selected using
-spaCy \citep{spacy2} part-of-speech tags, retaining only cases where
-both \(W_1\) and \(W_2\) are open-class words (nouns, verbs, adjectives,
-or adverbs). Each candidate was then parsed with the Berkeley Neural
-Parser
+Candidate binomials (``W1 and W2'') were first selected using spaCy
+\citep{spacy2} part-of-speech tags, retaining only cases where both
+\(W_1\) and \(W_2\) are open-class words (nouns, verbs, adjectives, or
+adverbs). Each candidate was then parsed with the Berkeley Neural Parser
 \citep{kitaev-klein-2018-constituency, kitaev-etal-2019-multilingual} to
 confirm that the two words form a minimal coordinate phrase. The
 inclusion criterion was that the two words be co-constituents under the
@@ -1129,18 +1000,17 @@ identical procedure, with the added requirements that both words appear
 in BabyLM's vocabulary and that the binomial is absent from the attested
 set.
 
-Because cross-category coordination is syntactically unacceptable,
-violating the Coordination of Likes constraint that benepar enforces
-through its Penn Treebank training, genuine mixed-category binomials are
-excluded by the constituency criterion rather than by any explicit POS
-filter. We deliberately avoid filtering by spaCy POS tag agreement
-because spaCy frequently misclassifies participial forms in coordinate
-contexts, for example tagging ``mortified'' as VERB rather than ADJ in
-``disgusted and mortified.'' Explicit POS filtering would therefore
-discard many valid same-category binomials without catching any genuine
-cross-category ones.
+Because our extraction criterion requires W1 and W2 to form a
+phrase-level constituent spanning exactly W1, ``and,'' and W2, binomials
+that do not satisfy this constituency criterion are excluded. We do not
+additionally require the two conjuncts to receive the same POS tag,
+because spaCy's POS tagger can misclassify participial forms in
+coordinate contexts, for example tagging ``mortified'' as VERB rather
+than ADJ in ``disgusted and mortified.'' Requiring POS-tag agreement
+would therefore risk excluding valid binomials because of POS-tagging
+errors.
 
-\clearpage
+\newpage
 
 \section{Implementation Details}\label{sec-appendix-implementation}
 
@@ -1150,7 +1020,7 @@ with early stopping (patience 20) against a 10\% held-out validation
 split. Antisymmetric augmentation is applied with probability 0.5: for
 each binomial the flipped version, with swapped ordering and negated
 label, is added to the training batch. The input dimensionality follows
-from the representation type as defined in Section~\ref{sec-methods}.
+from the representation type.
 
 \textbf{Attention-zeroing.} The mask is supplied to the model as a 4D
 attention mask rather than a 2D padding mask, so it applies at every
@@ -1159,16 +1029,16 @@ mask applied at the first layer alone would leave \(W_2\) able to
 recover information about \(W_1\) indirectly at greater depth, through
 positions that did attend to it.
 
-\textbf{Recomputing the target.} Because \(y_{true}\) is the model's own
-log-probability ratio, it is recomputed from whichever forward pass
-produced the representations being probed. The two full-context
-representation types therefore share a target, while the
+\textbf{Recomputing the target.} Because \(y_{\text{true}}\) is the
+model's own log-probability ratio, it is recomputed from whichever
+forward pass produced the representations being probed. The two
+full-context representation types therefore share a target, while the
 attention-zeroed condition has its own: blocking cross-word attention
 changes the model's output probabilities as well as its hidden states.
 Each attention condition is thus a self-consistent probe problem rather
 than two input encodings evaluated against a fixed target.
 
-\clearpage
+\newpage
 
 \section{Linear Probe Replication}\label{sec-appendix-linear}
 
@@ -1178,15 +1048,12 @@ augmentation probability, batch size, and initialization. A skeptical
 reading is that some of them were tuned toward the reported result. We
 therefore repeat the analysis with a probe that has one.
 
-The linear probe is a ridge regression on the same antisymmetric
-features, fit on the same cross-validation folds. It has no intercept,
-since the antisymmetric feature is odd by construction and the target
-has zero mean at the origin, and no optimization schedule, since the
-solution is closed-form. Its only free quantity is the ridge penalty,
-selected per fold from \(\{10^0, \ldots, 10^5\}\) on an inner split of
-that fold's training data. That inner split is the same size as the
-MLP's early-stopping split, so both probes receive an identical budget
-of held-out data for hyperparameter selection.
+The linear probe is a ridge regression on the same features, fit on the
+same cross-validation folds. Its only free variable is the ridge
+penalty, selected per fold from \(\{10^0, \ldots, 10^5\}\) on an inner
+split of that fold's training data. That inner split is the same size as
+the MLP's early-stopping split, so both probes receive an identical
+budget of held-out data for hyperparameter selection.
 
 Across 52 model-checkpoint cells and 207 comparisons, the two probes
 agree closely (\emph{r} = 0.928 between their R² values). On the
@@ -1196,6 +1063,13 @@ average (0.410 vs.~0.476).
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{llllll}
+
+\caption{\label{tbl-linear}Linear (ridge) versus MLP probe R² at the
+final hidden layer, binomial-level input mode. Both probes use identical
+cross-validation folds. B = binomial-held-out; W = word-held-out. Gap =
+MLP minus linear.}
+
+\tabularnewline
 
 \toprule
 Model & Condition & Split & Linear & MLP & Gap\\
@@ -1338,13 +1212,6 @@ Model & Condition & Split & Linear & MLP & Gap\\
 \nopagebreak
 \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash pythia-410m} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.392 & 0.461 & +0.069\\*
 
-
-\caption{\label{tbl-linear}Linear (ridge) versus MLP probe R² at the
-final hidden layer, binomial-level input mode. Both probes use identical
-cross-validation folds. B = binomial-held-out; W = word-held-out. Gap =
-MLP minus linear.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1356,18 +1223,16 @@ identity alone, which a flexible model can exploit and a linear map on
 the same features cannot. Word-held-out performance, on which the
 paper's claims rest, is where the two agree most closely.
 
-\clearpage
+\newpage
 
 \section{Cross-Validation Split Sizes}\label{sec-appendix-cv}
 
 Cross-validation is carried out on the novel set only. The attested set
 is never cross-validated: it is used solely as the transfer target
-described in Section~\ref{sec-methods-analyses}, where a probe trained
-on the full novel set predicts every attested binomial and those
-predictions enter the ordering-source regression as \(\hat{y}\). Both
-splits use ten folds with seed 964, and the same folds are reused across
-models, attention conditions, and probe architectures so that all
-reported R² values are directly comparable.
+described in Section~\ref{sec-methods-analyses}. Both splits use ten
+folds, and the same folds are reused across models, attention
+conditions, and probe architectures so that all reported R² values are
+directly comparable.
 
 Under the binomial-held-out split, binomials are assigned to folds
 directly, so each fold trains on nine tenths of the set and tests on the
@@ -1385,6 +1250,13 @@ Table~\ref{tbl-cv-sizes} gives the resulting sizes.
 
 \begin{longtable}[t]{llll}
 
+\caption{\label{tbl-cv-sizes}Cross-validation fold sizes for the novel
+set (340,042 binomials over 50,137 unique words). Ranges are across the
+10 folds. Discarded items under word-held-out are binomials with exactly
+one word in the held-out vocabulary fold.}
+
+\tabularnewline
+
 \toprule
 Split & Train / fold & Test / fold & Discarded / fold\\
 \midrule
@@ -1401,146 +1273,243 @@ Split & Train / fold & Test / fold & Discarded / fold\\
 Binomial-held-out & 306,038 & 34,004 & 0\\
 Word-held-out & 271,560--279,306 & 3,086--3,839 & 61,101 (18.0\%)\\*
 
-
-\caption{\label{tbl-cv-sizes}Cross-validation fold sizes for the novel
-set (340,042 binomials over 50,137 unique words). Ranges are across the
-10 folds. Discarded items under word-held-out are binomials with exactly
-one word in the held-out vocabulary fold.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
 
-No fold under either split fell below the minimum test-set size of 10
-binomials required for a fold to be scored, so all ten folds contribute
-to every reported mean. For reference, the attested set to which the
-trained probe is transferred contains 48,965 binomials over 21,721
-unique words, all of which receive a prediction.
+\newpage
 
-\clearpage
+\section{Frequency-Dependent Preference
+Regression}\label{sec-appendix-relfreq}
+
+Full results for Equation~\ref{eq-relfreq}: abstract preferences
+\(\hat{y}\) (\texttt{y\_pred}), the binomial's relative frequency in the
+corpus (\texttt{rel\_freq}), total binomial frequency
+(\texttt{log\_freq}), the two moderations, and the residual-scale term.
+The two kinds of variable are treated differently, and deliberately so.
+\texttt{y\_true} and \texttt{y\_pred} are properties of the model: both
+are log-probability ratios, so a unit is nominally the same everywhere,
+but the spread of that quantity reflects how sharp a given model's
+output distribution is rather than how much it knows about binomials.
+Across the models here the standard deviation of \texttt{y\_true} ranges
+from 2.71 to 4.85, and it runs opposite to probe R², so a raw
+coefficient would partly measure output calibration. We therefore
+z-score both within each fit, which puts every coefficient in units of
+that model's own preference spread. \texttt{rel\_freq} and
+\texttt{log\_freq}, by contrast, are properties of the training corpus:
+a proportion of occurrences and a count of them mean the same thing
+however they are measured, and dividing either by a corpus-specific
+standard deviation would replace a shared unit with a local one. They
+are therefore left on their own scales: \texttt{rel\_freq} is a
+proportion running from \(-0.5\) to \(+0.5\) and \texttt{log\_freq} is
+centred but not scaled, so both mean the same thing in every corpus. A
+\texttt{rel\_freq} coefficient is therefore the change in ordering
+preference, in standard deviations, between a binomial always attested
+in one order and one always attested in the other; a \texttt{log\_freq}
+coefficient is the change per unit of log frequency, which is a factor
+of \(e \approx 2.72\) in the raw count; multiplying by \(0.69\) converts
+it to the change per doubling. Because \texttt{log\_freq} is centred
+within each fit, a main effect is the effect at that corpus's average
+binomial, which is a different absolute frequency for BabyLM than for
+the large-scale corpora. Main effects are therefore interpretable within
+a fit and comparable between attention conditions, but they are not
+comparable in magnitude across the two corpora. The two predictors are
+also on different scales, so their coefficients should not be compared
+with each other.
+
+\begingroup\fontsize{7}{9}\selectfont
+
+\begin{longtable}[t]{llllll}
+
+\caption{\label{tbl-relfreq}Frequency-dependent preference regression
+(Equation~\ref{eq-relfreq}) for all 16 models at their final checkpoint,
+by attention condition. \texttt{y\_true} and \texttt{y\_pred} are
+z-scored within each fit; \texttt{rel\_freq} is a proportion from
+\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centred but not scaled,
+so both mean the same thing in every corpus. 95\% credible intervals in
+brackets. Holistic storage predicts a negative \texttt{y\_pred}
+\(\times\) \texttt{log\_freq} and a positive \texttt{rel\_freq}
+\(\times\) \texttt{log\_freq}, both attenuating under
+attention-zeroing.}
+
+\tabularnewline
+
+\toprule
+Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\times$ \texttt{log\_freq} & \texttt{rel\_freq} $\times$ \texttt{log\_freq}\\
+\midrule
+\endfirsthead
+\multicolumn{6}{@{}l}{\textit{(continued)}}\\
+\toprule
+Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\times$ \texttt{log\_freq} & \texttt{rel\_freq} $\times$ \texttt{log\_freq}\\
+\midrule
+\endhead
+
+\endfoot
+\bottomrule
+\endlastfoot
+ & Full context & 0.418 [0.411, 0.426] & 0.535 [0.519, 0.551] & 0.003 [-0.010, 0.015] & 0.393 [0.363, 0.423]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} & Attention-zeroed & 0.388 [0.380, 0.396] & 0.419 [0.403, 0.436] & -0.025 [-0.036, -0.013] & 0.187 [0.158, 0.217]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.434 [0.426, 0.442] & 0.458 [0.442, 0.475] & -0.010 [-0.022, 0.002] & 0.355 [0.325, 0.385]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} & Attention-zeroed & 0.370 [0.362, 0.378] & 0.415 [0.398, 0.432] & -0.019 [-0.030, -0.007] & 0.206 [0.176, 0.235]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.332 [0.325, 0.340] & 0.706 [0.690, 0.722] & 0.002 [-0.010, 0.015] & 0.350 [0.320, 0.379]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & Attention-zeroed & 0.275 [0.267, 0.283] & 0.525 [0.509, 0.543] & -0.022 [-0.035, -0.010] & 0.117 [0.087, 0.147]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.489 [0.482, 0.497] & 1.013 [0.988, 1.039] & -0.006 [-0.009, -0.003] & 0.198 [0.189, 0.207]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2} & Attention-zeroed & 0.683 [0.676, 0.689] & 0.309 [0.286, 0.331] & -0.018 [-0.020, -0.015] & 0.026 [0.018, 0.034]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.447 [0.439, 0.454] & 1.145 [1.119, 1.172] & -0.006 [-0.009, -0.003] & 0.204 [0.195, 0.213]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} & Attention-zeroed & 0.640 [0.633, 0.646] & 0.428 [0.404, 0.452] & -0.011 [-0.014, -0.009] & 0.035 [0.027, 0.043]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.454 [0.447, 0.462] & 1.152 [1.125, 1.178] & -0.008 [-0.011, -0.005] & 0.197 [0.187, 0.206]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} & Attention-zeroed & 0.566 [0.559, 0.574] & 0.497 [0.472, 0.523] & -0.014 [-0.017, -0.011] & 0.043 [0.034, 0.052]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.447 [0.439, 0.454] & 1.191 [1.165, 1.218] & -0.009 [-0.012, -0.006] & 0.197 [0.187, 0.206]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} & Attention-zeroed & 0.605 [0.598, 0.613] & 0.458 [0.434, 0.482] & -0.014 [-0.017, -0.012] & 0.048 [0.039, 0.057]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.462 [0.454, 0.469] & 1.060 [1.033, 1.086] & -0.003 [-0.006, -0.000] & 0.183 [0.174, 0.192]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} & Attention-zeroed & 0.506 [0.499, 0.514] & 0.557 [0.531, 0.583] & -0.008 [-0.011, -0.005] & 0.033 [0.024, 0.042]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.453 [0.445, 0.460] & 1.172 [1.145, 1.198] & -0.011 [-0.013, -0.008] & 0.188 [0.180, 0.197]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} & Attention-zeroed & 0.517 [0.510, 0.525] & 0.579 [0.553, 0.605] & -0.016 [-0.019, -0.013] & 0.053 [0.043, 0.062]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.493 [0.486, 0.500] & 1.127 [1.101, 1.153] & -0.011 [-0.014, -0.008] & 0.166 [0.157, 0.174]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & Attention-zeroed & 0.575 [0.568, 0.582] & 0.523 [0.498, 0.548] & -0.014 [-0.017, -0.011] & 0.047 [0.038, 0.055]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.534 [0.527, 0.541] & 1.052 [1.027, 1.077] & -0.011 [-0.014, -0.008] & 0.161 [0.152, 0.169]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} & Attention-zeroed & 0.592 [0.585, 0.599] & 0.551 [0.526, 0.577] & -0.012 [-0.015, -0.009] & 0.049 [0.040, 0.058]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.582 [0.575, 0.588] & 0.989 [0.965, 1.012] & -0.009 [-0.011, -0.006] & 0.137 [0.129, 0.146]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} & Attention-zeroed & 0.636 [0.630, 0.643] & 0.558 [0.535, 0.581] & -0.011 [-0.014, -0.009] & 0.055 [0.047, 0.063]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.519 [0.512, 0.526] & 1.058 [1.032, 1.082] & -0.012 [-0.015, -0.009] & 0.140 [0.132, 0.149]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} & Attention-zeroed & 0.592 [0.585, 0.599] & 0.544 [0.519, 0.568] & -0.015 [-0.018, -0.012] & 0.043 [0.035, 0.052]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.628 [0.621, 0.634] & 0.829 [0.806, 0.853] & -0.014 [-0.016, -0.011] & 0.097 [0.090, 0.105]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} & Attention-zeroed & 0.669 [0.663, 0.676] & 0.500 [0.478, 0.523] & -0.013 [-0.016, -0.011] & 0.046 [0.038, 0.054]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.496 [0.489, 0.503] & 1.128 [1.103, 1.153] & -0.010 [-0.013, -0.008] & 0.165 [0.156, 0.174]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} & Attention-zeroed & 0.560 [0.553, 0.567] & 0.590 [0.565, 0.616] & -0.017 [-0.020, -0.014] & 0.059 [0.050, 0.068]\\
+\cmidrule{1-6}\pagebreak[0]
+ & Full context & 0.607 [0.601, 0.614] & 0.903 [0.880, 0.925] & -0.015 [-0.018, -0.013] & 0.124 [0.116, 0.132]\\
+\nopagebreak
+\multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} & Attention-zeroed & 0.640 [0.633, 0.647] & 0.499 [0.475, 0.523] & -0.016 [-0.018, -0.013] & 0.052 [0.045, 0.060]\\*
+
+\end{longtable}
+
+\endgroup{}
+
+Figure~\ref{fig-relfreq-coefs} shows the two moderation terms across
+models and conditions. The pattern is uniform across all sixteen:
+\texttt{rel\_freq}\(\times\)\texttt{log\_freq} is credibly positive in
+every model under full context and much smaller under attention-zeroing,
+while \texttt{y\_pred}\(\times\)\texttt{log\_freq} is credibly negative
+in every large-scale model under both conditions.
+
+\begin{figure*}[t]
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-relfreq-coefs-1.pdf}}
+
+}
+
+\caption{\label{fig-relfreq-coefs}Moderation terms of
+Equation~\ref{eq-relfreq} by model and attention condition. Circles =
+full context; triangles = attention-zeroed. Points = posterior mean;
+bars = 95\% credible intervals. Left: relative frequency matters more
+for frequent binomials, and attention-zeroing removes most of that.
+Right: abstract preferences matter less for frequent binomials, and
+attention-zeroing does not remove it.}
+
+\end{figure*}%
+
+\newpage
 
 \section{Experiment 1: Supplementary Results}\label{sec-appendix-exp1}
 
 This appendix provides supplementary materials for Experiment 1
 (§\ref{sec-exp1}), which examined final-layer probe performance for the
-three BabyLM models. Subsections report full R² tables, control probe
-results, and a word-level replication. Coefficients for the
-ordering-source regression are reported together for all models in
-Appendix~\ref{sec-appendix-relfreq}.
+three BabyLM models. Subsections report full R² tables with their
+label-shuffle controls, and a word-level replication. Coefficients for
+the frequency-dependent preference regression are reported together for
+all models in Appendix~\ref{sec-appendix-relfreq}.
 
-\subsection{Full Probe R²}\label{sec-appendix-full-r2-babylm}
+\subsection{Probe and Control R²}\label{sec-appendix-full-r2-babylm}
 
-Probe R² at the final hidden layer for BabyLM models, at the binomial
-level by attention condition. B = binomial-held-out; W = word-held-out.
-SD across 10 folds in parentheses.
+Probe R² at the final hidden layer for the BabyLM models, at the
+binomial level by attention condition, alongside the control probe fit
+to randomly permuted labels on the same folds. Selectivity is the
+difference between the two. Control values near zero indicate that the
+probe recovers linguistic structure and not label artifacts or probe
+capacity. Each control is reported beside the R² it corresponds to.
 
 \begingroup\fontsize{8}{10}\selectfont
 
-\begin{longtable}[t]{lllll}
-
-\toprule
-Model & Condition & Split & R² & Ctrl\\
-\midrule
-\endfirsthead
-\multicolumn{5}{@{}l}{\textit{(continued)}}\\
-\toprule
-Model & Condition & Split & R² & Ctrl\\
-\midrule
-\endhead
-
-\endfoot
-\bottomrule
-\endlastfoot
- &  & B & 0.314 (0.010) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.244 (0.025) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.343 (0.019) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.225 (0.018) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.301 (0.019) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.152 (0.028) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.294 (0.004) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.263 (0.012) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.000 (0.000)\\*
-
+\begin{longtable}[t]{llllll}
 
 \caption{\label{tbl-r2-babylm}Probe R² at the final hidden layer for
-BabyLM models, at the binomial level by attention condition. B =
+BabyLM models, at the binomial level by attention condition, with the
+label-shuffle control and selectivity (R² minus control). B =
 binomial-held-out split; W = word-held-out split. SD across 10 folds in
-parentheses.}
+parentheses. Control values carry an extra decimal place because they
+sit near zero.}
 
 \tabularnewline
-\end{longtable}
-
-\endgroup{}
-
-\subsection{Control Probe R²}\label{sec-appendix-ctrl-exp1}
-
-Control probe R² for BabyLM models at the final hidden layer, at the
-binomial level by attention condition. Labels are randomly permuted;
-values near zero confirm the main probe recovers genuine linguistic
-structure rather than label artifacts or probe capacity.
-
-\begingroup\fontsize{8}{10}\selectfont
-
-\begin{longtable}[t]{llll}
 
 \toprule
-Model & Condition & Split & Control R²\\
+Model & Condition & Split & R² & Control R² & Selectivity\\
 \midrule
 \endfirsthead
-\multicolumn{4}{@{}l}{\textit{(continued)}}\\
+\multicolumn{6}{@{}l}{\textit{(continued)}}\\
 \toprule
-Model & Condition & Split & Control R²\\
+Model & Condition & Split & R² & Control R² & Selectivity\\
 \midrule
 \endhead
 
 \endfoot
 \bottomrule
 \endlastfoot
- &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.314 (0.010) & 0.0001 (0.0001) & 0.314\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0005 (0.0005)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.0002 (0.0002) & 0.207\\
 \nopagebreak
- &  & B & 0.0001 (0.0001)\\
+ &  & B & 0.244 (0.025) & 0.0000 (0.0000) & 0.244\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
-\cmidrule{1-4}\pagebreak[0]
- &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.0005 (0.0005) & 0.142\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.343 (0.019) & 0.0000 (0.0000) & 0.343\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.225 (0.018) & 0.0002 (0.0002) & 0.225\\
 \nopagebreak
- &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.301 (0.019) & 0.0000 (0.0000) & 0.301\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
-\cmidrule{1-4}\pagebreak[0]
- &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.152 (0.028) & 0.0001 (0.0001) & 0.152\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.294 (0.004) & 0.0000 (0.0001) & 0.294\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.0002 (0.0002) & 0.159\\
 \nopagebreak
- &  & B & 0.0000 (0.0001)\\
+ &  & B & 0.263 (0.012) & 0.0000 (0.0000) & 0.263\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\*
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.0001 (0.0001) & 0.121\\*
 
-
-\caption{\label{tbl-ctrl-r2-babylm}Control probe R² for BabyLM models
-(final layer), at the binomial level by attention condition. SD across
-10 folds in parentheses. B = binomial-held-out; W = word-held-out.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1558,7 +1527,7 @@ and both transfer to held-out words. Agreement between independently
 trained models can: an arbitrary function of one model's weights has no
 reason to match another's.
 
-We therefore correlate \(y_{true}\) across models on identical
+We therefore correlate \(y_{\text{true}}\) across models on identical
 binomials, separately for the attested and novel sets and for both
 attention conditions. As a baseline we shuffle one model's values, which
 removes any pairing between models while preserving both distributions.
@@ -1568,31 +1537,31 @@ training corpus and its ordering but differ in capacity, and they are
 the only models for which the novel binomials are genuinely absent from
 training (Section~\ref{sec-exp2}, Methods). On novel binomials they
 agree at \(r = 0.45\) under full context and \(r = 0.41\) under
-attention-zeroing, against a shuffled baseline of \(r \approx 0.00\).
-Preferences for binomials the models never encountered are therefore
-reproducible across models of different sizes trained on the same data,
-which rules out their being arbitrary.
+attention-zeroing, against a shuffled baseline of \(r \approx 0.00\). In
+other words, preferences for binomials the models never encountered are
+reproducible across models of different sizes trained on the same data.
+They are therefore not arbitrary.
 
 Because a Pearson correlation can in principle be carried by a minority
 of high-magnitude items, we checked whether the agreement is
 concentrated in strong preferences while the bulk of binomials agree at
 chance. It is not. Preferences on novel binomials are not weak to begin
-with: median \(|y_{true}|\) ranges from 1.79 to 3.21 across the three
-models, so the preferred ordering is between roughly six and twenty-five
-times more likely, and only 9\% to 17\% of binomials fall below 0.5.
-Rank correlations track the Pearson values closely (0.371--0.406 for
-BabyLM on novel binomials), and the models order the same binomial the
-same way on 60\% to 70\% of items against a chance rate of 50\%, a
-statistic that ignores magnitude and weights every binomial equally.
-Stratifying by preference strength, using the third model's
-\(|y_{true}|\) so that the bins are independent of the two series being
-correlated, agreement is graded but present throughout: in the weakest
-quintile \(r = 0.30\) under full context and \(0.28\) under
-attention-zeroing, with directional agreement near 59\% in both, rising
-to \(r = 0.61\) and 73\% in the strongest. That gradient is itself
-informative, since agreement increasing with preference strength is the
-signature of a signal measured with noise rather than of an arbitrary
-function of a particular set of weights.
+with: median \(|y_{\text{true}}|\) ranges from 1.79 to 3.21 across the
+three models, so the preferred ordering is between roughly six and
+twenty-five times more likely, and only 9\% to 17\% of binomials fall
+below 0.5. Rank correlations track the Pearson values closely
+(0.371--0.406 for BabyLM on novel binomials), and the models order the
+same binomial the same way on 60\% to 70\% of items against a chance
+rate of 50\%, a statistic that ignores magnitude and weights every
+binomial equally. Stratifying by preference strength, using the third
+model's \(|y_{\text{true}}|\) so that the bins are independent of the
+two series being correlated, agreement is graded but present throughout:
+in the weakest quintile \(r = 0.30\) under full context and \(0.28\)
+under attention-zeroing, with directional agreement near 59\% in both,
+rising to \(r = 0.61\) and 73\% in the strongest. That gradient is
+itself informative, since agreement increasing with preference strength
+is the signature of a signal measured with noise rather than of an
+arbitrary function of a particular set of weights.
 
 Two further patterns appear in Table~\ref{tbl-agreement}. Agreement
 within a family is roughly constant across all four cells, near
@@ -1608,6 +1577,14 @@ produce a gap between within-family and between-family agreement.
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lllll}
+
+\caption{\label{tbl-agreement}Cross-model agreement (Pearson \(r\) on
+\(y_{   ext{true}}\)) for identical binomials, by item set and attention
+condition. Shuffled = one model's values permuted. Within-family
+averages over model pairs from the same family; BabyLM is broken out
+because its novel binomials are genuinely unseen.}
+
+\tabularnewline
 
 \toprule
 Set & Condition & Scope & $r$ & Shuffled\\
@@ -1654,14 +1631,6 @@ Set & Condition & Scope & $r$ & Shuffled\\
 \nopagebreak
 \multirow{-8}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Novel} & \multirow{-4}{*}{\raggedright\arraybackslash Full context} & Within BabyLM & 0.452 & -0.002\\*
 
-
-\caption{\label{tbl-agreement}Cross-model agreement (Pearson \(r\) on
-\(y_{true}\)) for identical binomials, by item set and attention
-condition. Shuffled = one model's values permuted. Within-family
-averages over model pairs from the same family; BabyLM is broken out
-because its novel binomials are genuinely unseen.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1683,13 +1652,20 @@ lower than binomial-held-out R² for all three models (word-held-out
 0.18--0.20; binomial-minus-word gap 0.127--0.129), confirming that the
 lexical generalization cost seen at the binomial level is a property of
 the preference encoding itself rather than an artifact of the
-mean-pooled representation. The ordering-source regression was fit at
-the binomial level only, so it has no word-level counterpart. Full
-results are in Table~\ref{tbl-r2-babylm-words-only}.
+mean-pooled representation. The frequency-dependent preference
+regression was fit at the binomial level only, so it has no word-level
+counterpart. Full results are in Table~\ref{tbl-r2-babylm-words-only}.
 
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{llllll}
+
+\caption{\label{tbl-r2-babylm-words-only}Word-level probe R² and
+selectivity (main \(-\) control R²) for BabyLM models (final layer). B =
+binomial-held-out split; W = word-held-out split. SD across 10 folds in
+parentheses.}
+
+\tabularnewline
 
 \toprule
 Model & Mode & Split & R² & Ctrl & Sel.\\
@@ -1714,343 +1690,183 @@ Model & Mode & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-6}{*}{\raggedright\arraybackslash Word-level} & W & 0.177 (0.023) & 0.000 (0.000) & 0.177\\*
 
-
-\caption{\label{tbl-r2-babylm-words-only}Word-level probe R² and
-selectivity (main \(-\) control R²) for BabyLM models (final layer). B =
-binomial-held-out split; W = word-held-out split. SD across 10 folds in
-parentheses.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
+
+\newpage
 
 \section{Experiment 2: Supplementary Results}\label{sec-appendix-exp2}
 
 This appendix provides supplementary materials for Experiment 2
 (§\ref{sec-exp2}), which examined final-layer representations across all
-16 models from five families. Subsections report full R² tables, control
-probe results, and a word-level replication. Coefficients for the
-ordering-source regression are in Appendix~\ref{sec-appendix-relfreq}.
+16 models from five families. Subsections report full R² tables with
+their label-shuffle controls, and a word-level replication. Coefficients
+for the frequency-dependent preference regression are in
+Appendix~\ref{sec-appendix-relfreq}.
 
-\subsection{Full Probe R²}\label{sec-appendix-full-r2}
+\subsection{Probe and Control R²}\label{sec-appendix-full-r2}
 
 Probe R² for all 16 models at the final hidden layer, binomial-level
-input mode, by attention condition and cross-validation split. B =
-binomial-held-out; W = word-held-out. SD across 10 folds in parentheses.
+input mode, by attention condition and cross-validation split, alongside
+the label-shuffle control fit on the same folds and the resulting
+selectivity. B = binomial-held-out; W = word-held-out. SD across 10
+folds in parentheses.
 
 \begingroup\fontsize{7}{9}\selectfont
 
-\begin{longtable}[t]{lllll}
-
-\toprule
-Model & Condition & Split & R² & Ctrl\\
-\midrule
-\endfirsthead
-\multicolumn{5}{@{}l}{\textit{(continued)}}\\
-\toprule
-Model & Condition & Split & R² & Ctrl\\
-\midrule
-\endhead
-
-\endfoot
-\bottomrule
-\endlastfoot
- &  & B & 0.314 (0.010) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.244 (0.025) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.343 (0.019) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.225 (0.018) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.301 (0.019) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.152 (0.028) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.294 (0.004) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.263 (0.012) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.648 (0.004) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.601 (0.033) & 0.001 (0.001)\\
-\nopagebreak
- &  & B & 0.786 (0.006) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.718 (0.024) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.533 (0.005) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.453 (0.028) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.756 (0.016) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.670 (0.036) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.519 (0.006) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.449 (0.036) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.668 (0.006) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.571 (0.020) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.487 (0.007) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.420 (0.033) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.726 (0.008) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.641 (0.034) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.587 (0.005) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.522 (0.021) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.604 (0.005) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.527 (0.022) & 0.001 (0.001)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.532 (0.004) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.461 (0.035) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.552 (0.006) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.477 (0.019) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.554 (0.007) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.029) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.567 (0.005) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.496 (0.027) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.575 (0.005) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.505 (0.021) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.597 (0.008) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.514 (0.021) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.621 (0.008) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.561 (0.023) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.658 (0.008) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.580 (0.027) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.557 (0.007) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.017) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.583 (0.005) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.518 (0.021) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.614 (0.005) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.554 (0.022) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.642 (0.006) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.570 (0.012) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.433 (0.008) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.373 (0.035) & 0.000 (0.000)\\
-\nopagebreak
- &  & B & 0.443 (0.011) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.370 (0.040) & 0.000 (0.000)\\
-\cmidrule{1-5}\pagebreak[0]
- &  & B & 0.545 (0.008) & 0.000 (0.000)\\
-\nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.510 (0.035) & 0.001 (0.001)\\
-\nopagebreak
- &  & B & 0.521 (0.016) & 0.000 (0.000)\\
-\nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.470 (0.024) & 0.000 (0.000)\\*
-
+\begin{longtable}[t]{llllll}
 
 \caption{\label{tbl-r2}Probe R² at the final hidden layer for all 16
-models, at the binomial level by attention condition. B =
+models, at the binomial level by attention condition, with the
+label-shuffle control and selectivity (R² minus control). B =
 binomial-held-out split; W = word-held-out split. SD across 10 folds in
-parentheses.}
+parentheses. Control values carry an extra decimal place because they
+sit near zero.}
 
 \tabularnewline
-\end{longtable}
-
-\endgroup{}
-
-\subsection{Control Probe R²}\label{sec-appendix-ctrl-exp2}
-
-Control probe R² for all 16 models at the final hidden layer, at the
-binomial level by attention condition.
-
-\begingroup\fontsize{8}{10}\selectfont
-
-\begin{longtable}[t]{lllll}
 
 \toprule
-Family & Model & Condition & Split & Control R²\\
+Model & Condition & Split & R² & Control R² & Selectivity\\
 \midrule
 \endfirsthead
-\multicolumn{5}{@{}l}{\textit{(continued)}}\\
+\multicolumn{6}{@{}l}{\textit{(continued)}}\\
 \toprule
-Family & Model & Condition & Split & Control R²\\
+Model & Condition & Split & R² & Control R² & Selectivity\\
 \midrule
 \endhead
 
 \endfoot
 \bottomrule
 \endlastfoot
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.314 (0.010) & 0.0001 (0.0001) & 0.314\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0005 (0.0005)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.0002 (0.0002) & 0.207\\
 \nopagebreak
- &  &  & B & 0.0001 (0.0001)\\
+ &  & B & 0.244 (0.025) & 0.0000 (0.0000) & 0.244\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.0005 (0.0005) & 0.142\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.343 (0.019) & 0.0000 (0.0000) & 0.343\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.225 (0.018) & 0.0002 (0.0002) & 0.225\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+ &  & B & 0.301 (0.019) & 0.0000 (0.0000) & 0.301\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.152 (0.028) & 0.0001 (0.0001) & 0.152\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.294 (0.004) & 0.0000 (0.0001) & 0.294\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.0002 (0.0002) & 0.159\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.263 (0.012) & 0.0000 (0.0000) & 0.263\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.0001 (0.0001) & 0.121\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.648 (0.004) & 0.0000 (0.0000) & 0.648\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0001)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.601 (0.033) & 0.0005 (0.0006) & 0.600\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
-\cmidrule{1-5}\pagebreak[0]
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.786 (0.006) & 0.0000 (0.0000) & 0.786\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.718 (0.024) & 0.0001 (0.0001) & 0.718\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.533 (0.005) & 0.0000 (0.0000) & 0.533\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.453 (0.028) & 0.0002 (0.0002) & 0.453\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0005 (0.0006)\\
+ &  & B & 0.756 (0.016) & 0.0000 (0.0000) & 0.756\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.670 (0.036) & 0.0002 (0.0003) & 0.669\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.519 (0.006) & 0.0000 (0.0000) & 0.519\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0003)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.449 (0.036) & 0.0003 (0.0004) & 0.448\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.668 (0.006) & 0.0000 (0.0000) & 0.668\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0002)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.571 (0.020) & 0.0004 (0.0005) & 0.571\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.487 (0.007) & 0.0000 (0.0000) & 0.487\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.420 (0.033) & 0.0002 (0.0003) & 0.420\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0004 (0.0005)\\
+ &  & B & 0.726 (0.008) & 0.0000 (0.0000) & 0.726\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.641 (0.034) & 0.0003 (0.0004) & 0.641\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.587 (0.005) & 0.0000 (0.0000) & 0.587\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0004)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.522 (0.021) & 0.0003 (0.0003) & 0.522\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.604 (0.005) & 0.0001 (0.0000) & 0.603\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0004)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.527 (0.022) & 0.0007 (0.0005) & 0.526\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.532 (0.004) & 0.0000 (0.0000) & 0.532\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.461 (0.035) & 0.0003 (0.0003) & 0.461\\
 \nopagebreak
-\multirow{-16}{*}[3.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0003)\\
-\cmidrule{1-5}\pagebreak[0]
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.552 (0.006) & 0.0000 (0.0000) & 0.552\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0003)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.477 (0.019) & 0.0003 (0.0005) & 0.476\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.554 (0.007) & 0.0000 (0.0000) & 0.554\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.029) & 0.0002 (0.0003) & 0.487\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0004)\\
+ &  & B & 0.567 (0.005) & 0.0000 (0.0000) & 0.566\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.496 (0.027) & 0.0001 (0.0001) & 0.495\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.575 (0.005) & 0.0000 (0.0000) & 0.575\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0002)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.505 (0.021) & 0.0003 (0.0004) & 0.505\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.597 (0.008) & 0.0000 (0.0000) & 0.597\\
 \nopagebreak
-\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0007 (0.0006)\\
-\cmidrule{1-5}\pagebreak[0]
- &  &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.514 (0.021) & 0.0003 (0.0004) & 0.514\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.621 (0.008) & 0.0000 (0.0001) & 0.621\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0004)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.561 (0.023) & 0.0004 (0.0005) & 0.561\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.658 (0.008) & 0.0000 (0.0000) & 0.658\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0004)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.580 (0.027) & 0.0002 (0.0002) & 0.580\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.557 (0.007) & 0.0000 (0.0000) & 0.556\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.017) & 0.0001 (0.0003) & 0.488\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0002 (0.0002)\\
+ &  & B & 0.583 (0.005) & 0.0000 (0.0000) & 0.583\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0001)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.518 (0.021) & 0.0004 (0.0003) & 0.518\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.614 (0.005) & 0.0000 (0.0000) & 0.614\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0004 (0.0005)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.554 (0.022) & 0.0004 (0.0004) & 0.554\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.642 (0.006) & 0.0000 (0.0000) & 0.642\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0004 (0.0003)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.570 (0.012) & 0.0003 (0.0004) & 0.569\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.433 (0.008) & 0.0000 (0.0000) & 0.433\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.373 (0.035) & 0.0003 (0.0004) & 0.373\\
 \nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0001 (0.0003)\\
+ &  & B & 0.443 (0.011) & 0.0000 (0.0000) & 0.443\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.370 (0.040) & 0.0002 (0.0003) & 0.370\\
+\cmidrule{1-6}\pagebreak[0]
+ &  & B & 0.545 (0.008) & 0.0000 (0.0000) & 0.545\\
 \nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0004)\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.510 (0.035) & 0.0007 (0.0006) & 0.510\\
 \nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
+ &  & B & 0.521 (0.016) & 0.0000 (0.0000) & 0.521\\
 \nopagebreak
-\multirow{-16}{*}[3.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0004 (0.0004)\\
-\cmidrule{1-5}\pagebreak[0]
- &  &  & B & 0.0001 (0.0000)\\
-\nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0007 (0.0005)\\
-\nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
-\nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0003)\\
-\nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
-\nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0003 (0.0005)\\
-\nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
-\nopagebreak
- & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0003 (0.0003)\\
-\nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
-\nopagebreak
- &  & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.0001 (0.0001)\\
-\nopagebreak
- &  &  & B & 0.0000 (0.0000)\\
-\nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia} & \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.0002 (0.0003)\\*
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.470 (0.024) & 0.0002 (0.0002) & 0.470\\*
 
-
-\caption{\label{tbl-ctrl-r2}Control probe R² for all 16 models (final
-layer), at the binomial level by attention condition. SD across 10 folds
-in parentheses. B = binomial-held-out; W = word-held-out.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2068,13 +1884,19 @@ binomial level); for Pythia, 0.51--0.57 (vs.~0.53--0.59); for OLMo,
 0.52--0.57 (vs.~0.56--0.62); for Llama, 0.36--0.45 (vs.~0.43--0.55). The
 generalization gaps (binomial-held-out minus word-held-out) range from
 0.044 to 0.073 across large-scale models, closely matching the
-corresponding binomial-level gaps (0.035--0.080). The ordering-source
-regression was fit at the binomial level only, so it has no word-level
-counterpart. Full results are in Table~\ref{tbl-r2-words-only}.
+corresponding binomial-level gaps (0.035--0.080). Full results are in
+Table~\ref{tbl-r2-words-only}.
 
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lllllll}
+
+\caption{\label{tbl-r2-words-only}Word-level probe R² and selectivity
+(main \(-\) control R²) for all 16 models (final layer). B =
+binomial-held-out split; W = word-held-out split. SD across 10 folds in
+parentheses.}
+
+\tabularnewline
 
 \toprule
 Family & Model & Mode & Split & R² & Ctrl & Sel.\\
@@ -2149,24 +1971,17 @@ Family & Model & Mode & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia} & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & \multirow{-32}{*}{\raggedright\arraybackslash Word-level} & W & 0.454 (0.024) & 0.000 (0.000) & 0.454\\*
 
-
-\caption{\label{tbl-r2-words-only}Word-level probe R² and selectivity
-(main \(-\) control R²) for all 16 models (final layer). B =
-binomial-held-out split; W = word-held-out split. SD across 10 folds in
-parentheses.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
 
-\clearpage
+\newpage
 
 \section{Experiment 3: Supplementary Results}\label{sec-appendix-exp3}
 
 This appendix provides supplementary materials for Experiment 3
-(§\ref{sec-exp3}), which tracked probe R² and the ordering-source
-regression across training checkpoints for BabyLM and Pythia.
+(§\ref{sec-exp3}), which tracked probe R² and the frequency-dependent
+preference regression across training checkpoints for BabyLM and Pythia.
 Subsections report full numerical checkpoint tables and a word-level
 replication of the probe results.
 
@@ -2181,6 +1996,12 @@ representation under full-context and attention-zeroed conditions.
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
+
+\caption{\label{tbl-r2-checkpoints-babylm-default-mean}BabyLM checkpoint
+probe R²:full context, binomial-level. B = binomial-held-out; W =
+word-held-out. SD in parentheses.}
+
+\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
@@ -2267,12 +2088,6 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.180 (0.024) & 0.000 (0.000) & 0.179\\*
 
-
-\caption{\label{tbl-r2-checkpoints-babylm-default-mean}BabyLM checkpoint
-probe R²:full context, binomial-level. B = binomial-held-out; W =
-word-held-out. SD in parentheses.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2280,6 +2095,11 @@ word-held-out. SD in parentheses.}
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
+
+\caption{\label{tbl-r2-checkpoints-babylm-attn-mean}BabyLM checkpoint
+probe R²:attention-zeroed, binomial-level.}
+
+\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
@@ -2366,11 +2186,6 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.131 (0.026) & 0.000 (0.000) & 0.131\\*
 
-
-\caption{\label{tbl-r2-checkpoints-babylm-attn-mean}BabyLM checkpoint
-probe R²:attention-zeroed, binomial-level.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2378,6 +2193,11 @@ probe R²:attention-zeroed, binomial-level.}
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
+
+\caption{\label{tbl-r2-checkpoints-pythia-default-mean}Pythia checkpoint
+probe R²:full context, binomial-level.}
+
+\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
@@ -2464,11 +2284,6 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.683 (0.016) & 0.000 (0.000) & 0.683\\*
 
-
-\caption{\label{tbl-r2-checkpoints-pythia-default-mean}Pythia checkpoint
-probe R²:full context, binomial-level.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2476,6 +2291,11 @@ probe R²:full context, binomial-level.}
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
+
+\caption{\label{tbl-r2-checkpoints-pythia-attn-mean}Pythia checkpoint
+probe R²:attention-zeroed, binomial-level.}
+
+\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
@@ -2562,11 +2382,6 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.660 (0.017) & 0.000 (0.000) & 0.660\\*
 
-
-\caption{\label{tbl-r2-checkpoints-pythia-attn-mean}Pythia checkpoint
-probe R²:attention-zeroed, binomial-level.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2574,6 +2389,16 @@ probe R²:attention-zeroed, binomial-level.}
 \begingroup\fontsize{6}{8}\selectfont
 
 \begin{longtable}[t]{lrlllll}
+
+\caption{\label{tbl-relfreq-checkpoints}Frequency-dependent preference
+regression (Equation~\ref{eq-relfreq}) at every training checkpoint,
+both attention conditions. \texttt{y\_true} and \texttt{y\_pred} are
+z-scored within each fit; \texttt{rel\_freq} is a proportion from
+\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centred but not scaled,
+so both mean the same thing in every corpus. 95\% credible intervals in
+brackets.}
+
+\tabularnewline
 
 \toprule
 Model & Step & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\times$ \texttt{log\_freq} & \texttt{rel\_freq} $\times$ \texttt{log\_freq}\\
@@ -2588,158 +2413,150 @@ Model & Step & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pr
 \endfoot
 \bottomrule
 \endlastfoot
- & 24 & Full context & 0.625 [0.618, 0.632] & -0.010 [-0.017, -0.003] & 0.020 [0.013, 0.027] & 0.001 [-0.008, 0.010]\\
+ & 24 & Full context & 0.625 [0.618, 0.632] & -0.020 [-0.035, -0.006] & 0.033 [0.021, 0.045] & 0.003 [-0.026, 0.032]\\
 \nopagebreak
- & 48 & Full context & 0.613 [0.606, 0.620] & -0.017 [-0.024, -0.010] & 0.010 [0.003, 0.017] & -0.001 [-0.010, 0.008]\\
+ & 48 & Full context & 0.613 [0.606, 0.619] & -0.035 [-0.050, -0.020] & 0.017 [0.005, 0.029] & -0.004 [-0.034, 0.026]\\
 \nopagebreak
- & 144 & Full context & 0.577 [0.570, 0.584] & -0.003 [-0.010, 0.004] & -0.009 [-0.015, -0.002] & 0.004 [-0.004, 0.013]\\
+ & 144 & Full context & 0.577 [0.570, 0.584] & -0.007 [-0.022, 0.008] & -0.014 [-0.025, -0.003] & 0.014 [-0.015, 0.043]\\
 \nopagebreak
- & 384 & Full context & 0.502 [0.495, 0.510] & 0.067 [0.060, 0.075] & -0.006 [-0.013, 0.002] & 0.020 [0.011, 0.028]\\
+ & 384 & Full context & 0.502 [0.495, 0.510] & 0.139 [0.123, 0.155] & -0.009 [-0.022, 0.003] & 0.067 [0.038, 0.098]\\
 \nopagebreak
- & 912 & Full context & 0.472 [0.465, 0.480] & 0.120 [0.112, 0.128] & -0.001 [-0.009, 0.006] & 0.044 [0.035, 0.053]\\
+ & 912 & Full context & 0.472 [0.465, 0.480] & 0.248 [0.231, 0.265] & -0.002 [-0.014, 0.010] & 0.151 [0.121, 0.182]\\
 \nopagebreak
- & 2280 & Full context & 0.428 [0.420, 0.436] & 0.224 [0.216, 0.231] & -0.002 [-0.009, 0.005] & 0.099 [0.091, 0.108]\\
+ & 2280 & Full context & 0.428 [0.420, 0.436] & 0.463 [0.447, 0.479] & -0.003 [-0.015, 0.009] & 0.338 [0.307, 0.367]\\
 \nopagebreak
- & 24 & Attention-zeroed & 0.824 [0.819, 0.829] & -0.005 [-0.010, 0.000] & 0.011 [0.006, 0.016] & 0.003 [-0.003, 0.009]\\
+ & 24 & Attention-zeroed & 0.824 [0.819, 0.829] & -0.010 [-0.021, 0.001] & 0.018 [0.009, 0.026] & 0.011 [-0.009, 0.032]\\
 \nopagebreak
- & 48 & Attention-zeroed & 0.809 [0.803, 0.814] & -0.004 [-0.010, 0.001] & 0.012 [0.006, 0.017] & 0.003 [-0.003, 0.010]\\
+ & 48 & Attention-zeroed & 0.809 [0.803, 0.814] & -0.009 [-0.020, 0.002] & 0.019 [0.011, 0.028] & 0.012 [-0.010, 0.034]\\
 \nopagebreak
- & 144 & Attention-zeroed & 0.648 [0.641, 0.655] & -0.000 [-0.007, 0.007] & 0.001 [-0.006, 0.008] & 0.005 [-0.003, 0.013]\\
+ & 144 & Attention-zeroed & 0.648 [0.641, 0.655] & -0.001 [-0.015, 0.014] & 0.001 [-0.010, 0.013] & 0.017 [-0.011, 0.044]\\
 \nopagebreak
- & 384 & Attention-zeroed & 0.502 [0.495, 0.510] & 0.076 [0.068, 0.083] & -0.014 [-0.021, -0.007] & 0.022 [0.013, 0.030]\\
+ & 384 & Attention-zeroed & 0.502 [0.494, 0.510] & 0.157 [0.141, 0.173] & -0.023 [-0.034, -0.012] & 0.074 [0.043, 0.104]\\
 \nopagebreak
- & 912 & Attention-zeroed & 0.417 [0.409, 0.425] & 0.127 [0.119, 0.135] & -0.009 [-0.016, -0.001] & 0.041 [0.032, 0.050]\\
+ & 912 & Attention-zeroed & 0.417 [0.409, 0.425] & 0.263 [0.246, 0.280] & -0.014 [-0.027, -0.002] & 0.139 [0.109, 0.170]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-125M} & 2280 & Attention-zeroed & 0.396 [0.388, 0.404] & 0.191 [0.183, 0.199] & -0.015 [-0.022, -0.008] & 0.058 [0.049, 0.066]\\
+\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-125M} & 2280 & Attention-zeroed & 0.396 [0.388, 0.404] & 0.395 [0.379, 0.412] & -0.025 [-0.037, -0.014] & 0.196 [0.167, 0.225]\\
 \cmidrule{1-7}\pagebreak[0]
- & 48 & Full context & 0.670 [0.664, 0.677] & -0.013 [-0.020, -0.006] & -0.003 [-0.010, 0.004] & 0.003 [-0.006, 0.011]\\
+ & 48 & Full context & 0.670 [0.664, 0.677] & -0.027 [-0.041, -0.013] & -0.004 [-0.016, 0.007] & 0.008 [-0.020, 0.036]\\
 \nopagebreak
- & 96 & Full context & 0.667 [0.661, 0.674] & -0.010 [-0.016, -0.003] & -0.007 [-0.013, -0.001] & -0.001 [-0.009, 0.007]\\
+ & 96 & Full context & 0.667 [0.661, 0.674] & -0.020 [-0.034, -0.006] & -0.011 [-0.022, -0.001] & -0.003 [-0.031, 0.024]\\
 \nopagebreak
- & 288 & Full context & 0.675 [0.669, 0.682] & 0.002 [-0.005, 0.008] & -0.015 [-0.021, -0.008] & 0.005 [-0.003, 0.013]\\
+ & 288 & Full context & 0.675 [0.669, 0.682] & 0.003 [-0.011, 0.017] & -0.024 [-0.035, -0.014] & 0.019 [-0.008, 0.046]\\
 \nopagebreak
- & 768 & Full context & 0.563 [0.556, 0.571] & 0.068 [0.060, 0.075] & -0.008 [-0.015, -0.001] & 0.015 [0.006, 0.023]\\
+ & 768 & Full context & 0.563 [0.556, 0.571] & 0.140 [0.125, 0.155] & -0.014 [-0.025, -0.003] & 0.051 [0.022, 0.079]\\
 \nopagebreak
- & 1824 & Full context & 0.512 [0.505, 0.519] & 0.121 [0.114, 0.129] & -0.001 [-0.008, 0.007] & 0.045 [0.036, 0.053]\\
+ & 1824 & Full context & 0.512 [0.505, 0.520] & 0.252 [0.236, 0.266] & -0.001 [-0.013, 0.011] & 0.153 [0.123, 0.182]\\
 \nopagebreak
- & 4560 & Full context & 0.438 [0.430, 0.446] & 0.200 [0.192, 0.207] & -0.009 [-0.016, -0.001] & 0.088 [0.079, 0.097]\\
+ & 4560 & Full context & 0.438 [0.430, 0.445] & 0.414 [0.397, 0.430] & -0.014 [-0.026, -0.003] & 0.302 [0.270, 0.333]\\
 \nopagebreak
- & 48 & Attention-zeroed & 0.811 [0.806, 0.817] & -0.006 [-0.012, -0.001] & -0.003 [-0.008, 0.003] & 0.004 [-0.002, 0.011]\\
+ & 48 & Attention-zeroed & 0.811 [0.806, 0.817] & -0.013 [-0.024, -0.001] & -0.004 [-0.013, 0.004] & 0.015 [-0.007, 0.038]\\
 \nopagebreak
- & 96 & Attention-zeroed & 0.862 [0.857, 0.866] & -0.004 [-0.009, 0.000] & -0.003 [-0.007, 0.001] & 0.002 [-0.003, 0.008]\\
+ & 96 & Attention-zeroed & 0.862 [0.857, 0.866] & -0.008 [-0.018, 0.001] & -0.005 [-0.012, 0.002] & 0.009 [-0.009, 0.026]\\
 \nopagebreak
- & 288 & Attention-zeroed & 0.717 [0.711, 0.724] & 0.004 [-0.002, 0.010] & -0.028 [-0.035, -0.022] & 0.004 [-0.004, 0.011]\\
+ & 288 & Attention-zeroed & 0.718 [0.711, 0.724] & 0.008 [-0.005, 0.021] & -0.047 [-0.057, -0.037] & 0.012 [-0.015, 0.039]\\
 \nopagebreak
- & 768 & Attention-zeroed & 0.510 [0.502, 0.518] & 0.081 [0.074, 0.089] & -0.017 [-0.024, -0.010] & 0.020 [0.011, 0.029]\\
+ & 768 & Attention-zeroed & 0.510 [0.502, 0.518] & 0.169 [0.153, 0.185] & -0.028 [-0.040, -0.016] & 0.068 [0.038, 0.098]\\
 \nopagebreak
- & 1824 & Attention-zeroed & 0.480 [0.473, 0.488] & 0.120 [0.112, 0.128] & -0.009 [-0.016, -0.002] & 0.041 [0.032, 0.049]\\
+ & 1824 & Attention-zeroed & 0.480 [0.473, 0.488] & 0.249 [0.233, 0.265] & -0.014 [-0.026, -0.003] & 0.139 [0.109, 0.169]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-350M} & 4560 & Attention-zeroed & 0.402 [0.394, 0.410] & 0.184 [0.176, 0.192] & -0.019 [-0.026, -0.012] & 0.058 [0.050, 0.067]\\
+\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-350M} & 4560 & Attention-zeroed & 0.402 [0.394, 0.409] & 0.381 [0.364, 0.398] & -0.032 [-0.042, -0.021] & 0.199 [0.169, 0.229]\\
 \cmidrule{1-7}\pagebreak[0]
- & 97 & Full context & 0.625 [0.618, 0.632] & -0.005 [-0.012, 0.002] & -0.005 [-0.012, 0.002] & 0.009 [0.000, 0.017]\\
+ & 97 & Full context & 0.625 [0.618, 0.632] & -0.010 [-0.024, 0.005] & -0.008 [-0.020, 0.003] & 0.029 [0.000, 0.058]\\
 \nopagebreak
- & 194 & Full context & 0.559 [0.552, 0.567] & -0.004 [-0.011, 0.004] & -0.001 [-0.008, 0.006] & 0.008 [-0.001, 0.017]\\
+ & 194 & Full context & 0.559 [0.552, 0.567] & -0.008 [-0.023, 0.008] & -0.001 [-0.013, 0.011] & 0.026 [-0.004, 0.056]\\
 \nopagebreak
- & 582 & Full context & 0.551 [0.544, 0.558] & 0.033 [0.026, 0.041] & -0.006 [-0.012, 0.001] & 0.014 [0.005, 0.022]\\
+ & 582 & Full context & 0.551 [0.543, 0.559] & 0.069 [0.054, 0.084] & -0.009 [-0.020, 0.002] & 0.047 [0.019, 0.076]\\
 \nopagebreak
- & 1455 & Full context & 0.498 [0.490, 0.505] & 0.104 [0.096, 0.112] & -0.004 [-0.012, 0.003] & 0.032 [0.023, 0.041]\\
+ & 1455 & Full context & 0.498 [0.490, 0.505] & 0.216 [0.200, 0.232] & -0.007 [-0.019, 0.005] & 0.109 [0.079, 0.138]\\
 \nopagebreak
- & 3686 & Full context & 0.409 [0.402, 0.417] & 0.230 [0.222, 0.238] & -0.014 [-0.021, -0.007] & 0.100 [0.091, 0.109]\\
+ & 3686 & Full context & 0.409 [0.402, 0.417] & 0.477 [0.460, 0.494] & -0.023 [-0.034, -0.011] & 0.340 [0.309, 0.371]\\
 \nopagebreak
- & 9021 & Full context & 0.323 [0.316, 0.331] & 0.387 [0.379, 0.394] & -0.011 [-0.018, -0.004] & 0.135 [0.126, 0.143]\\
+ & 9021 & Full context & 0.323 [0.316, 0.331] & 0.802 [0.786, 0.818] & -0.018 [-0.030, -0.006] & 0.459 [0.430, 0.489]\\
 \nopagebreak
- & 97 & Attention-zeroed & 0.796 [0.791, 0.801] & -0.001 [-0.007, 0.004] & 0.003 [-0.003, 0.008] & 0.004 [-0.002, 0.011]\\
+ & 97 & Attention-zeroed & 0.796 [0.791, 0.801] & -0.003 [-0.014, 0.008] & 0.004 [-0.004, 0.013] & 0.014 [-0.007, 0.036]\\
 \nopagebreak
- & 194 & Attention-zeroed & 0.726 [0.720, 0.732] & 0.005 [-0.001, 0.012] & -0.003 [-0.010, 0.003] & 0.012 [0.004, 0.019]\\
+ & 194 & Attention-zeroed & 0.726 [0.720, 0.732] & 0.011 [-0.001, 0.024] & -0.006 [-0.016, 0.004] & 0.039 [0.015, 0.064]\\
 \nopagebreak
- & 582 & Attention-zeroed & 0.588 [0.581, 0.596] & 0.034 [0.027, 0.041] & -0.011 [-0.018, -0.004] & 0.017 [0.009, 0.025]\\
+ & 582 & Attention-zeroed & 0.588 [0.581, 0.595] & 0.070 [0.055, 0.085] & -0.019 [-0.030, -0.008] & 0.057 [0.030, 0.085]\\
 \nopagebreak
- & 1455 & Attention-zeroed & 0.484 [0.476, 0.492] & 0.110 [0.102, 0.118] & -0.010 [-0.017, -0.003] & 0.028 [0.020, 0.037]\\
+ & 1455 & Attention-zeroed & 0.484 [0.476, 0.492] & 0.227 [0.211, 0.243] & -0.016 [-0.028, -0.005] & 0.097 [0.067, 0.125]\\
 \nopagebreak
- & 3686 & Attention-zeroed & 0.390 [0.381, 0.398] & 0.189 [0.181, 0.198] & -0.023 [-0.030, -0.015] & 0.045 [0.036, 0.054]\\
+ & 3686 & Attention-zeroed & 0.390 [0.381, 0.397] & 0.393 [0.375, 0.410] & -0.037 [-0.049, -0.025] & 0.154 [0.123, 0.183]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-1.3B} & 9021 & Attention-zeroed & 0.298 [0.290, 0.306] & 0.295 [0.287, 0.304] & -0.015 [-0.023, -0.008] & 0.049 [0.041, 0.058]\\
+\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-1.3B} & 9021 & Attention-zeroed & 0.298 [0.290, 0.306] & 0.612 [0.595, 0.629] & -0.025 [-0.037, -0.013] & 0.168 [0.139, 0.198]\\
 \cmidrule{1-7}\pagebreak[0]
- & 16 & Full context & 0.528 [0.521, 0.536] & -0.006 [-0.014, 0.002] & 0.022 [0.014, 0.029] & 0.010 [0.003, 0.016]\\
+ & 16 & Full context & 0.528 [0.521, 0.536] & -0.021 [-0.048, 0.006] & 0.009 [0.006, 0.012] & 0.014 [0.004, 0.023]\\
 \nopagebreak
- & 32 & Full context & 0.570 [0.562, 0.577] & -0.009 [-0.016, -0.001] & 0.010 [0.003, 0.018] & 0.006 [0.000, 0.013]\\
+ & 32 & Full context & 0.570 [0.562, 0.577] & -0.030 [-0.057, -0.003] & 0.004 [0.001, 0.007] & 0.009 [0.000, 0.018]\\
 \nopagebreak
- & 64 & Full context & 0.557 [0.550, 0.565] & -0.001 [-0.008, 0.007] & 0.023 [0.016, 0.031] & 0.013 [0.006, 0.019]\\
+ & 64 & Full context & 0.557 [0.550, 0.565] & -0.002 [-0.029, 0.024] & 0.009 [0.006, 0.013] & 0.018 [0.009, 0.027]\\
 \nopagebreak
- & 256 & Full context & 0.686 [0.679, 0.692] & 0.069 [0.063, 0.076] & -0.007 [-0.013, -0.000] & 0.018 [0.013, 0.024]\\
+ & 256 & Full context & 0.686 [0.679, 0.692] & 0.242 [0.219, 0.266] & -0.003 [-0.005, -0.000] & 0.026 [0.018, 0.034]\\
 \nopagebreak
- & 512 & Full context & 0.669 [0.662, 0.675] & 0.121 [0.114, 0.127] & -0.005 [-0.011, 0.002] & 0.040 [0.035, 0.046]\\
+ & 512 & Full context & 0.669 [0.662, 0.675] & 0.420 [0.397, 0.443] & -0.002 [-0.005, 0.001] & 0.058 [0.049, 0.066]\\
 \nopagebreak
- & 1000 & Full context & 0.622 [0.615, 0.629] & 0.140 [0.133, 0.147] & 0.006 [-0.001, 0.013] & 0.068 [0.063, 0.074]\\
+ & 1000 & Full context & 0.622 [0.615, 0.629] & 0.488 [0.464, 0.512] & 0.003 [-0.000, 0.005] & 0.097 [0.089, 0.105]\\
 \nopagebreak
- & 16 & Attention-zeroed & 0.553 [0.545, 0.560] & 0.008 [0.001, 0.015] & -0.014 [-0.022, -0.006] & 0.010 [0.003, 0.016]\\
+ & 16 & Attention-zeroed & 0.553 [0.545, 0.560] & 0.027 [0.001, 0.054] & -0.006 [-0.009, -0.003] & 0.014 [0.005, 0.023]\\
 \nopagebreak
- & 32 & Attention-zeroed & 0.600 [0.592, 0.607] & 0.014 [0.007, 0.022] & -0.017 [-0.024, -0.009] & 0.007 [0.001, 0.013]\\
+ & 32 & Attention-zeroed & 0.600 [0.593, 0.607] & 0.050 [0.025, 0.076] & -0.007 [-0.010, -0.004] & 0.010 [0.001, 0.019]\\
 \nopagebreak
- & 64 & Attention-zeroed & 0.582 [0.575, 0.590] & 0.017 [0.009, 0.024] & -0.023 [-0.031, -0.016] & 0.011 [0.004, 0.017]\\
+ & 64 & Attention-zeroed & 0.582 [0.574, 0.589] & 0.058 [0.033, 0.084] & -0.009 [-0.012, -0.006] & 0.015 [0.006, 0.024]\\
 \nopagebreak
- & 256 & Attention-zeroed & 0.651 [0.645, 0.658] & 0.071 [0.064, 0.078] & -0.019 [-0.026, -0.013] & 0.022 [0.016, 0.027]\\
+ & 256 & Attention-zeroed & 0.651 [0.645, 0.658] & 0.246 [0.222, 0.270] & -0.008 [-0.011, -0.005] & 0.031 [0.022, 0.039]\\
 \nopagebreak
- & 512 & Attention-zeroed & 0.647 [0.640, 0.654] & 0.132 [0.125, 0.139] & -0.010 [-0.017, -0.003] & 0.035 [0.029, 0.040]\\
+ & 512 & Attention-zeroed & 0.647 [0.641, 0.654] & 0.460 [0.437, 0.484] & -0.004 [-0.007, -0.001] & 0.049 [0.041, 0.057]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash Pythia-160M} & 1000 & Attention-zeroed & 0.617 [0.610, 0.624] & 0.111 [0.104, 0.118] & -0.005 [-0.012, 0.002] & 0.032 [0.026, 0.038]\\
+\multirow{-12}{*}{\raggedright\arraybackslash Pythia-160M} & 1000 & Attention-zeroed & 0.617 [0.610, 0.624] & 0.388 [0.362, 0.413] & -0.002 [-0.005, 0.001] & 0.045 [0.036, 0.053]\\
 \cmidrule{1-7}\pagebreak[0]
- & 16 & Full context & 0.552 [0.544, 0.559] & -0.004 [-0.011, 0.004] & 0.024 [0.017, 0.032] & 0.010 [0.004, 0.017]\\
+ & 16 & Full context & 0.552 [0.544, 0.559] & -0.013 [-0.039, 0.014] & 0.010 [0.007, 0.013] & 0.014 [0.005, 0.024]\\
 \nopagebreak
- & 32 & Full context & 0.575 [0.567, 0.582] & -0.003 [-0.011, 0.004] & 0.020 [0.013, 0.028] & 0.008 [0.002, 0.014]\\
+ & 32 & Full context & 0.575 [0.568, 0.582] & -0.012 [-0.037, 0.014] & 0.008 [0.005, 0.011] & 0.011 [0.002, 0.020]\\
 \nopagebreak
- & 64 & Full context & 0.581 [0.574, 0.589] & 0.012 [0.005, 0.019] & 0.022 [0.015, 0.030] & 0.015 [0.008, 0.021]\\
+ & 64 & Full context & 0.581 [0.573, 0.589] & 0.042 [0.016, 0.068] & 0.009 [0.006, 0.012] & 0.021 [0.012, 0.030]\\
 \nopagebreak
- & 256 & Full context & 0.727 [0.721, 0.733] & 0.050 [0.044, 0.056] & 0.014 [0.008, 0.021] & 0.017 [0.011, 0.022]\\
+ & 256 & Full context & 0.727 [0.721, 0.733] & 0.174 [0.152, 0.196] & 0.006 [0.003, 0.008] & 0.024 [0.016, 0.031]\\
 \nopagebreak
- & 512 & Full context & 0.682 [0.675, 0.688] & 0.109 [0.102, 0.115] & -0.010 [-0.016, -0.003] & 0.036 [0.030, 0.041]\\
+ & 512 & Full context & 0.682 [0.675, 0.688] & 0.379 [0.356, 0.402] & -0.004 [-0.007, -0.001] & 0.051 [0.043, 0.059]\\
 \nopagebreak
- & 1000 & Full context & 0.638 [0.631, 0.645] & 0.140 [0.133, 0.147] & -0.000 [-0.007, 0.006] & 0.063 [0.057, 0.069]\\
+ & 1000 & Full context & 0.638 [0.631, 0.645] & 0.488 [0.465, 0.512] & -0.000 [-0.003, 0.003] & 0.090 [0.082, 0.098]\\
 \nopagebreak
- & 16 & Attention-zeroed & 0.595 [0.588, 0.603] & 0.016 [0.008, 0.023] & -0.011 [-0.018, -0.003] & 0.009 [0.003, 0.015]\\
+ & 16 & Attention-zeroed & 0.595 [0.588, 0.603] & 0.054 [0.029, 0.080] & -0.004 [-0.007, -0.001] & 0.013 [0.004, 0.021]\\
 \nopagebreak
- & 32 & Attention-zeroed & 0.581 [0.574, 0.589] & 0.022 [0.014, 0.029] & -0.016 [-0.023, -0.008] & 0.010 [0.004, 0.017]\\
+ & 32 & Attention-zeroed & 0.581 [0.574, 0.589] & 0.076 [0.050, 0.102] & -0.006 [-0.010, -0.004] & 0.015 [0.006, 0.024]\\
 \nopagebreak
- & 64 & Attention-zeroed & 0.565 [0.558, 0.573] & 0.028 [0.021, 0.036] & -0.022 [-0.030, -0.015] & 0.016 [0.009, 0.022]\\
+ & 64 & Attention-zeroed & 0.565 [0.558, 0.573] & 0.098 [0.072, 0.125] & -0.009 [-0.012, -0.006] & 0.022 [0.014, 0.032]\\
 \nopagebreak
- & 256 & Attention-zeroed & 0.666 [0.659, 0.673] & 0.062 [0.056, 0.069] & -0.013 [-0.020, -0.006] & 0.017 [0.011, 0.023]\\
+ & 256 & Attention-zeroed & 0.666 [0.659, 0.673] & 0.218 [0.194, 0.242] & -0.005 [-0.008, -0.002] & 0.024 [0.016, 0.032]\\
 \nopagebreak
- & 512 & Attention-zeroed & 0.655 [0.649, 0.662] & 0.117 [0.111, 0.124] & -0.007 [-0.014, -0.000] & 0.036 [0.030, 0.042]\\
+ & 512 & Attention-zeroed & 0.655 [0.649, 0.662] & 0.409 [0.385, 0.433] & -0.003 [-0.006, -0.000] & 0.051 [0.043, 0.059]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash Pythia-410M} & 1000 & Attention-zeroed & 0.644 [0.637, 0.651] & 0.112 [0.105, 0.119] & -0.004 [-0.011, 0.003] & 0.034 [0.028, 0.040]\\
+\multirow{-12}{*}{\raggedright\arraybackslash Pythia-410M} & 1000 & Attention-zeroed & 0.644 [0.637, 0.651] & 0.392 [0.367, 0.415] & -0.002 [-0.004, 0.001] & 0.048 [0.040, 0.057]\\
 \cmidrule{1-7}\pagebreak[0]
- & 16 & Full context & 0.614 [0.606, 0.621] & -0.005 [-0.012, 0.002] & 0.019 [0.011, 0.026] & 0.012 [0.006, 0.018]\\
+ & 16 & Full context & 0.614 [0.606, 0.621] & -0.018 [-0.044, 0.007] & 0.008 [0.005, 0.010] & 0.017 [0.009, 0.026]\\
 \nopagebreak
- & 32 & Full context & 0.627 [0.620, 0.634] & -0.001 [-0.008, 0.007] & 0.023 [0.016, 0.030] & 0.015 [0.009, 0.021]\\
+ & 32 & Full context & 0.627 [0.619, 0.634] & -0.002 [-0.026, 0.023] & 0.009 [0.006, 0.012] & 0.021 [0.013, 0.030]\\
 \nopagebreak
- & 64 & Full context & 0.621 [0.614, 0.628] & 0.007 [0.000, 0.014] & 0.023 [0.016, 0.030] & 0.020 [0.014, 0.026]\\
+ & 64 & Full context & 0.621 [0.614, 0.628] & 0.026 [0.001, 0.050] & 0.009 [0.006, 0.012] & 0.029 [0.020, 0.038]\\
 \nopagebreak
- & 256 & Full context & 0.775 [0.769, 0.781] & 0.076 [0.070, 0.081] & -0.004 [-0.010, 0.002] & 0.026 [0.021, 0.031]\\
+ & 256 & Full context & 0.775 [0.769, 0.781] & 0.264 [0.244, 0.284] & -0.002 [-0.004, 0.001] & 0.037 [0.030, 0.044]\\
 \nopagebreak
- & 512 & Full context & 0.674 [0.668, 0.681] & 0.117 [0.111, 0.124] & -0.008 [-0.014, -0.001] & 0.049 [0.044, 0.055]\\
+ & 512 & Full context & 0.674 [0.668, 0.681] & 0.409 [0.387, 0.432] & -0.003 [-0.006, -0.000] & 0.070 [0.062, 0.078]\\
 \nopagebreak
- & 1000 & Full context & 0.654 [0.648, 0.661] & 0.152 [0.145, 0.159] & 0.012 [0.005, 0.018] & 0.080 [0.074, 0.085]\\
+ & 1000 & Full context & 0.654 [0.647, 0.660] & 0.530 [0.507, 0.554] & 0.005 [0.002, 0.007] & 0.114 [0.106, 0.121]\\
 \nopagebreak
- & 16 & Attention-zeroed & 0.696 [0.690, 0.703] & 0.015 [0.009, 0.021] & -0.023 [-0.029, -0.016] & 0.006 [0.001, 0.012]\\
+ & 16 & Attention-zeroed & 0.696 [0.690, 0.703] & 0.052 [0.028, 0.075] & -0.009 [-0.012, -0.007] & 0.009 [0.001, 0.017]\\
 \nopagebreak
- & 32 & Attention-zeroed & 0.710 [0.704, 0.717] & 0.016 [0.010, 0.023] & -0.025 [-0.032, -0.019] & 0.008 [0.002, 0.013]\\
+ & 32 & Attention-zeroed & 0.710 [0.704, 0.717] & 0.057 [0.034, 0.078] & -0.010 [-0.013, -0.008] & 0.011 [0.003, 0.019]\\
 \nopagebreak
- & 64 & Attention-zeroed & 0.628 [0.621, 0.635] & 0.029 [0.021, 0.036] & -0.013 [-0.020, -0.006] & 0.020 [0.014, 0.026]\\
+ & 64 & Attention-zeroed & 0.628 [0.621, 0.635] & 0.100 [0.076, 0.125] & -0.005 [-0.008, -0.002] & 0.028 [0.020, 0.037]\\
 \nopagebreak
- & 256 & Attention-zeroed & 0.728 [0.722, 0.734] & 0.080 [0.074, 0.086] & -0.021 [-0.027, -0.015] & 0.026 [0.021, 0.031]\\
+ & 256 & Attention-zeroed & 0.728 [0.722, 0.734] & 0.278 [0.257, 0.299] & -0.008 [-0.011, -0.006] & 0.037 [0.029, 0.044]\\
 \nopagebreak
- & 512 & Attention-zeroed & 0.643 [0.636, 0.649] & 0.128 [0.121, 0.135] & -0.005 [-0.011, 0.002] & 0.045 [0.040, 0.051]\\
+ & 512 & Attention-zeroed & 0.643 [0.636, 0.650] & 0.446 [0.422, 0.469] & -0.002 [-0.005, 0.001] & 0.064 [0.056, 0.073]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & Attention-zeroed & 0.652 [0.646, 0.659] & 0.118 [0.111, 0.125] & -0.008 [-0.015, -0.002] & 0.042 [0.037, 0.048]\\*
+\multirow{-12}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & Attention-zeroed & 0.652 [0.645, 0.659] & 0.410 [0.387, 0.434] & -0.003 [-0.006, -0.001] & 0.060 [0.052, 0.068]\\*
 
-
-\caption{\label{tbl-relfreq-checkpoints}Ordering-source regression
-(Equation~\ref{eq-relfreq}) at every training checkpoint, both attention
-conditions. All four variables are z-scored within each fit, so
-coefficients are standardized betas comparable across checkpoints and
-models. 95\% credible intervals in brackets.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2754,14 +2571,20 @@ at the first checkpoint ranges from 0.15 to 0.36 across model sizes,
 narrowing to 0.13--0.14 by the final checkpoint, the same qualitative
 trajectory observed at the binomial level. Full R² results are in
 Table~\ref{tbl-r2-checkpoints-babylm-default-words} and
-Table~\ref{tbl-r2-checkpoints-pythia-default-words}. The ordering-source
-regression was fit at the binomial level only, so it has no word-level
-counterpart here; its checkpoint coefficients are in
-Table~\ref{tbl-relfreq-checkpoints}.
+Table~\ref{tbl-r2-checkpoints-pythia-default-words}. The
+frequency-dependent preference regression was fit at the binomial level
+only, so it has no word-level counterpart here; its checkpoint
+coefficients are in Table~\ref{tbl-relfreq-checkpoints}.
 
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
+
+\caption{\label{tbl-r2-checkpoints-babylm-default-words}BabyLM
+checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
+word-held-out. SD in parentheses.}
+
+\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
@@ -2848,12 +2671,6 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.185 (0.022) & 0.000 (0.000) & 0.184\\*
 
-
-\caption{\label{tbl-r2-checkpoints-babylm-default-words}BabyLM
-checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
-word-held-out. SD in parentheses.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2861,6 +2678,12 @@ word-held-out. SD in parentheses.}
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
+
+\caption{\label{tbl-r2-checkpoints-pythia-default-words}Pythia
+checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
+word-held-out. SD in parentheses.}
+
+\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
@@ -2947,17 +2770,11 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.619 (0.019) & 0.001 (0.000) & 0.618\\*
 
-
-\caption{\label{tbl-r2-checkpoints-pythia-default-words}Pythia
-checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
-word-held-out. SD in parentheses.}
-
-\tabularnewline
 \end{longtable}
 
 \endgroup{}
 
-\clearpage
+\newpage
 
 \section{Corpus Frequency Distributions}\label{sec-appendix-corpus-freq}
 
@@ -3013,168 +2830,5 @@ binomial (1 × 20 = 20 exposures). This gap in absolute exposure is why
 the two corpora cannot be placed on a common developmental axis, and why
 the frequency range available for the moderation analysis differs so
 sharply between them.
-
-\section{Ordering-Source Regression}\label{sec-appendix-relfreq}
-
-Full results for Equation~\ref{eq-relfreq}: the abstract component
-\(\hat{y}\) (\texttt{y\_pred}), the corpus's own attested order for that
-binomial (\texttt{rel\_freq}), total binomial frequency
-(\texttt{log\_freq}), the two moderations, and the residual-scale term.
-All four variables are z-scored within each fit, so coefficients are
-standardized betas: a one-standard-deviation change in the predictor
-moves the model's ordering preference by that many standard deviations.
-Standardizing the outcome as well is what makes the coefficients
-comparable across models, attention conditions, and training
-checkpoints, since the spread of \texttt{y\_true} differs between fits.
-
-46,757 binomials enter the smallest fit and 48,478 the largest.
-
-Two limits on how far the moderation terms should be read.
-\texttt{rel\_freq} is estimated from counts, so it is less reliable for
-rare binomials, and a less reliable predictor carries an attenuated
-coefficient: part of every positive
-\texttt{rel\_freq}\(\times\)\texttt{log\_freq} estimate is that
-attenuation rather than storage. Admitting singly-attested binomials
-trades one form of this problem for another. Nothing is discarded, but a
-binomial seen once now sits at the boundary \(\pm 0.5\),
-indistinguishable from one seen a thousand times in a single order. The
-effect is strongest for BabyLM, where 92\% of items take a boundary
-value and the first seven frequency deciles are entirely singletons, and
-mild for the large-scale models, where roughly 8\% sit at a boundary and
-\texttt{rel\_freq} varies continuously through its range. The two
-nevertheless return moderation estimates of the same magnitude, which is
-the reassuring outcome: if the coefficient were mostly a record of how
-often the predictor saturates, the corpus at 92\% saturation and the
-corpora at 8\% would not agree. The comparison between attention
-conditions is unaffected in either case, since \texttt{rel\_freq} is the
-identical predictor carrying identical noise in both conditions, so
-whatever attenuation contributes cancels from the difference. Where a
-single number is wanted, the condition contrast is the defensible one.
-
-\begingroup\fontsize{7}{9}\selectfont
-
-\begin{longtable}[t]{llllll}
-
-\toprule
-Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\times$ \texttt{log\_freq} & \texttt{rel\_freq} $\times$ \texttt{log\_freq}\\
-\midrule
-\endfirsthead
-\multicolumn{6}{@{}l}{\textit{(continued)}}\\
-\toprule
-Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\times$ \texttt{log\_freq} & \texttt{rel\_freq} $\times$ \texttt{log\_freq}\\
-\midrule
-\endhead
-
-\endfoot
-\bottomrule
-\endlastfoot
- & Full context & 0.418 [0.411, 0.426] & 0.258 [0.251, 0.266] & 0.002 [-0.006, 0.009] & 0.115 [0.107, 0.124]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} & Attention-zeroed & 0.388 [0.380, 0.396] & 0.202 [0.194, 0.210] & -0.015 [-0.022, -0.008] & 0.055 [0.047, 0.063]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.434 [0.426, 0.442] & 0.221 [0.213, 0.229] & -0.006 [-0.013, 0.001] & 0.104 [0.095, 0.113]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} & Attention-zeroed & 0.370 [0.362, 0.378] & 0.200 [0.192, 0.208] & -0.011 [-0.018, -0.004] & 0.060 [0.052, 0.069]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.332 [0.324, 0.340] & 0.341 [0.333, 0.348] & 0.001 [-0.006, 0.009] & 0.103 [0.094, 0.111]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & Attention-zeroed & 0.275 [0.267, 0.283] & 0.253 [0.245, 0.262] & -0.014 [-0.021, -0.006] & 0.034 [0.025, 0.043]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.489 [0.482, 0.497] & 0.291 [0.283, 0.298] & -0.015 [-0.021, -0.008] & 0.139 [0.133, 0.146]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2} & Attention-zeroed & 0.683 [0.676, 0.689] & 0.088 [0.082, 0.095] & -0.043 [-0.050, -0.036] & 0.018 [0.013, 0.024]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.446 [0.439, 0.454] & 0.328 [0.321, 0.336] & -0.014 [-0.021, -0.007] & 0.143 [0.137, 0.150]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} & Attention-zeroed & 0.640 [0.633, 0.646] & 0.123 [0.116, 0.129] & -0.028 [-0.035, -0.021] & 0.025 [0.019, 0.031]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.454 [0.447, 0.462] & 0.330 [0.323, 0.338] & -0.019 [-0.027, -0.012] & 0.138 [0.132, 0.145]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} & Attention-zeroed & 0.566 [0.559, 0.573] & 0.143 [0.135, 0.150] & -0.035 [-0.042, -0.028] & 0.030 [0.024, 0.036]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.447 [0.439, 0.454] & 0.342 [0.334, 0.349] & -0.022 [-0.030, -0.016] & 0.138 [0.132, 0.145]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} & Attention-zeroed & 0.605 [0.598, 0.612] & 0.131 [0.124, 0.138] & -0.035 [-0.042, -0.028] & 0.034 [0.028, 0.040]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.462 [0.454, 0.469] & 0.304 [0.296, 0.311] & -0.008 [-0.015, -0.001] & 0.129 [0.122, 0.135]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} & Attention-zeroed & 0.506 [0.499, 0.514] & 0.160 [0.152, 0.168] & -0.021 [-0.028, -0.013] & 0.023 [0.017, 0.030]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.453 [0.445, 0.460] & 0.336 [0.328, 0.344] & -0.026 [-0.033, -0.019] & 0.132 [0.126, 0.139]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} & Attention-zeroed & 0.517 [0.510, 0.525] & 0.166 [0.159, 0.173] & -0.038 [-0.045, -0.031] & 0.037 [0.031, 0.043]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.493 [0.485, 0.500] & 0.323 [0.316, 0.331] & -0.027 [-0.034, -0.021] & 0.117 [0.110, 0.123]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & Attention-zeroed & 0.575 [0.568, 0.582] & 0.150 [0.143, 0.157] & -0.035 [-0.043, -0.028] & 0.033 [0.027, 0.039]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.534 [0.527, 0.541] & 0.302 [0.295, 0.309] & -0.027 [-0.033, -0.020] & 0.113 [0.107, 0.119]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} & Attention-zeroed & 0.592 [0.585, 0.599] & 0.158 [0.151, 0.166] & -0.029 [-0.036, -0.022] & 0.034 [0.028, 0.040]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.582 [0.575, 0.589] & 0.283 [0.277, 0.290] & -0.022 [-0.028, -0.016] & 0.097 [0.091, 0.102]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} & Attention-zeroed & 0.636 [0.630, 0.643] & 0.160 [0.153, 0.167] & -0.028 [-0.035, -0.021] & 0.039 [0.033, 0.044]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.519 [0.512, 0.526] & 0.303 [0.296, 0.311] & -0.029 [-0.036, -0.023] & 0.099 [0.093, 0.105]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} & Attention-zeroed & 0.592 [0.585, 0.599] & 0.156 [0.149, 0.163] & -0.037 [-0.044, -0.029] & 0.031 [0.024, 0.037]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.628 [0.621, 0.634] & 0.238 [0.231, 0.244] & -0.034 [-0.040, -0.027] & 0.068 [0.063, 0.074]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} & Attention-zeroed & 0.669 [0.663, 0.676] & 0.144 [0.137, 0.150] & -0.033 [-0.039, -0.027] & 0.032 [0.027, 0.038]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.496 [0.489, 0.503] & 0.323 [0.316, 0.331] & -0.025 [-0.032, -0.018] & 0.116 [0.110, 0.122]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} & Attention-zeroed & 0.560 [0.552, 0.567] & 0.169 [0.162, 0.177] & -0.041 [-0.049, -0.034] & 0.041 [0.035, 0.048]\\
-\cmidrule{1-6}\pagebreak[0]
- & Full context & 0.607 [0.601, 0.614] & 0.259 [0.252, 0.265] & -0.037 [-0.043, -0.031] & 0.087 [0.082, 0.093]\\
-\nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} & Attention-zeroed & 0.640 [0.633, 0.647] & 0.143 [0.136, 0.150] & -0.038 [-0.045, -0.032] & 0.037 [0.031, 0.042]\\*
-
-
-\caption{\label{tbl-relfreq}Ordering-source regression
-(Equation~\ref{eq-relfreq}) for all 16 models at their final checkpoint,
-by attention condition. All four variables are z-scored within each fit,
-so these are standardized betas, comparable across models and
-conditions. 95\% credible intervals in brackets. Holistic storage
-predicts a negative \texttt{y\_pred} \(\times\) \texttt{log\_freq} and a
-positive \texttt{rel\_freq} \(\times\) \texttt{log\_freq}, both
-attenuating under attention-zeroing.}
-
-\tabularnewline
-\end{longtable}
-
-\endgroup{}
-
-Figure~\ref{fig-relfreq-coefs} shows the two moderation terms across
-models and conditions. The pattern is uniform across all sixteen:
-\texttt{rel\_freq}\(\times\)\texttt{log\_freq} is credibly positive in
-every model under full context and much smaller under attention-zeroing,
-while \texttt{y\_pred}\(\times\)\texttt{log\_freq} is credibly negative
-in every large-scale model under both conditions. The BabyLM models
-match the large-scale ones on the first term and sit nearer zero on the
-second, which is what the restricted frequency range would predict:
-\texttt{y\_pred}\(\times\)\texttt{log\_freq} is the term that needs
-exposure to vary over orders of magnitude before it can be estimated
-apart from the main effect.
-
-\begin{figure*}[t]
-
-\centering{
-
-\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-relfreq-coefs-1.pdf}}
-
-}
-
-\caption{\label{fig-relfreq-coefs}Moderation terms of
-Equation~\ref{eq-relfreq} by model and attention condition. Circles =
-full context; triangles = attention-zeroed. Points = posterior mean;
-bars = 95\% credible intervals. Left: the corpus's attested order
-matters more for frequent binomials, and attention-zeroing removes most
-of that. Right: the abstract component matters less for frequent
-binomials, and attention-zeroing does not remove it.}
-
-\end{figure*}%
 
 \end{document}

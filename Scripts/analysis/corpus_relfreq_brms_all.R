@@ -74,6 +74,34 @@ find_project_root <- function() {
 }
 setwd(find_project_root())
 
+zscore <- function(v) as.numeric(scale(v))
+centre <- function(v) as.numeric(scale(v, center = TRUE, scale = FALSE))
+
+# ── Predictor scaling: "z" (default) or "raw" ────────────────────────────────
+# Set by the SCALE environment variable; controls the output filenames too, so
+# the two variants never overwrite each other's cached fits.
+#
+# "z"   every predictor z-scored within the cell. Coefficients are standardised
+#       betas, comparable across cells, but "one SD of rel_freq" denotes a
+#       different quantity in each corpus: BabyLM's SD is inflated because 92% of
+#       its items sit at a boundary value, which is part of why its moderation
+#       looks large.
+#
+# "raw" rel_freq is left on its natural -0.5..+0.5 proportion scale and log
+#       frequency is centred but not scaled. A proportion is an interpretable
+#       unit like miles, not an arbitrary one, so dividing it by a corpus-
+#       specific SD makes the same physical difference count differently in
+#       different corpora. On this scale the rel_freq coefficient reads as
+#       "SDs of ordering preference per unit of proportion", one unit being the
+#       span from always-reversed to always-alphabetical, and the log_freq
+#       coefficient reads per e-fold of frequency. y_true and y_pred stay
+#       z-scored either way: their spread genuinely differs across models,
+#       conditions and checkpoints, and every cross-cell contrast in
+#       Experiments 2 and 3 depends on putting them in common units.
+SCALE <- tolower(Sys.getenv("SCALE", "z"))
+stopifnot(SCALE %in% c("z", "raw"))
+SUFFIX <- if (SCALE == "z") "relfreq_prop" else "relfreq_rawscale"
+
 CHAINS  <- 4
 THREADS <- 2          # per chain; 4 x 2 = 8 threads over 6 physical cores
 ITER    <- 4000
@@ -82,8 +110,8 @@ SEED    <- 964
 
 RESULTS   <- "Results"
 MODEL_DIR <- file.path("Data", "brms_models")
-OUT_RDS   <- file.path("Data", "brms_relfreq_prop.rds")
-LOG       <- file.path(RESULTS, "brms_relfreq_prop_progress.log")
+OUT_RDS   <- file.path("Data", paste0("brms_", SUFFIX, ".rds"))
+LOG       <- file.path(RESULTS, paste0("brms_", SUFFIX, "_progress.log"))
 dir.create(MODEL_DIR, showWarnings = FALSE, recursive = TRUE)
 
 log_msg <- function(...) {
@@ -142,10 +170,9 @@ counts <- list(
 make_fname <- function(label, step, cond) {
   tag  <- if (is.na(step)) "final" else as.character(step)
   base <- gsub("[^A-Za-z0-9]", "_", paste(label, tag, cond, MODE, sep = "_"))
-  file.path(MODEL_DIR, paste0(base, "_relfreq_prop"))
+  file.path(MODEL_DIR, paste0(base, "_", SUFFIX))
 }
 
-zscore <- function(v) as.numeric(scale(v))
 
 load_cell <- function(slug, corpus, cond) {
   xz <- file.path(RESULTS, slug, "by_layer_corpus_pred.csv.xz")
@@ -179,8 +206,11 @@ load_cell <- function(slug, corpus, cond) {
     transmute(
       y_true_z   = zscore(y_true),
       y_pred_z   = zscore(y_pred),
-      log_freq_z = zscore(log(total)),
-      rel_freq_z = zscore(n_w1_w2 / total - 0.5)
+      # column names are kept identical across both scalings so the formula,
+      # the draw extraction and every downstream script stay unchanged
+      log_freq_z = if (SCALE == "z") zscore(log(total)) else centre(log(total)),
+      rel_freq_z = if (SCALE == "z") zscore(n_w1_w2 / total - 0.5)
+                   else              (n_w1_w2 / total - 0.5)
     )
 }
 

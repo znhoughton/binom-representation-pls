@@ -50,7 +50,13 @@ MODEL_DIR <- file.path("Data", "brms_models")
 RESULTS   <- "Results"
 MODE      <- "mean_pooled"
 
-fits <- Sys.glob(file.path(MODEL_DIR, "*_final_*_relfreq_prop.rds"))
+# Which parameterisation to read. "relfreq_rawscale" leaves rel_freq on its
+# -0.5..+0.5 proportion scale and centres log frequency WITHOUT scaling;
+# "relfreq_prop" z-scores both. The frequency back-conversion below differs
+# between the two, so this must match the fits actually on disk.
+SUFFIX <- "relfreq_rawscale"
+RAW    <- SUFFIX == "relfreq_rawscale"
+fits <- Sys.glob(file.path(MODEL_DIR, paste0("*_final_*_", SUFFIX, ".rds")))
 cat(length(fits), "final-checkpoint fits found\n")
 
 # ── Recovering raw frequencies ───────────────────────────────────────────────
@@ -92,7 +98,7 @@ names(freq_scale) <- names(ref_slug)
 corpus_of <- function(label) if (grepl("^BabyLM", label)) "babylm" else "pile"
 
 parse_name <- function(f) {
-  b <- sub("_relfreq_prop\\.rds$", "", basename(f))
+  b <- sub(paste0("_", SUFFIX, "\\.rds$"), "", basename(f))
   b <- sub("_mean_pooled$", "", b)
   cond <- if (grepl("_attn_zeroed$", b)) "attn_zeroed" else "default"
   lab  <- sub("_(attn_zeroed|default)$", "", b)
@@ -154,8 +160,10 @@ out <- map_dfr(fits, function(f) {
       kind = eval_at$kind[[i]], decile = eval_at$decile[[i]],
       mid_log_freq_z = f_at,
       # back on the count scale: z -> log count -> count
-      mid_log_freq   = f_at * fs$sg + fs$mu,
-      mid_freq       = exp(f_at * fs$sg + fs$mu),
+      # raw fits centre log frequency but do not scale it, so undoing the
+      # transform is an addition; z-scored fits need the sd as well
+      mid_log_freq   = if (RAW) f_at + fs$mu else f_at * fs$sg + fs$mu,
+      mid_freq       = exp(if (RAW) f_at + fs$mu else f_at * fs$sg + fs$mu),
       term = c("y_pred", "rel_freq"),
       beta = c(mean(s_pred), mean(s_rel)),
       lo   = c(quantile(s_pred, .025), quantile(s_rel, .025)),

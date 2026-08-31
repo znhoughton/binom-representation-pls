@@ -1,7 +1,13 @@
 """
-DEPRECATED: superseded by run_scale_models.py --checkpoints (Phase 4 in run_pipeline.py).
-This script ran all layers at each checkpoint; the new pipeline runs final layer only,
-which is the design we settled on for the paper.
+STILL IN USE, for the by-layer supplementary analysis only.
+
+For the main paper, checkpoint extraction is done by run_scale_models.py
+--checkpoints (Phase 4 of run_pipeline.py), which runs the FINAL LAYER only --
+that is the design the paper reports. This script runs ALL layers at each
+checkpoint, which is what run_pythia_supplementary_babylm_checkpoints.sh needs,
+so it is kept rather than removed. Do not delete it without also retiring that
+driver. (An earlier header called this script deprecated; that was wrong, since
+the driver has always depended on it.)
 
 Training-dynamics checkpoint pipeline for Pythia models.
 
