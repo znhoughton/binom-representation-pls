@@ -375,6 +375,8 @@ y_{\text{true}} &\sim \beta_0 + \beta_1\hat{y} + \beta_2 r + \beta_3 f\\
 \end{aligned}
 $$ {#eq-relfreq}
 
+$y_{\text{true}}$ and $\hat{y}$ are centered and scaled within each fit; $f$ is centered but not scaled; $r$ is left on its original scale, which already runs from $-0.5$ to $+0.5$ (Appendix\ \ref{sec-appendix-relfreq}).
+
 The residual scale is modeled rather than assumed constant. The spread of $y_{\text{true}}$ varies with frequency, and an unmodeled trend there would inflate the slopes at one end of the range.
 
 # Experiment 1: BabyLM Representations {#sec-exp1}
@@ -568,9 +570,9 @@ For the binomial-level conditions, binomial-held-out R² ranges from 0.24 to 0.3
 
 ### Abstract and Stored Contributions
 
-Results are shown in @fig-relfreq-babylm. Both abstract preferences and relative corpus frequency predict the model's ordering preference, and both do so credibly in all three models (Appendix \ref{sec-appendix-relfreq}). The effect of relative frequency is stronger for high-frequency binomials, while the effect of $\hat{y}$ is constant across different frequencies.
+Results are shown in @fig-relfreq-babylm. Both abstract preferences and relative corpus frequency predict the model's ordering preference, and both do so credibly in all three models (Appendix \ref{sec-appendix-relfreq}). The effect of relative frequency is stronger for high-frequency binomials, while the effect of abstract preferences is constant across different frequencies.
 
-Zeroing out attention reduces both the effects of abstract preferences and relative frequency for the BabyLMs and additionally results in a negative interaction effect between $\hat{y}$ and overall frequency, suggesting that abstract preferences are a *worse* predictor of ordering preferences for high-frequency binomials when attention is zeroed.
+Zeroing out attention reduces both the effects of abstract preferences and relative frequency for the BabyLMs and additionally results in a negative interaction effect between abstract preferences and overall frequency, suggesting that abstract preferences are a *worse* predictor of ordering preferences for high-frequency binomials when attention is zeroed.
 
 ```{r}
 #| label: fig-relfreq-babylm
@@ -748,7 +750,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term)) +
 
 Experiments 1 and 2 establish that language models encode binomial preferences at the end of training, but leave open when those representations emerge, and whether the trade-off between abstract preferences and holistic storage is present early or accumulates with exposure. Experiment 3 examines the same probe at multiple training checkpoints.
 
-The probe, input modes, attention conditions, and cross-validation splits are as described previously. We refit @eq-relfreq at each saved checkpoint of the three BabyLM models and the three Pythia models, in both attention conditions: 72 fits in all. $y_{\text{true}}$ and $\hat{y}$ are standardized within each fit, since their spread differs across models, conditions and checkpoints; $r$ is a proportion on a fixed scale that means the same thing in every corpus. Because a model's corpus does not change over training, coefficients are directly comparable across a model's own checkpoints and between its two attention conditions. Comparisons of main-effect magnitude *between* the two corpora are less direct, since overall frequency is centered within each fit and the corpora differ in what a typical binomial's frequency is (Appendix\ \ref{sec-appendix-relfreq}).
+The probe, input modes, attention conditions, and cross-validation splits are as described previously. We refit @eq-relfreq at each saved checkpoint of the three BabyLM models and the three Pythia models, in both attention conditions: 72 fits in all.
 
 ## Results
 
@@ -914,9 +916,9 @@ Probe trajectories are shown in @fig-checkpoints and the two sources' contributi
 
 The effect of relative frequency is negligible across the first three checkpoints of every model. From the fourth checkpoint it is credibly positive in `r n_cred_p(ck_sub(FALSE), "rel")` of `r nrow(ck_sub(FALSE))` model-by-condition cells and climbs `r if (ck_mono("rel")) "monotonically " else ""`thereafter: to `r ck_list(babylm_ck, "last", "rel")` in the three BabyLM models and to `r ck_list(pythia_ck, "last", "rel")` in the three Pythia models. This holds in both attention conditions, so what grows is not solely the binomial-specific representation.
 
-At the fourth checkpoint, the first at which `rel_freq` is credibly positive in every model, attention-zeroing removes none of the effect. In other words, at the point where storage is first measurable, it survives an intervention that removes the phrasal representation, so what has shifted at that point is the lexical representations. Storage in the phrasal representation then accumulates on top of it. The share of `rel_freq` that attention-zeroing removes rises from nothing at the fourth checkpoint to `r ck_joint_rng(pythia_ck, "last")`% by the last in the three Pythia models and `r ck_joint_rng(babylm_ck, "last")`% in the three BabyLM models, and reaches `r fin_joint_rng(large_models)`% in the fully trained large-scale models. The interaction effect between relative frequency and overall frequency follows the same course, reaching `r ck_gap_list(babylm_ck, "last", "rel_x")` in BabyLM and `r ck_gap_list(pythia_ck, "last", "rel_x")` in Pythia.
+At the fourth checkpoint, the first at which relative frequency is credibly positive in every model, attention-zeroing removes none of the effect. In other words, at the point where storage is first measurable, it survives an intervention that removes the phrasal representation, so what has shifted at that point is the lexical representations. Storage in the phrasal representation then accumulates on top of it. The share of the relative-frequency effect that attention-zeroing removes rises from nothing at the fourth checkpoint to `r ck_joint_rng(pythia_ck, "last")`% by the last in the three Pythia models and `r ck_joint_rng(babylm_ck, "last")`% in the three BabyLM models, and reaches `r fin_joint_rng(large_models)`% in the fully trained large-scale models. The interaction effect between relative frequency and overall frequency follows the same course, reaching `r ck_gap_list(babylm_ck, "last", "rel_x")` in BabyLM and `r ck_gap_list(pythia_ck, "last", "rel_x")` in Pythia.
 
-The effect of abstract preferences moves independently of all this. $\hat{y}$ declines steadily across BabyLM training in both conditions. For Pythia it rises over the early window, then falls below its starting value by the final model. Its interaction with overall frequency is credibly negative under attention-zeroing in `r n_cred_n(ck[ck$condition == "attn_zeroed", ], "pred_x")` of the `r sum(ck$condition == "attn_zeroed")` checkpoint cells. Full numerical results are in Appendix \ref{sec-appendix-exp3}.
+The effect of abstract preferences moves independently of all this. It declines steadily across BabyLM training in both conditions. For Pythia it rises over the early window, then falls below its starting value by the final model. Its interaction with overall frequency is credibly negative under attention-zeroing in `r n_cred_n(ck[ck$condition == "attn_zeroed", ], "pred_x")` of the `r sum(ck$condition == "attn_zeroed")` checkpoint cells. Full numerical results are in Appendix \ref{sec-appendix-exp3}.
 
 ```{r}
 #| label: fig-checkpoints
@@ -1277,7 +1279,7 @@ The two kinds of variable are treated differently, and deliberately so. `y_true`
 
 `rel_freq` and `log_freq`, by contrast, are properties of the training corpus: a proportion of occurrences and a count of them mean the same thing however they are measured, and dividing either by a corpus-specific standard deviation would replace a shared unit with a local one. They are therefore left on their own scales: `rel_freq` is a proportion running from $-0.5$ to $+0.5$ and `log_freq` is centered but not scaled, so both mean the same thing in every corpus. A `rel_freq` coefficient is therefore the change in ordering preference, in standard deviations, between a binomial always attested in one order and one always attested in the other; a `log_freq` coefficient is the change per unit of log frequency, which is a factor of $e \approx 2.72$ in the raw count; multiplying by $0.69$ converts it to the change per doubling.
 
-Because `log_freq` is centered within each fit, a main effect is the effect at that corpus's average binomial, which is a different absolute frequency for BabyLM than for the large-scale corpora. Main effects are therefore interpretable within a fit and comparable between attention conditions, but they are not comparable in magnitude across the two corpora. The two predictors are also on different scales, so their coefficients should not be compared with each other.
+Because `log_freq` is centered within each fit, a main effect is the effect at that corpus's average binomial. The two predictors are on different scales, so their coefficients should not be compared with each other.
 
 ```{r}
 #| label: tbl-relfreq
