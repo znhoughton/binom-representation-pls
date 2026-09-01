@@ -338,7 +338,7 @@ For each model we extract final-layer hidden states, presenting each binomial in
 We additionally probe representations under two attention conditions:
 
 -   **Full context**: standard forward pass with full cross-token attention. Each word's representation reflects contextual influences from all other (previous) tokens in the sentence.
--   **Attention-zeroed**: the same forward pass, except that we stop the second word and the conjunction from attending to the first word, at every layer (Appendix \ref{sec-appendix-implementation}).
+-   **Attention-zeroed**: the same forward pass, except that we zero out attention from the second word and the conjunction to the first word, at every layer (Appendix \ref{sec-appendix-implementation}).
 
 This gives three representation types per model: binomial-level under each attention condition, and full-context word-level.
 
