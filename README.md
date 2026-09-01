@@ -193,7 +193,7 @@ python Scripts/pipeline/run_scale_models.py --models pythia gpt2 --gpu 0
 
 ## MLP probe
 
-- Architecture: `Linear(d, 64) → ReLU → Linear(64, 1)`
+- Architecture: `Linear(d, 128) → ReLU → Linear(128, 1)`
 - Training: AdamW, 10-fold cross-validation with batched GPU training (all folds
   in parallel via `torch.bmm`)
 - Early stopping: patience = 5 epochs on held-out validation loss

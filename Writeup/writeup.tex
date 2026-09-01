@@ -102,25 +102,23 @@ Representations of Binomials in Language Models}
 
 \begin{abstract}
 Humans balance abstract and item-specific knowledge when ordering
-binomials: abstract constraints shape the ordering preferences for
-infrequent binomials, while idiosyncratic knowledge drives the ordering
-preferences for frequent ones. Evaluating 16 language models across five
-families, we demonstrate a parallel trade-off. By probing hidden-state
-representations, we show that language models do learn abstract
-preferences. However, a binomial's relative frequency in the training
-corpus predicts a model's preference over and above anything those
-abstract preferences supply, and predicts it more strongly for
-high-frequency binomials. To locate that item-specific component, we
-zero out cross-word attention, forcing the representation into a
-strictly additive function of the two words. The intervention mitigates
-but does not remove the idiosyncrasy of high-frequency binomials,
-indicating that storage shifts the representations of the individual
-words and not only the representation of the phrase. Examining the
-developmental trajectory across training checkpoints further
-demonstrates that abstract preferences are present early while the
-frequency-dependent storage is not observable until later, the point at
-which it becomes detectable being governed by training tokens rather
-than model scale.
+binomials: abstract constraints shape the preferences for infrequent
+binomials, while idiosyncratic knowledge drives them for frequent ones.
+Evaluating 16 language models across five families, we demonstrate a
+parallel trade-off. Probing hidden-state representations shows that
+language models do learn abstract preferences. However, a binomial's
+relative frequency in the training corpus predicts a model's preference
+over and above anything those abstract preferences supply, and predicts
+it more strongly for high-frequency binomials. To locate that
+item-specific component, we zero out cross-word attention, forcing the
+representation into a strictly additive function of the two words. The
+intervention mitigates but does not remove the idiosyncrasy of
+high-frequency binomials, indicating that storage shifts the individual
+word representations and not only the phrasal one. Examining the
+developmental trajectory across checkpoints further shows that abstract
+preferences are present early while the frequency-dependent storage is
+not observable until later, with the point of detection governed by
+training tokens rather than model scale.
 \end{abstract}
 
 \section{Introduction}\label{introduction}
@@ -138,7 +136,7 @@ representations of its individual pieces, or the expression may be
 stored and retrieved holistically. How, and crucially when, this
 trade-off emerges in learning has been a question that linguists have
 been asking for nearly a century
-\citep{berkoChildsLearningEnglish1958, morgan2015, morgan2024productiveknowledgeitemspecific, houghton2023doespredictabilitydrive, houghton2024frequencydependentpreferenceextremity, houghton2025boltsnutslanguage, houghton2025multiwordrepresentationsminds, houghton2025role, houghton2026holisticstorageverbupphrases, houghton2026exemplarsdisguisepure, stembergerAreInflectedForms2004, kapatsinskiFrequencyEmergencePrefabs2009}.
+\citep{morgan2015, morgan2024productiveknowledgeitemspecific, houghton2023doespredictabilitydrive, houghton2024frequencydependentpreferenceextremity, houghton2025boltsnutslanguage, houghton2026exemplarsdisguisepure}.
 
 \subsection{Abstract Preferences and Holistic
 Storage}\label{abstract-preferences-and-holistic-storage}
@@ -161,7 +159,7 @@ the particular words that realize it.
 Evidence for holistic storage, on the other hand, has been somewhat more
 controversial. Nonetheless, evidence of holistic storage has been
 accumulating over the last few decades
-\citep{stembergerAreInflectedForms2004, kapatsinskiFrequencyEmergencePrefabs2009, bybeeEffectUsageDegrees1999, morgan2016}.
+\citep{stembergerAreInflectedForms2004, kapatsinskiFrequencyEmergencePrefabs2009}.
 Perhaps the most famous example comes from
 \citet{bybeeEffectUsageDegrees1999}. In their seminal study, they
 demonstrated that the extent to which the word \emph{don't} is reduced
@@ -223,19 +221,19 @@ during training.
 
 Perhaps most related to the present study, language models' ordering
 preferences for binomials appear not to be driven by abstract
-preferences at all \citep{houghton2025role}. \citet{houghton2025role}
-examined whether language models showed the same abstract preferences as
-humans, and found that the models' ordering preferences were driven
-exclusively by frequency statistics, with no evidence of an effect of
-abstract preferences. However, that finding faces limitations along two
-main dimensions. First, the study can only claim to find no evidence
-that the models' ordering preferences were driven by \emph{human}
-ordering preferences; it may very well be that their preferences are
-driven by abstract preferences that simply differ from those humans
-show. Second, the examination was conducted on model behavior, in the
-form of output probabilities, rather than over the representations that
-produce it. A model could in principle derive an ordering from abstract
-properties of the binomial and still produce output statistics that look
+preferences at all{]}. \citet{houghton2025role} examined whether
+language models showed the same abstract preferences as humans, and
+found that the models' ordering preferences were driven exclusively by
+frequency statistics, with no evidence of an effect of abstract
+preferences. However, that finding faces limitations along two main
+dimensions. First, the study can only claim to find no evidence that the
+models' ordering preferences were driven by \emph{human} ordering
+preferences; it may very well be that their preferences are driven by
+abstract preferences that simply differ from those humans show. Second,
+the examination was conducted on model behavior, in the form of output
+probabilities, rather than over the representations that produce it. A
+model could in principle derive an ordering from abstract properties of
+the binomial and still produce output statistics that look
 frequency-driven.
 
 \subsection{Present Study}\label{present-study}
@@ -256,10 +254,9 @@ attention have been used to trace factual recall and to isolate circuits
 \citep{geva-etal-2023-dissecting, wang2023interpretability}, but to our
 knowledge this is the first use of one to separate holistic storage from
 abstract preferences. We apply this to 16 models across five families,
-to models trained on an amount of data comparable to humans as well as
-on models trained on trillions of tokens, and to training checkpoints
-for two families of models matched roughly in terms of numbers of
-parameters but differing in the size of their training corpus.
+spanning human-scale to trillion-token training corpora, and to training
+checkpoints for two families matched in parameters but not in corpus
+size.
 
 Our main contributions are:
 
@@ -308,12 +305,9 @@ large-scale models it consists of infrequent attested binomials rather
 than unseen ones. We retain the label \emph{novel} throughout, and
 return to what it licenses in the Limitations.
 
-Both sets were extracted automatically, using spaCy \citep{spacy2}
-part-of-speech tags to find candidate sequences and the Berkeley Neural
-Parser
-\citep{kitaev-klein-2018-constituency, kitaev-etal-2019-multilingual} to
-confirm that the two words form a minimal coordinate phrase (See
-Appendix~\ref{sec-appendix-extraction}).
+Both sets were extracted automatically, with a parser-based criterion
+requiring the two words to form a minimal coordinate phrase
+(Appendix~\ref{sec-appendix-extraction}).
 
 For each corpus binomial and each model, we also calculate the ordering
 preference, which is operationalized as the model's own log-probability
@@ -415,9 +409,8 @@ conditions:
 
 Both splits are applied to the novel set; the attested set is not
 cross-validated, and enters only as the transfer target described below.
-Word-held-out yields an order of magnitude fewer test items per fold,
-and its R² is correspondingly more variable, which is why we report fold
-standard deviations throughout (Appendix~\ref{sec-appendix-cv}).
+We report fold standard deviations throughout, since word-held-out
+yields far fewer test items per fold (Appendix~\ref{sec-appendix-cv}).
 
 Finally, following \citet{hewitt-liang-2019-designing}, we train a
 matched control probe on randomly permuted labels; near-zero control R²
@@ -448,14 +441,11 @@ means it occurs evenly in both orderings, and \(-0.5\) means it always
 occurs in non-alphabetical ordering. Letting \(f\) be log overall
 frequency (overall occurrences in the model's corpus,
 logged\footnote{Frequency is each binomial's exposure in the model's own
-  training corpus: exact counts in the BabyLM corpus
-  \citep{warstadt-etal-2023-findings} for the BabyLM models, and
-  infini-gram counts in the Pile \citep{gao2020pile, liu2024infinigram}
-  for the rest, which are exact only for Pythia and stand in as a proxy
-  for GPT-2, OLMo, and Llama (Appendix~\ref{sec-appendix-relfreq}). The
-  two corpora differ sharply in the frequency range they afford;
-  Appendix~\ref{sec-appendix-corpus-freq} gives the distributions.}),
-our regression equation is:
+  training corpus: exact counts for BabyLM
+  \citep{warstadt-etal-2023-findings} and Pythia, and infini-gram Pile
+  counts \citep{gao2020pile, liu2024infinigram} standing in as a proxy
+  for the rest. Appendix~\ref{sec-appendix-corpus-freq} gives the
+  distributions.}), our regression equation is:
 
 \begin{equation}\phantomsection\label{eq-relfreq}{
 \begin{aligned}
@@ -513,13 +503,11 @@ condition. Bars = ±1 SD across 10 folds.}
 
 For the binomial-level conditions, binomial-held-out R² ranges from 0.24
 to 0.34; word-held-out R² is consistently lower, ranging from 0.12 to
-0.23. The drop reflects a lexical generalization cost: the probe is more
-accurate when a test binomial's words appeared in other training
-binomials than when both are novel, so some preference signal is tied to
-word identity rather than being fully abstract. Probe accuracy is
-non-monotonic with model size, and the full-context condition yields
-higher binomial-held-out R² than attention-zeroed, a difference we
-report but do not build on.
+0.23. The drop reflects a lexical generalization cost: some of the
+preference signal is tied to word identity rather than being fully
+abstract. Probe accuracy is non-monotonic with model size, and the
+full-context condition yields higher binomial-held-out R² than
+attention-zeroed, a difference we report but do not build on.
 
 \subsubsection{Abstract and Stored
 Contributions}\label{abstract-and-stored-contributions}
@@ -639,9 +627,8 @@ representations alone.
 \caption{\label{fig-relfreq-pile}How strongly each source contributes to
 the ordering preference, by binomial frequency, for the 13 large-scale
 models. Values are simple slopes from the fitted posteriors of
-Equation~\ref{eq-relfreq}, evaluated at each decile's median frequency
-and plotted against that frequency; faint lines are individual models
-with their 95\% credible intervals, bold lines their mean.}
+Equation~\ref{eq-relfreq}. Faint lines are individual models with their
+95\% credible intervals, bold lines their mean.}
 
 \end{figure}%
 
@@ -651,8 +638,7 @@ Experiments 1 and 2 establish that language models encode binomial
 preferences at the end of training, but leave open when those
 representations emerge, and whether the trade-off between abstract
 preferences and holistic storage is present early or accumulates with
-exposure. Experiment 3 examines the same probe at multiple training
-checkpoints.
+exposure.
 
 The probe, input modes, attention conditions, and cross-validation
 splits are as described previously. We refit Equation~\ref{eq-relfreq}
@@ -702,8 +688,7 @@ The effect of abstract preferences moves independently of all this. It
 declines steadily across BabyLM training in both conditions. For Pythia
 it rises over the early window, then falls below its starting value by
 the final model. Its interaction with overall frequency is credibly
-negative under attention-zeroing in 26 of the 36 checkpoint cells. Full
-numerical results are in Appendix~\ref{sec-appendix-exp3}.
+negative under attention-zeroing in 26 of the 36 checkpoint cells.
 
 \begin{figure}[t]
 
@@ -729,11 +714,8 @@ cross-validation split. Control R² \(\approx\) 0.}
 
 \caption{\label{fig-ckpt-sources}All four terms of
 Equation~\ref{eq-relfreq} across training, with 95\% credible intervals.
-Rows are the two main-effects and their interaction with frequency, on
-separate y-scales because they occupy very different ranges; color marks
-the attention condition and linetype the model size. All variables are
-standardized within each fit, so values are comparable across
-checkpoints and models.}
+Rows are the two sources and their interactions with overall frequency;
+color marks the attention condition and linetype the model size.}
 
 \end{figure}%
 
@@ -789,14 +771,18 @@ Abstract preferences are present from the beginning of training. Probe
 R² is already high at the earliest BabyLM checkpoint, at roughly 20M
 tokens, and the effect of abstract preferences in
 Equation~\ref{eq-relfreq} is large from the first checkpoint in every
-model. The item-specific contribution follows a different trajectory: it
-is negligible through the first three checkpoints of every model,
-becomes credibly positive everywhere from the fourth, and then climbs
-monotonically under full context without leveling off. This is not
-conclusive evidence against item-specific knowledge being learned early,
-however, since the measurement relies on a frequency-difference in
-representations to detect holistic storage. The absence of a frequency
-difference, consequently, does not necessarily indicate lack of storage.
+model. In the BabyLMs it then declines as the item-specific effect
+grows, potentially due to the lack of diversity in the training data
+adding item-specific knowledge without containing additional information
+about abstract preferences. The item-specific contribution follows a
+different trajectory: it is negligible through the first three
+checkpoints of every model, becomes credibly positive everywhere from
+the fourth, and then climbs monotonically under full context without
+leveling off. This is not conclusive evidence against item-specific
+knowledge being learned early, however, since the measurement relies on
+a frequency-difference in representations to detect holistic storage.
+The absence of a frequency difference, consequently, does not
+necessarily indicate lack of storage.
 
 Finally, the attention intervention provides further insight into how
 this item-specific information is represented. Zeroing out cross-word
@@ -814,37 +800,13 @@ item-specific in that it concerns particular words and their learned
 positional tendencies rather than a general constraint, but it no longer
 requires the model to represent the specific binomial context. On this
 interpretation, entrenchment shifts the lexical representations before
-it shifts the phrasal one.
-
-The probe trajectories are consistent with this. For the BabyLMs, probe
-R² falls as the effect of relative frequency rises, and falls almost in
-step with it; for Pythia the two rise together. In other words, for the
-models that see the same 150M tokens twenty times, later training seems
-to add item-specific knowledge without adding structure that generalizes
-across items, so a probe trained to generalize recovers less of the
-preference. The attention conditions follow the same course: zeroing out
-attention \emph{helps} at the earliest checkpoints and hurts by the end,
-which is what we would expect if there is no phrasal representation to
-remove early on.
-
-That the phrasal representation comes to carry ordering information is
-not especially surprising, since attention is what allows a
-representation of the pair to be built at all. That the \emph{lexical}
-representations shift is the more interesting result, and it parallels
-evidence from human processing that the internal representations of a
-stored multi-word phrase are themselves altered by experience with the
-phrase \citep{houghton2025multiwordrepresentationsminds}.
-
-The same interpretation may extend to the abstract preferences. Zeroing
-out attention weakens the effect of abstract preferences for the
-BabyLMs, but strengthens it for the other models. Suppose exposure to a
-diverse corpus gradually shifts generalizable regularities into the
-individual word representations. For the large-scale models, the
-abstract preferences would then survive the intervention. For the
-BabyLMs, whose corpus was repeated 20 times rather than varied, they
-would still need to be computed across words. On this interpretation,
-both kinds of knowledge follow the same course from computed to lexical,
-differing only in how much exposure each requires.
+it shifts the phrasal one. It isn't surprising that the phrasal
+representation comes to carry ordering information, since attention is
+what builds a representation of the pair in the first place. The more
+interesting result is that the lexical representations shift too. This
+parallels evidence from human processing that experience with a phrase
+alters the representations of its individual words
+\citep{houghton2025multiwordrepresentationsminds}.
 
 Overall, the findings bridge a longstanding gap between artificial
 language models and usage-based accounts of language. Such accounts have
@@ -1460,6 +1422,61 @@ attention-zeroing does not remove it.}
 \end{figure*}%
 
 \newpage
+
+\section{Corpus Frequency Distributions}\label{sec-appendix-corpus-freq}
+
+The figure below compares the frequency distributions of the
+approximately 47,000 corpus binomials in the BabyLM training corpus
+(150M tokens, 20 epochs) and the Pile, illustrating the stark difference
+in lexical coverage between the two training regimes. BabyLM's
+distribution is dominated by singleton binomials (70.7\% appear exactly
+once), while Pile frequencies span several orders of magnitude.
+
+\begin{figure}[H]
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-corpus-freq-1.pdf}}
+
+}
+
+\caption{\label{fig-corpus-freq}Frequency distributions for the
+\textasciitilde47K corpus binomials in the BabyLM training corpus (150M
+tokens, 20 epochs) and the Pile. Left: histogram of log\(_{10}\) raw
+counts. Right: rank-frequency plot treating counts as a probability
+distribution (probability = count / \(\sum\) counts); both axes
+log-scaled. BabyLM's distribution is heavily concentrated at a single
+occurrence per pair (70.7\% of pairs appear exactly once), whereas Pile
+frequencies span several orders of magnitude with a median of 365
+occurrences per pair.}
+
+\end{figure}%
+
+The BabyLM training corpus is a 150M-token collection of child-directed
+and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles,
+Wikipedia), trained for 20 epochs. The Pile is a
+\textasciitilde300B-token web-scraped corpus used to train the Pythia
+family. For each of the \textasciitilde47K corpus binomials, we
+extracted 3-gram counts (i.e., the frequency of ``word\(_1\) and
+word\(_2\)'' and its reverse) from each corpus via infini-gram
+\citep{liu2024infinigram}. As Figure~\ref{fig-corpus-freq} shows, the
+BabyLM corpus produces a highly degenerate frequency distribution:
+70.7\% of binomials appear exactly once, 87.4\% appear at most twice,
+and 98.2\% appear at most ten times, with a maximum of 1,095
+occurrences. The Pile distribution is far richer: the median binomial
+appears 365 times, the 25th percentile is 62 occurrences, and the 99th
+percentile exceeds 77,000.
+
+In absolute training exposure terms (accounting for BabyLM's 20 epochs),
+the most frequent BabyLM binomials are seen at most
+\textasciitilde21,900 times total across all training steps, while the
+equivalent Pile binomials are seen over 1.5 million times in a single
+pass. Even the median Pile binomial (365 occurrences per pass)
+substantially exceeds BabyLM's total exposure for a typical singleton
+binomial (1 × 20 = 20 exposures). This gap in absolute exposure is why
+the two corpora cannot be placed on a common developmental axis, and why
+the frequency range available for the moderation analysis differs so
+sharply between them.
 
 \section{Experiment 1: Supplementary Results}\label{sec-appendix-exp1}
 
@@ -2796,60 +2813,5 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 \endgroup{}
 
 \newpage
-
-\section{Corpus Frequency Distributions}\label{sec-appendix-corpus-freq}
-
-The figure below compares the frequency distributions of the
-approximately 47,000 corpus binomials in the BabyLM training corpus
-(150M tokens, 20 epochs) and the Pile, illustrating the stark difference
-in lexical coverage between the two training regimes. BabyLM's
-distribution is dominated by singleton binomials (70.7\% appear exactly
-once), while Pile frequencies span several orders of magnitude.
-
-\begin{figure}[H]
-
-\centering{
-
-\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-corpus-freq-1.pdf}}
-
-}
-
-\caption{\label{fig-corpus-freq}Frequency distributions for the
-\textasciitilde47K corpus binomials in the BabyLM training corpus (150M
-tokens, 20 epochs) and the Pile. Left: histogram of log\(_{10}\) raw
-counts. Right: rank-frequency plot treating counts as a probability
-distribution (probability = count / \(\sum\) counts); both axes
-log-scaled. BabyLM's distribution is heavily concentrated at a single
-occurrence per pair (70.7\% of pairs appear exactly once), whereas Pile
-frequencies span several orders of magnitude with a median of 365
-occurrences per pair.}
-
-\end{figure}%
-
-The BabyLM training corpus is a 150M-token collection of child-directed
-and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles,
-Wikipedia), trained for 20 epochs. The Pile is a
-\textasciitilde300B-token web-scraped corpus used to train the Pythia
-family. For each of the \textasciitilde47K corpus binomials, we
-extracted 3-gram counts (i.e., the frequency of ``word\(_1\) and
-word\(_2\)'' and its reverse) from each corpus via infini-gram
-\citep{liu2024infinigram}. As Figure~\ref{fig-corpus-freq} shows, the
-BabyLM corpus produces a highly degenerate frequency distribution:
-70.7\% of binomials appear exactly once, 87.4\% appear at most twice,
-and 98.2\% appear at most ten times, with a maximum of 1,095
-occurrences. The Pile distribution is far richer: the median binomial
-appears 365 times, the 25th percentile is 62 occurrences, and the 99th
-percentile exceeds 77,000.
-
-In absolute training exposure terms (accounting for BabyLM's 20 epochs),
-the most frequent BabyLM binomials are seen at most
-\textasciitilde21,900 times total across all training steps, while the
-equivalent Pile binomials are seen over 1.5 million times in a single
-pass. Even the median Pile binomial (365 occurrences per pass)
-substantially exceeds BabyLM's total exposure for a typical singleton
-binomial (1 × 20 = 20 exposures). This gap in absolute exposure is why
-the two corpora cannot be placed on a common developmental axis, and why
-the frequency range available for the moderation analysis differs so
-sharply between them.
 
 \end{document}
