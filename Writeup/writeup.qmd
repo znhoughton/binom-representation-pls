@@ -165,7 +165,7 @@ pythia_ckpt_registry <- bind_rows(
          tokens_M = c(16, 32, 64, 256, 512, 1000) * 2.097152),
 )
 
-# ── UO-brand colour palettes ──────────────────────────────────────────────────
+# ── UO-brand color palettes ──────────────────────────────────────────────────
 # Oregon Green: #154733 / #007030  UO Gold: #F0B323  Amber: #875E00  UO Blue: #005581
 family_colors <- c(
   "BabyLM" = "#154733",
@@ -365,7 +365,7 @@ We report two measurements. The first is the probe's cross-validated $R^2$ under
 
 The second measurement evaluates the probe on the attested set. Since that probe has seen only binomials the model encountered rarely or not at all, its prediction $\hat{y}$ for an attested binomial estimates what abstract knowledge alone would predict, and cannot reflect the probe (or the LLM) having memorized that binomial. In order to analyze the extent to which the model's ordering preference within the attested set is driven by abstract vs holistic knowledge, we implement a Bayesian regression model using *brms* [@burkner2017brms] with default priors. Our dependent variable is $y_{\text{true}}$, the model's ordering preference. The probe's prediction, $\hat{y}$, stands in for abstract preferences. Relative frequency, $r$, is the centered proportion of occurrences in alphabetical ordering: $0.5$ means the binomial always occurs in alphabetical ordering in the corpus, $0$ means it occurs evenly in both orderings, and $-0.5$ means it always occurs in non-alphabetical ordering. Letting $f$ be log overall frequency (overall occurrences in the model's corpus, logged[^3]), our regression equation is:
 
-[^3]: Frequency is each binomial's exposure in the model's own training corpus: exact counts in the BabyLM corpus [@warstadt-etal-2023-findings] for the BabyLM models, and infini-gram counts in the Pile [@gao2020pile; @liu2024infinigram] for the rest, which are exact only for Pythia and stand in as a proxy for GPT-2, OLMo, and Llama  (Appendix \ref{sec-appendix-relfreq}). The two corpora differ sharply in the frequency range they afford; Appendix\ \ref{sec-appendix-corpus-freq} gives the distributions.
+[^3]: Frequency is each binomial's exposure in the model's own training corpus: exact counts in the BabyLM corpus [@warstadt-etal-2023-findings] for the BabyLM models, and infini-gram counts in the Pile [@gao2020pile; @liu2024infinigram] for the rest, which are exact only for Pythia and stand in as a proxy for GPT-2, OLMo, and Llama (Appendix \ref{sec-appendix-relfreq}). The two corpora differ sharply in the frequency range they afford; Appendix\ \ref{sec-appendix-corpus-freq} gives the distributions.
 
 $$
 \begin{aligned}
@@ -594,7 +594,7 @@ bl <- relfreq_curve |>
 ggplot(mapping = aes(freq_x, beta, color = term, fill = term, linetype = model)) +
   geom_ribbon(data = curve_line(bl),
               aes(ymin = lo, ymax = hi, group = interaction(model, term)),
-              alpha = 0.13, colour = NA) +
+              alpha = 0.13, color = NA) +
   geom_line(data = curve_line(bl), linewidth = 0.5) +
   geom_point(data = curve_point(bl), size = 0.7) +
   facet_wrap(~condition, nrow = 1) +
@@ -726,7 +726,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term)) +
   # per-model posterior intervals, faint; between-model spread dominates them
   geom_ribbon(data = curve_line(lg),
               aes(ymin = lo, ymax = hi, group = interaction(label, term)),
-              alpha = 0.10, colour = NA) +
+              alpha = 0.10, color = NA) +
   geom_line(data = curve_line(lg), aes(group = interaction(label, term)),
             alpha = 0.22, linewidth = 0.3) +
   stat_summary(data = curve_line(lg), aes(group = term), fun = mean,
@@ -927,7 +927,7 @@ The effect of abstract preferences moves independently of all this. $\hat{y}$ de
 #| eval: !expr nrow(ckpt_r2) > 0
 
 
-# Family is the row strip, so colour carries size only. Labels are approximate,
+# Family is the row strip, so color carries size only. Labels are approximate,
 # since the two families' sizes are close but not identical at each step.
 rank_of <- c("BabyLM-125M" = "~150M",  "Pythia-160M" = "~150M",
              "BabyLM-350M" = "~400M",  "Pythia-410M" = "~400M",
@@ -1275,13 +1275,13 @@ Full results for @eq-relfreq: abstract preferences $\hat{y}$ (`y_pred`), the bin
 
 The two kinds of variable are treated differently, and deliberately so. `y_true` and `y_pred` are properties of the model: both are log-probability ratios, so a unit is nominally the same everywhere, but the spread of that quantity reflects how sharp a given model's output distribution is rather than how much it knows about binomials. Across the models here the standard deviation of `y_true` ranges from 2.71 to 4.85, and it runs opposite to probe R², so a raw coefficient would partly measure output calibration. We therefore z-score both within each fit, which puts every coefficient in units of that model's own preference spread.
 
-`rel_freq` and `log_freq`, by contrast, are properties of the training corpus: a proportion of occurrences and a count of them mean the same thing however they are measured, and dividing either by a corpus-specific standard deviation would replace a shared unit with a local one. They are therefore left on their own scales: `rel_freq` is a proportion running from $-0.5$ to $+0.5$ and `log_freq` is centred but not scaled, so both mean the same thing in every corpus. A `rel_freq` coefficient is therefore the change in ordering preference, in standard deviations, between a binomial always attested in one order and one always attested in the other; a `log_freq` coefficient is the change per unit of log frequency, which is a factor of $e \approx 2.72$ in the raw count; multiplying by $0.69$ converts it to the change per doubling.
+`rel_freq` and `log_freq`, by contrast, are properties of the training corpus: a proportion of occurrences and a count of them mean the same thing however they are measured, and dividing either by a corpus-specific standard deviation would replace a shared unit with a local one. They are therefore left on their own scales: `rel_freq` is a proportion running from $-0.5$ to $+0.5$ and `log_freq` is centered but not scaled, so both mean the same thing in every corpus. A `rel_freq` coefficient is therefore the change in ordering preference, in standard deviations, between a binomial always attested in one order and one always attested in the other; a `log_freq` coefficient is the change per unit of log frequency, which is a factor of $e \approx 2.72$ in the raw count; multiplying by $0.69$ converts it to the change per doubling.
 
-Because `log_freq` is centred within each fit, a main effect is the effect at that corpus's average binomial, which is a different absolute frequency for BabyLM than for the large-scale corpora. Main effects are therefore interpretable within a fit and comparable between attention conditions, but they are not comparable in magnitude across the two corpora. The two predictors are also on different scales, so their coefficients should not be compared with each other.
+Because `log_freq` is centered within each fit, a main effect is the effect at that corpus's average binomial, which is a different absolute frequency for BabyLM than for the large-scale corpora. Main effects are therefore interpretable within a fit and comparable between attention conditions, but they are not comparable in magnitude across the two corpora. The two predictors are also on different scales, so their coefficients should not be compared with each other.
 
 ```{r}
 #| label: tbl-relfreq
-#| tbl-cap: "Frequency-dependent preference regression (@eq-relfreq) for all 16 models at their final checkpoint, by attention condition. `y_true` and `y_pred` are z-scored within each fit; `rel_freq` is a proportion from $-0.5$ to $+0.5$ and `log_freq` is centred but not scaled, so both mean the same thing in every corpus. 95\\% credible intervals in brackets. Holistic storage predicts a negative `y_pred` $\\times$ `log_freq` and a positive `rel_freq` $\\times$ `log_freq`, both attenuating under attention-zeroing."
+#| tbl-cap: "Frequency-dependent preference regression (@eq-relfreq) for all 16 models at their final checkpoint, by attention condition. `y_true` and `y_pred` are z-scored within each fit; `rel_freq` is a proportion from $-0.5$ to $+0.5$ and `log_freq` is centered but not scaled, so both mean the same thing in every corpus. 95\\% credible intervals in brackets. Holistic storage predicts a negative `y_pred` $\\times$ `log_freq` and a positive `rel_freq` $\\times$ `log_freq`, both attenuating under attention-zeroing."
 #| eval: !expr nrow(relfreq) > 0
 
 # Column names are set via col.names rather than as backtick-quoted variable
@@ -1607,7 +1607,7 @@ if (nrow(pythia_ckpt_r2) > 0)
 
 ```{r}
 #| label: tbl-relfreq-checkpoints
-#| tbl-cap: "Frequency-dependent preference regression (@eq-relfreq) at every training checkpoint, both attention conditions. `y_true` and `y_pred` are z-scored within each fit; `rel_freq` is a proportion from $-0.5$ to $+0.5$ and `log_freq` is centred but not scaled, so both mean the same thing in every corpus. 95\\% credible intervals in brackets."
+#| tbl-cap: "Frequency-dependent preference regression (@eq-relfreq) at every training checkpoint, both attention conditions. `y_true` and `y_pred` are z-scored within each fit; `rel_freq` is a proportion from $-0.5$ to $+0.5$ and `log_freq` is centered but not scaled, so both mean the same thing in every corpus. 95\\% credible intervals in brackets."
 #| eval: !expr nrow(relfreq_ckpt) > 0
 
 tt2 <- function(x) paste0("\\texttt{", gsub("_", "\\\\_", x), "}")

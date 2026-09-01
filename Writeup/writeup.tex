@@ -270,14 +270,15 @@ Our main contributions are:
   frequency-driven holistic storage.} We show that a probe trained on
   LLM hidden-state representations for binomials can predict the
   ordering preferences for binomials it hasn't seen, however the
-  binomial's frequency in the training data predicts a model's
+  binomial's relative frequency in the training data predicts a model's
   preference over and above anything those abstract preferences predict,
   and does so more strongly the more often the model encountered it.
 \item
-  \textbf{An architectural intervention separating holistic storage from
-  abstract preferences.} Zeroing out cross-word attention between the
-  individual words isolates a model's abstract preferences from its
-  binomial-specific representations.
+  \textbf{An architectural intervention for isolating abstract
+  preferences.} Zeroing out cross-word attention forces the
+  representation into a strictly additive function of the two words, so
+  the probe can only use what each word carries on its own. Anything
+  that requires the two words together is removed.
 \item
   \textbf{Evidence that storage shifts lexical, not only phrasal,
   representations.} Zeroing out cross-word attention mitigates but does
