@@ -568,7 +568,7 @@ For the binomial-level conditions, binomial-held-out R² ranges from 0.24 to 0.3
 
 ### Abstract and Stored Contributions
 
-Both abstract preferences and relative corpus frequency predict the model's ordering preference, and both do so credibly in all three models (Appendix \ref{sec-appendix-relfreq}). The effect of relative frequency is stronger for high-frequency binomials, while the effect of $\hat{y}$ is constant across different frequencies.
+Results are shown in @fig-relfreq-babylm. Both abstract preferences and relative corpus frequency predict the model's ordering preference, and both do so credibly in all three models (Appendix \ref{sec-appendix-relfreq}). The effect of relative frequency is stronger for high-frequency binomials, while the effect of $\hat{y}$ is constant across different frequencies.
 
 Zeroing out attention reduces both the effects of abstract preferences and relative frequency for the BabyLMs and additionally results in a negative interaction effect between $\hat{y}$ and overall frequency, suggesting that abstract preferences are a *worse* predictor of ordering preferences for high-frequency binomials when attention is zeroed.
 
@@ -616,7 +616,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term, linetype = model))
 
 # Experiment 2: Cross-Family Final-Layer Representations {#sec-exp2}
 
-Experiment 1 demonstrates that BabyLMs rely on both abstract preferences and holistic storage for binomial ordering. Those models are small in both parameters and training data, so Experiment 2 applies the same probe to 13 further models across four large-scale families: Pythia, GPT-2, OLMo, and Llama, with the BabyLM results carried over for comparison (Appendix \ref{sec-appendix-models}).
+Experiment 1 demonstrates that binomial ordering preferences within the BabyLMs are driven by both abstract preferences and holistic storage. Those models are small in both parameters and training data, so Experiment 2 applies the same probe to 13 further models across four large-scale families: Pythia, GPT-2, OLMo, and Llama, with the BabyLM results carried over for comparison (Appendix \ref{sec-appendix-models}).
 
 ## Results
 
@@ -697,7 +697,7 @@ all_r2 |>
 
 ### Abstract and Stored Contributions
 
-Similar to the BabyLMs, there is an effect of both abstract preferences and relative frequency for all models. Further, the effect of relative frequency is stronger for frequent binomials compared to infrequent ones. Unlike the BabyLMs, however, the effect of abstract preferences *decreases* as a function of frequency. In other words, the more the models encounter a binomial, the more their ordering preferences are governed by that binomial's frequency and the less by abstract preferences.
+Results are shown in @fig-relfreq-pile. Similar to the BabyLMs, there is an effect of both abstract preferences and relative frequency for all models. Further, the effect of relative frequency is stronger for frequent binomials compared to infrequent ones. Unlike the BabyLMs, however, the effect of abstract preferences *decreases* as a function of frequency. In other words, the more the models encounter a binomial, the more their ordering preferences are governed by that binomial's frequency and the less by abstract preferences.
 
 Zeroing out attention mitigates the effect of relative frequency substantially for both the main-effect and the interaction with overall frequency, however both remain credible. Further, the effect of abstract preferences *increases* in every one of the large-scale models, while the interaction effect grows more negative in all but one. In other words, the effect of abstract preferences is generally stronger with attention zeroed out, but this increase is weaker for high-frequency binomials.
 

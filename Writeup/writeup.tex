@@ -359,11 +359,9 @@ We additionally probe representations under two attention conditions:
   attention. Each word's representation reflects contextual influences
   from all other (previous) tokens in the sentence.
 \item
-  \textbf{Attention-zeroed}: attention from the second word and the
-  conjunction to the first word is blocked by setting the corresponding
-  attention logits to \(-\infty\) before the softmax, at every
-  transformer layer, so no cross-word information reaches \(W_2\) or the
-  conjunction at any depth (Appendix~\ref{sec-appendix-implementation}).
+  \textbf{Attention-zeroed}: the same forward pass, except that we zero
+  out attention from the second word and the conjunction to the first
+  word, at every layer (Appendix~\ref{sec-appendix-implementation}).
 \end{itemize}
 
 This gives three representation types per model: binomial-level under
@@ -521,8 +519,9 @@ report but do not build on.
 \subsubsection{Abstract and Stored
 Contributions}\label{abstract-and-stored-contributions}
 
-Both abstract preferences and relative corpus frequency predict the
-model's ordering preference, and both do so credibly in all three models
+Results are shown in Figure~\ref{fig-relfreq-babylm}. Both abstract
+preferences and relative corpus frequency predict the model's ordering
+preference, and both do so credibly in all three models
 (Appendix~\ref{sec-appendix-relfreq}). The effect of relative frequency
 is stronger for high-frequency binomials, while the effect of
 \(\hat{y}\) is constant across different frequencies.
@@ -552,12 +551,13 @@ Bands are 95\% credible intervals.}
 \section{Experiment 2: Cross-Family Final-Layer
 Representations}\label{sec-exp2}
 
-Experiment 1 demonstrates that BabyLMs rely on both abstract preferences
-and holistic storage for binomial ordering. Those models are small in
-both parameters and training data, so Experiment 2 applies the same
-probe to 13 further models across four large-scale families: Pythia,
-GPT-2, OLMo, and Llama, with the BabyLM results carried over for
-comparison (Appendix~\ref{sec-appendix-models}).
+Experiment 1 demonstrates that binomial ordering preferences within the
+BabyLMs are driven by both abstract preferences and holistic storage.
+Those models are small in both parameters and training data, so
+Experiment 2 applies the same probe to 13 further models across four
+large-scale families: Pythia, GPT-2, OLMo, and Llama, with the BabyLM
+results carried over for comparison
+(Appendix~\ref{sec-appendix-models}).
 
 \subsection{Results}\label{results-1}
 
@@ -594,14 +594,14 @@ by family.}
 \subsubsection{Abstract and Stored
 Contributions}\label{abstract-and-stored-contributions-1}
 
-Similar to the BabyLMs, there is an effect of both abstract preferences
-and relative frequency for all models. Further, the effect of relative
-frequency is stronger for frequent binomials compared to infrequent
-ones. Unlike the BabyLMs, however, the effect of abstract preferences
-\emph{decreases} as a function of frequency. In other words, the more
-the models encounter a binomial, the more their ordering preferences are
-governed by that binomial's frequency and the less by abstract
-preferences.
+Results are shown in Figure~\ref{fig-relfreq-pile}. Similar to the
+BabyLMs, there is an effect of both abstract preferences and relative
+frequency for all models. Further, the effect of relative frequency is
+stronger for frequent binomials compared to infrequent ones. Unlike the
+BabyLMs, however, the effect of abstract preferences \emph{decreases} as
+a function of frequency. In other words, the more the models encounter a
+binomial, the more their ordering preferences are governed by that
+binomial's frequency and the less by abstract preferences.
 
 Zeroing out attention mitigates the effect of relative frequency
 substantially for both the main-effect and the interaction with overall
@@ -1039,12 +1039,18 @@ each binomial the flipped version, with swapped ordering and negated
 label, is added to the training batch. The input dimensionality follows
 from the representation type.
 
-\textbf{Attention-zeroing.} The mask is supplied to the model as a 4D
-attention mask rather than a 2D padding mask, so it applies at every
-transformer layer rather than only the first. This matters because a
-mask applied at the first layer alone would leave \(W_2\) able to
-recover information about \(W_1\) indirectly at greater depth, through
-positions that did attend to it.
+\textbf{Attention-zeroing.} The zero weight is imposed before the
+softmax, by adding a large negative constant to the corresponding
+attention logits, so that the remaining positions renormalize to sum to
+one. Setting the weights to zero after the softmax instead would leave
+them summing to less than one, which would scale down the attention
+output and make the intervention a partial ablation rather than a clean
+removal of one word. The mask is supplied as a 4D attention mask rather
+than a 2D padding mask, so it applies at every transformer layer rather
+than only the first. This matters because a mask applied at the first
+layer alone would leave \(W_2\) able to recover information about
+\(W_1\) indirectly at greater depth, through positions that did attend
+to it.
 
 \textbf{Recomputing the target.} Because \(y_{\text{true}}\) is the
 model's own log-probability ratio, it is recomputed from whichever
