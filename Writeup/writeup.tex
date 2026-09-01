@@ -277,8 +277,7 @@ Our main contributions are:
   \textbf{An architectural intervention for isolating abstract
   preferences.} Zeroing out cross-word attention forces the
   representation into a strictly additive function of the two words, so
-  the probe can only use what each word carries on its own. Anything
-  that requires the two words together is removed.
+  the probe can only use what each word carries on its own.
 \item
   \textbf{Evidence that storage shifts lexical, not only phrasal,
   representations.} Zeroing out cross-word attention mitigates but does
@@ -1322,7 +1321,7 @@ mean the same thing however they are measured, and dividing either by a
 corpus-specific standard deviation would replace a shared unit with a
 local one. They are therefore left on their own scales:
 \texttt{rel\_freq} is a proportion running from \(-0.5\) to \(+0.5\) and
-\texttt{log\_freq} is centred but not scaled, so both mean the same
+\texttt{log\_freq} is centered but not scaled, so both mean the same
 thing in every corpus. A \texttt{rel\_freq} coefficient is therefore the
 change in ordering preference, in standard deviations, between a
 binomial always attested in one order and one always attested in the
@@ -1330,7 +1329,7 @@ other; a \texttt{log\_freq} coefficient is the change per unit of log
 frequency, which is a factor of \(e \approx 2.72\) in the raw count;
 multiplying by \(0.69\) converts it to the change per doubling.
 
-Because \texttt{log\_freq} is centred within each fit, a main effect is
+Because \texttt{log\_freq} is centered within each fit, a main effect is
 the effect at that corpus's average binomial, which is a different
 absolute frequency for BabyLM than for the large-scale corpora. Main
 effects are therefore interpretable within a fit and comparable between
@@ -1346,7 +1345,7 @@ their coefficients should not be compared with each other.
 (Equation~\ref{eq-relfreq}) for all 16 models at their final checkpoint,
 by attention condition. \texttt{y\_true} and \texttt{y\_pred} are
 z-scored within each fit; \texttt{rel\_freq} is a proportion from
-\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centred but not scaled,
+\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centered but not scaled,
 so both mean the same thing in every corpus. 95\% credible intervals in
 brackets. Holistic storage predicts a negative \texttt{y\_pred}
 \(\times\) \texttt{log\_freq} and a positive \texttt{rel\_freq}
@@ -2417,7 +2416,7 @@ Model & Step & Tokens & Split & R² & Ctrl & Sel.\\
 regression (Equation~\ref{eq-relfreq}) at every training checkpoint,
 both attention conditions. \texttt{y\_true} and \texttt{y\_pred} are
 z-scored within each fit; \texttt{rel\_freq} is a proportion from
-\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centred but not scaled,
+\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centered but not scaled,
 so both mean the same thing in every corpus. 95\% credible intervals in
 brackets.}
 

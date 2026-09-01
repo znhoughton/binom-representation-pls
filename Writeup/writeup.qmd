@@ -288,7 +288,7 @@ The present study thus asks whether binomial ordering preferences in language mo
 Our main contributions are:
 
 -   **Empirical evidence for both abstract preferences and frequency-driven holistic storage.** We show that a probe trained on LLM hidden-state representations for binomials can predict the ordering preferences for binomials it hasn't seen, however the binomial's relative frequency in the training data predicts a model's preference over and above anything those abstract preferences predict, and does so more strongly the more often the model encountered it.
--   **An architectural intervention for isolating abstract preferences.** Zeroing out cross-word attention forces the representation into a strictly additive function of the two words, so the probe can only use what each word carries on its own. Anything that requires the two words together is removed.
+-   **An architectural intervention for isolating abstract preferences.** Zeroing out cross-word attention forces the representation into a strictly additive function of the two words, so the probe can only use what each word carries on its own.
 -   **Evidence that storage shifts lexical, not only phrasal, representations.** Zeroing out cross-word attention mitigates but does not eliminate the item-specific knowledge, indicating that repeated exposure to a phrase also changes the individual lexical representations themselves.
 
 # Methods {#sec-methods}
@@ -338,7 +338,7 @@ For each model we extract final-layer hidden states, presenting each binomial in
 We additionally probe representations under two attention conditions:
 
 -   **Full context**: standard forward pass with full cross-token attention. Each word's representation reflects contextual influences from all other (previous) tokens in the sentence.
--   **Attention-zeroed**: attention from the second word and the conjunction to the first word is blocked by setting the corresponding attention logits to $-\infty$ before the softmax, at every transformer layer, so no cross-word information reaches $W_2$ or the conjunction at any depth (Appendix \ref{sec-appendix-implementation}).
+-   **Attention-zeroed**: the second word and the conjunction assign zero attention weight to the first word, at every transformer layer, so the first word's value never enters their representations at any depth (Appendix \ref{sec-appendix-implementation}).
 
 This gives three representation types per model: binomial-level under each attention condition, and full-context word-level.
 
@@ -1144,7 +1144,7 @@ Because our extraction criterion requires W1 and W2 to form a phrase-level const
 
 **Probe training.** The probe is optimized with Adam (learning rate $10^{-3}$, weight decay $10^{-4}$) under mean-squared-error loss, with early stopping (patience 20) against a 10% held-out validation split. Antisymmetric augmentation is applied with probability 0.5: for each binomial the flipped version, with swapped ordering and negated label, is added to the training batch. The input dimensionality follows from the representation type.
 
-**Attention-zeroing.** The mask is supplied to the model as a 4D attention mask rather than a 2D padding mask, so it applies at every transformer layer rather than only the first. This matters because a mask applied at the first layer alone would leave $W_2$ able to recover information about $W_1$ indirectly at greater depth, through positions that did attend to it.
+**Attention-zeroing.** The zero weight is imposed before the softmax, by adding a large negative constant to the corresponding attention logits, so that the remaining positions renormalize to sum to one. Setting the weights to zero after the softmax instead would leave them summing to less than one, which would scale down the attention output and make the intervention a partial ablation rather than a clean removal of one word. The mask is supplied as a 4D attention mask rather than a 2D padding mask, so it applies at every transformer layer rather than only the first. This matters because a mask applied at the first layer alone would leave $W_2$ able to recover information about $W_1$ indirectly at greater depth, through positions that did attend to it.
 
 **Recomputing the target.** Because $y_{\text{true}}$ is the model's own log-probability ratio, it is recomputed from whichever forward pass produced the representations being probed. The two full-context representation types therefore share a target, while the attention-zeroed condition has its own: blocking cross-word attention changes the model's output probabilities as well as its hidden states. Each attention condition is thus a self-consistent probe problem rather than two input encodings evaluated against a fixed target.
 
