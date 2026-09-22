@@ -68,7 +68,22 @@ fi
 export BRMS_CHAINS="${BRMS_CHAINS:-4}"
 export BRMS_THREADS="${BRMS_THREADS:-$(( BRMS_CORES / BRMS_CHAINS ))}"
 [ "$BRMS_THREADS" -lt 1 ] && BRMS_THREADS=1 && export BRMS_THREADS
+
+# ── RAM budget ───────────────────────────────────────────────────────────────
+# Stan chains and (under multisession) each future worker hold their own copy of
+# the data, so parallelism is bounded by memory as well as cores.
+TOTAL_RAM_GB=$(free -g 2>/dev/null | awk '/^Mem:/{print $2}')
+[ -z "$TOTAL_RAM_GB" ] && TOTAL_RAM_GB=0
+MAX_RAM_GB="${MAX_RAM_GB:-100}"
+if [ "$TOTAL_RAM_GB" -gt 0 ] && [ "$MAX_RAM_GB" -gt "$TOTAL_RAM_GB" ]; then
+    echo "  MAX_RAM_GB=$MAX_RAM_GB exceeds ${TOTAL_RAM_GB}GB installed; lowering."
+    MAX_RAM_GB=$(( TOTAL_RAM_GB * 8 / 10 ))
+fi
+
+# Threads within a chain share memory; it is the 4 chains that each hold a copy,
+# and the fitted objects here are ~2 MB, so RAM is not the binding constraint.
 echo "  brms: ${BRMS_CHAINS} chains x ${BRMS_THREADS} threads = $(( BRMS_CHAINS * BRMS_THREADS )) cores"
+echo "        projected RAM ~$(( BRMS_CHAINS * ${PER_CHAIN_GB:-3} ))GB of ${MAX_RAM_GB}GB budget"
 
 
 say () { echo; echo "=== $* ==="; }
