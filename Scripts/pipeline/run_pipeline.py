@@ -50,8 +50,10 @@ from datetime import datetime
 from pathlib import Path
 
 PYTHON  = sys.executable
-BASE    = Path(__file__).resolve().parent.parent
-SCRIPTS = BASE / "Scripts"
+# e08cc61 moved these into Scripts/pipeline/ without updating the constants.
+HERE    = Path(__file__).resolve().parent      # .../Scripts/pipeline
+BASE    = HERE.parents[1]                      # repo root
+SCRIPTS = HERE
 
 # ── OPT-BabyLM model specs (Phase 1) ──────────────────────────────────────────
 OPT_MODELS = [

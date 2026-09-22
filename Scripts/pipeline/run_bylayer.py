@@ -16,8 +16,12 @@ import numpy as np
 from pathlib import Path
 
 PYTHON = sys.executable
-BASE = Path(__file__).resolve().parents[1]
-EXTRACT_SCRIPT = str(BASE / "Scripts" / "extract_embeddings.py")
+# e08cc61 moved these scripts into Scripts/pipeline/ without updating the path
+# constants, so BASE pointed at Scripts/ and every derived path resolved to
+# Scripts/Scripts/... or Scripts/Data. Anchor on this file's own directory.
+HERE = Path(__file__).resolve().parent          # .../Scripts/pipeline
+BASE = HERE.parents[1]                          # repo root
+EXTRACT_SCRIPT = str(HERE / "extract_embeddings.py")
 
 MODELS = [
     {"flag": "125m", "id": "znhoughton/opt-babylm-125m-20eps-seed964",
@@ -315,7 +319,7 @@ def main():
                 print(f"  Skipping MLP for {model['slug']} — extraction failed above.", flush=True)
                 continue
             cmd = [
-                PYTHON, str(BASE / "Scripts" / "by_layer_mlp.py"),
+                PYTHON, str(HERE / "by_layer_mlp.py"),
                 "--model-slug", model["slug"],
                 "--num-layers", str(model["num_layers"]),
                 "--gpu", str(args.gpu),
