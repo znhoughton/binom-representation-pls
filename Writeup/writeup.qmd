@@ -477,13 +477,11 @@ if (nrow(relfreq_curve)) {
 }
 curve_line  <- function(d) if (any(d$kind == "grid")) filter(d, kind == "grid") else d
 curve_point <- function(d) filter(d, kind == "decile")
-freq_axis <- if (has_raw_freq) {
-  # Breaks have to adapt to the range: BabyLM spans 1-15 occurrences (1.2
-  # decades) while the Pile corpora reach ~73,000 (4.6 decades), so one tick per
-  # decade would leave the BabyLM panel with two labels. breaks_log picks
-  # sub-decade breaks when the range is narrow (1, 3, 5, 10) and whole decades
-  # when it is wide, giving four or five ticks either way.
-  list(scale_x_log10(breaks = scales::breaks_log(6),
+# Breaks are passed in rather than computed: BabyLM spans 1-15 occurrences and
+# the Pile corpora 2-73,000, so one automatic rule either crowds the wide panel
+# or gives the narrow one an odd ladder (1, 3, 5, 10).
+freq_axis <- function(brk) if (has_raw_freq) {
+  list(scale_x_log10(breaks = brk,
                      labels = scales::label_number(big.mark = ",", accuracy = 1)),
        labs(x = "Binomial frequency in training corpus (log scale)"))
 } else {
@@ -605,7 +603,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term, linetype = model))
   # size only: the full labels overflow the single-column width
   scale_linetype_manual(values = c("solid", "42", "12"), name = NULL,
                         labels = c("125M", "350M", "1.3B")) +
-  freq_axis +
+  freq_axis(c(1, 2, 5, 10)) +
   labs(y = "Coefficient value") +
   guides(linetype = guide_legend(order = 1), color = guide_legend(order = 2)) +
   theme_paper(base_size = 9) +
@@ -738,7 +736,7 @@ ggplot(mapping = aes(freq_x, beta, color = term, fill = term)) +
   facet_wrap(~condition, nrow = 1) +
   scale_fill_manual(values = term_colors, guide = "none") +
   scale_color_manual(values = term_colors, name = NULL) +
-  freq_axis +
+  freq_axis(c(10, 100, 1000, 10000)) +
   labs(y = "Coefficient value") +
   theme_paper(base_size = 9) +
   theme(legend.position = "bottom",
@@ -924,7 +922,7 @@ The effect of abstract preferences moves independently of all this. It declines 
 #| label: fig-checkpoints
 #| fig-cap: "Cross-validated probe R² across BabyLM and Pythia training checkpoints, by attention condition and cross-validation split. Control R² $\\approx$ 0."
 #| fig-width: 3.3
-#| fig-height: 2
+#| fig-height: 2.6
 #| fig-pos: 't'
 #| eval: !expr nrow(ckpt_r2) > 0
 
@@ -976,7 +974,7 @@ p_r2 +
 #| label: fig-ckpt-sources
 #| fig-cap: "All four terms of @eq-relfreq across training, with 95\\% credible intervals. Rows are the two sources and their interactions with overall frequency; color marks the attention condition and linetype the model size."
 #| fig-width: 3.3
-#| fig-height: 4.8
+#| fig-height: 4.2
 #| fig-pos: 't'
 #| eval: !expr nrow(ckpt_coefs) > 0
 
