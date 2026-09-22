@@ -100,8 +100,12 @@ SCALE <- tolower(Sys.getenv("SCALE", "z"))
 stopifnot(SCALE %in% c("z", "raw"))
 SUFFIX <- if (SCALE == "z") "relfreq_prop" else "relfreq_rawscale"
 
-CHAINS  <- 4
-THREADS <- 2          # per chain; 4 x 2 = 8 threads over 6 physical cores
+# Chains x threads = total cores. Defaults preserve the old 4x2=8 behaviour;
+# set BRMS_CHAINS / BRMS_THREADS to use a bigger machine (e.g. 4 x 6 = 24).
+CHAINS  <- as.integer(Sys.getenv("BRMS_CHAINS",  "4"))
+THREADS <- as.integer(Sys.getenv("BRMS_THREADS", "2"))
+message(sprintf("brms parallelism: %d chains x %d threads = %d cores",
+                CHAINS, THREADS, CHAINS * THREADS))
 ITER    <- 4000
 WARMUP  <- 2000
 SEED    <- 964
