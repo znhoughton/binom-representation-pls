@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT  = Path(__file__).resolve().parent.parent.parent
+PROJECT  = Path(__file__).resolve().parents[3]   # repo root (was Scripts/)
 DATA_DIR = PROJECT / "Data"
 
 

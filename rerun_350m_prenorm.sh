@@ -129,7 +129,11 @@ RUN_STARTED_AT=$(date +%s)
 [ -f Scripts/pipeline/run_bylayer.py ] || { echo "Run me from the repo root."; exit 1; }
 
 say "0. Preconditions"
-echo "  NOTE: this repo has no git remote. Results/ is your only copy."
+if git remote 2>/dev/null | grep -q .; then
+    echo "  remote: $(git remote get-url origin 2>/dev/null)"
+else
+    echo "  NOTE: no git remote configured. Results/ is your only copy."
+fi
 git status --porcelain 2>/dev/null | grep -vE "^\?\?" | head -3
 
 say "0b. Disk check"

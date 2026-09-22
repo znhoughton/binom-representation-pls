@@ -30,7 +30,9 @@ import csv
 import re
 from pathlib import Path
 
-BASE = Path(__file__).resolve().parents[1]
+# parents[1] is Scripts/, not the repo root, since the Scripts/supplementary move;
+# BASE/"Results" and BASE/"Data" resolved one level too deep.
+BASE = Path(__file__).resolve().parents[2]   # repo root
 
 # Cells that exist under Results/ but are not reported in the paper. Matched as
 # prefixes, so excluding a base slug also drops its checkpoint cells.

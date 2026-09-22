@@ -39,7 +39,9 @@ import pandas as pd
 from scipy.stats import pearsonr, spearmanr
 
 SEED = 964
-BASE = Path(__file__).resolve().parents[1]
+# parents[1] is Scripts/, not the repo root, since the Scripts/supplementary move;
+# BASE/"Results" and BASE/"Data" resolved one level too deep.
+BASE = Path(__file__).resolve().parents[2]   # repo root
 RES = BASE / "Results"
 
 # Models in the paper. Pythia-2.8B and OLMo-2-1124-1B exist in Results/ but are

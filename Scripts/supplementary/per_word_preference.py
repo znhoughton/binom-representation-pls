@@ -43,7 +43,9 @@ from scipy import sparse
 from scipy.sparse.linalg import lsqr
 
 SEED = 964
-BASE = Path(__file__).resolve().parents[1]
+# parents[1] is Scripts/, not the repo root, since the Scripts/supplementary move;
+# BASE/"Results" and BASE/"Data" resolved one level too deep.
+BASE = Path(__file__).resolve().parents[2]   # repo root
 RES = BASE / "Results"
 
 # Enough pairs per word for g-hat to mean anything.

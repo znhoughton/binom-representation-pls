@@ -46,7 +46,9 @@ import numpy as np
 import torch
 from sklearn.model_selection import KFold
 
-BASE = Path(__file__).resolve().parents[1]
+# parents[1] is Scripts/, not the repo root, since the Scripts/supplementary move;
+# BASE/"Results" and BASE/"Data" resolved one level too deep.
+BASE = Path(__file__).resolve().parents[2]   # repo root
 sys.path.insert(0, str(BASE / "Scripts"))
 
 # Reuse the main pipeline's loaders and constants so the splits, seeds and

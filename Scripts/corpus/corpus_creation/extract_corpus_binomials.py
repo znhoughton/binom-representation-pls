@@ -30,7 +30,7 @@ from nltk import Tree
 from datasets import load_dataset
 from tqdm import tqdm
 
-PROJECT        = Path(__file__).resolve().parent.parent.parent
+PROJECT        = Path(__file__).resolve().parents[3]   # repo root (was Scripts/)
 DATA_DIR       = PROJECT / "Data"
 WORD_RE        = re.compile(r'^[a-z]{2,}$')
 PHRASE_LABELS  = {"NP", "VP", "ADJP", "ADVP", "PP", "NX", "QP", "UCP", "CONJP"}

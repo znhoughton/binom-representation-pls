@@ -27,7 +27,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-BASE = Path(__file__).resolve().parents[1]
+# parents[1] is Scripts/, not the repo root, since the Scripts/supplementary move;
+# BASE/"Results" and BASE/"Data" resolved one level too deep.
+BASE = Path(__file__).resolve().parents[2]   # repo root
 OUT_ROOT = BASE / "Data" / "supplementary"
 
 CONDITIONS = ["default", "attn_zeroed"]

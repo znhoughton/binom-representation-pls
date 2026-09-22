@@ -67,7 +67,8 @@ def nipals_pls(X, y, K, device):
     b_coef = torch.linalg.lstsq(T, y.unsqueeze(-1)).solution.squeeze(-1)
     return T.cpu(), W_star.cpu(), b_coef.cpu()
 
-BASE = Path(__file__).resolve().parents[1]
+# parents[1] was Scripts/, not the repo root, after the Scripts/pipeline move.
+BASE = Path(__file__).resolve().parents[2]   # repo root
 
 SEED         = 964
 HIDDEN       = 128

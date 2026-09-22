@@ -42,7 +42,9 @@ from scipy.sparse.linalg import lsqr
 from scipy.stats import pearsonr
 
 SEED = 964
-BASE = Path(__file__).resolve().parents[1]
+# parents[1] is Scripts/, not the repo root, since the Scripts/supplementary move;
+# BASE/"Results" and BASE/"Data" resolved one level too deep.
+BASE = Path(__file__).resolve().parents[2]   # repo root
 RES = BASE / "Results"
 RIDGE_LAMBDA = 3.0          # chosen by CV in per_word_preference.py
 

@@ -40,8 +40,12 @@ from datetime import datetime
 from pathlib import Path
 
 PYTHON  = sys.executable
-BASE    = Path(__file__).resolve().parent.parent
-SCRIPTS = BASE / "Scripts"
+# e08cc61 moved these into Scripts/pipeline/ without updating the constants,
+# so BASE pointed at Scripts/ and Results/, Data/ and sibling scripts all
+# resolved one level too deep (Scripts/Scripts/..., Scripts/Results/...).
+HERE    = Path(__file__).resolve().parent      # .../Scripts/pipeline
+BASE    = HERE.parents[1]                      # repo root
+SCRIPTS = HERE                                 # sibling scripts live alongside
 
 # ── Model registry ─────────────────────────────────────────────────────────────
 # n_layers is only used for by_layer_mlp.py's --num-layers arg; since we extract

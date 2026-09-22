@@ -30,7 +30,7 @@ from nltk import Tree
 from datasets import load_dataset
 from tqdm import tqdm
 
-PROJECT        = Path(__file__).resolve().parent.parent.parent
+PROJECT        = Path(__file__).resolve().parents[3]   # repo root (was Scripts/)
 DATA_DIR       = PROJECT / "Data"
 VOCAB_F        = DATA_DIR / "babylm_vocab.txt"
 CORPUS_F       = DATA_DIR / "corpus_binomials.csv"

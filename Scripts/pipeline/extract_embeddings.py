@@ -61,7 +61,9 @@ import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# parent.parent was Scripts/, not the repo root, after the Scripts/pipeline move,
+# so Data/corpus_binomials.csv and Data/embeddings resolved one level too deep.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]   # repo root
 HF_CACHE_DIR = os.environ.get("HF_CACHE_DIR", str(Path.home() / ".cache" / "huggingface" / "hub"))
 
 CSV_PATHS = {

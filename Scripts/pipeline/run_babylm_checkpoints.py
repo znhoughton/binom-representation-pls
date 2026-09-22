@@ -32,8 +32,12 @@ from pathlib import Path
 os.environ.setdefault("HF_HUB_OFFLINE", "0")
 
 PYTHON  = sys.executable
-BASE    = Path(__file__).resolve().parent.parent
-SCRIPTS = BASE / "Scripts"
+# e08cc61 moved these into Scripts/pipeline/ without updating the constants,
+# so BASE pointed at Scripts/ and Results/, Data/ and sibling scripts all
+# resolved one level too deep (Scripts/Scripts/..., Scripts/Results/...).
+HERE    = Path(__file__).resolve().parent      # .../Scripts/pipeline
+BASE    = HERE.parents[1]                      # repo root
+SCRIPTS = HERE                                 # sibling scripts live alongside
 
 # Fractions of total training at which to sample (log-spaced, ~8 points)
 # Covers: ~0.6%, 1.5%, 3.8%, 9.4%, 23%, 57%, 100%
