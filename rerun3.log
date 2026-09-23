@@ -6,12 +6,10 @@ torch 2.6.0+cu124 | cuda True | NVIDIA A100 80GB PCIe
 
 === 0. Preconditions ===
   remote: git@github.com:znhoughton/binom-representation-pls.git
- D Results/znhoughton_opt-babylm-350m-20eps-seed964_step1824/by_layer_mlp.csv
- D Results/znhoughton_opt-babylm-350m-20eps-seed964_step1824/by_layer_mlp_control.csv
- D Results/znhoughton_opt-babylm-350m-20eps-seed964_step288/by_layer_mlp.csv
+ M rerun3.log
 
 === 0b. Disk check ===
-  free space here: 67951 GB (want >= 600 GB)
+  free space here: 67955 GB (want >= 600 GB)
 
 === 1. Confirm the replacement model is pre-LN ===
   do_layer_norm_before=True hidden=1024 layers=24
@@ -98,3 +96,125 @@ Condition: default  (25/25 layers available)
 --- [350m]  default / Layer 2  (3/25, 22 remaining) --- [skipped]
 
 --- [350m]  default / Layer 3  (4/25, 21 remaining) --- [skipped]
+
+--- [350m]  default / Layer 4  (5/25, 20 remaining) --- [skipped]
+
+--- [350m]  default / Layer 5  (6/25, 19 remaining) --- [skipped]
+
+--- [350m]  default / Layer 6  (7/25, 18 remaining) --- [skipped]
+
+--- [350m]  default / Layer 7  (8/25, 17 remaining) --- [skipped]
+
+--- [350m]  default / Layer 8  (9/25, 16 remaining) --- [skipped]
+
+--- [350m]  default / Layer 9  (10/25, 15 remaining) --- [skipped]
+
+--- [350m]  default / Layer 10  (11/25, 14 remaining) --- [skipped]
+
+--- [350m]  default / Layer 11  (12/25, 13 remaining) --- [skipped]
+
+--- [350m]  default / Layer 12  (13/25, 12 remaining) --- [skipped]
+
+--- [350m]  default / Layer 13  (14/25, 11 remaining) --- [skipped]
+
+--- [350m]  default / Layer 14  (15/25, 10 remaining) --- [skipped]
+
+--- [350m]  default / Layer 15  (16/25, 9 remaining) --- [skipped]
+
+--- [350m]  default / Layer 16  (17/25, 8 remaining) --- [skipped]
+
+--- [350m]  default / Layer 17  (18/25, 7 remaining) --- [skipped]
+
+--- [350m]  default / Layer 18  (19/25, 6 remaining) --- [skipped]
+
+--- [350m]  default / Layer 19  (20/25, 5 remaining) --- [skipped]
+
+--- [350m]  default / Layer 20  (21/25, 4 remaining) --- [skipped]
+
+--- [350m]  default / Layer 21  (22/25, 3 remaining) --- [skipped]
+
+--- [350m]  default / Layer 22  (23/25, 2 remaining) --- [skipped]
+
+--- [350m]  default / Layer 23  (24/25, 1 remaining) --- [skipped]
+
+--- [350m]  default / Layer 24  (25/25, 0 remaining) --- [skipped]
+
+============================================================
+Condition: attn_zeroed  (25/25 layers available)
+============================================================
+
+--- [350m]  attn_zeroed / Layer 0  (1/25, 24 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 1  (2/25, 23 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 2  (3/25, 22 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 3  (4/25, 21 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 4  (5/25, 20 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 5  (6/25, 19 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 6  (7/25, 18 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 7  (8/25, 17 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 8  (9/25, 16 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 9  (10/25, 15 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 10  (11/25, 14 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 11  (12/25, 13 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 12  (13/25, 12 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 13  (14/25, 11 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 14  (15/25, 10 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 15  (16/25, 9 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 16  (17/25, 8 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 17  (18/25, 7 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 18  (19/25, 6 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 19  (20/25, 5 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 20  (21/25, 4 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 21  (22/25, 3 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 22  (23/25, 2 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 23  (24/25, 1 remaining) --- [skipped]
+
+--- [350m]  attn_zeroed / Layer 24  (25/25, 0 remaining) --- [skipped]
+
+Total time: 11681s (194.7m)
+Saved: /opt/modeling/zhoughton/misc/binom-representation-pls/Results/znhoughton_opt-babylm-350m-20eps-seed964/by_layer_mlp.csv
+  OK in 11691s (194.8m)
+
+============================================================
+  PIPELINE COMPLETE
+  Total time: 3.2 hours
+============================================================
+  OK in 11694s (194.9m)
+
+==================================================================
+  PHASE 2  CORPUS-FREQ  350m
+==================================================================
+Model: znhoughton_opt-babylm-350m-20eps-seed964
+Conditions: ['default', 'attn_zeroed']
+Splits: None
+Modes: ['mean_pooled', 'words_only']
+Device: cuda:0
+Hidden: 128
+
+============================================================
+Condition: default  (25/25 layers available)
+============================================================
+
+--- [350m]  default / Layer 0  (1/25, 24 remaining) --- [skipped]
