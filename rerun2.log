@@ -1,0 +1,92 @@
+nohup: ignoring input
+Analysis pipeline
+  Phases:        [2]
+  GPU:           0
+  Embeddings:    /opt/modeling/zhoughton/misc/binom-representation-pls/Data
+  Skip controls: False
+
+
+==================================================================
+  PHASE 2: OPT-BabyLM full by-layer (final checkpoint)
+==================================================================
+
+==================================================================
+  PHASE 2  model=350m  slug=znhoughton_opt-babylm-350m-20eps-seed964
+==================================================================
+
+==================================================================
+  PHASE 2  EXTRACT+MLP  350m
+==================================================================
+
+============================================================
+  STEP 1: Extract embeddings at all layers
+============================================================
+
+============================================================
+  350m / default / corpus (1 shards, ~500000 pairs each)
+============================================================
+  All requested layers exist, skipping.
+
+  [Extraction 1/4  25%  OK]  znhoughton_opt-babylm-350m-20eps-seed964 / default / corpus
+
+============================================================
+  350m / default / novel (1 shards, ~500000 pairs each)
+============================================================
+  All requested layers exist, skipping.
+
+  [Extraction 2/4  50%  OK]  znhoughton_opt-babylm-350m-20eps-seed964 / default / novel
+
+============================================================
+  350m / attn_zeroed / corpus (1 shards, ~500000 pairs each)
+============================================================
+  All requested layers exist, skipping.
+
+  [Extraction 3/4  75%  OK]  znhoughton_opt-babylm-350m-20eps-seed964 / attn_zeroed / corpus
+
+============================================================
+  350m / attn_zeroed / novel (1 shards, ~500000 pairs each)
+============================================================
+  All requested layers exist, skipping.
+
+  [Extraction 4/4  100%  OK]  znhoughton_opt-babylm-350m-20eps-seed964 / attn_zeroed / novel
+
+============================================================
+  STEP 2: MLP analysis
+============================================================
+
+============================================================
+  MLP analysis: 350m
+============================================================
+Model: znhoughton_opt-babylm-350m-20eps-seed964
+Conditions: ['default', 'attn_zeroed']
+Splits: ['pair_novel', 'word_novel']
+Modes: ['mean_pooled', 'words_only']
+Device: cuda:0
+Hidden: 128
+Resuming: 200 rows already saved, skipping those.
+
+============================================================
+Condition: default  (25/25 layers available)
+============================================================
+
+--- [350m]  default / Layer 0  (1/25, 24 remaining) --- [skipped]
+
+--- [350m]  default / Layer 1  (2/25, 23 remaining) --- [skipped]
+
+--- [350m]  default / Layer 2  (3/25, 22 remaining) --- [skipped]
+
+--- [350m]  default / Layer 3  (4/25, 21 remaining) --- [skipped]
+
+--- [350m]  default / Layer 4  (5/25, 20 remaining) --- [skipped]
+
+--- [350m]  default / Layer 5  (6/25, 19 remaining) --- [skipped]
+
+--- [350m]  default / Layer 6  (7/25, 18 remaining) --- [skipped]
+
+--- [350m]  default / Layer 7  (8/25, 17 remaining) --- [skipped]
+
+--- [350m]  default / Layer 8  (9/25, 16 remaining) --- [skipped]
+
+--- [350m]  default / Layer 9  (10/25, 15 remaining) --- [skipped]
+
+--- [350m]  default / Layer 10  (11/25, 14 remaining) --- [skipped]
