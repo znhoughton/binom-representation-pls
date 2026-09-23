@@ -1,4 +1,26 @@
 nohup: ignoring input
+interpreter: /opt/modeling/zhoughton/envs/propsensity_eval/bin/python3
+torch 2.6.0+cu124 | cuda True | NVIDIA A100 80GB PCIe
+  brms: 4 chains x 6 threads = 24 cores
+        projected RAM ~12GB of 100GB budget
+
+=== 0. Preconditions ===
+  remote: git@github.com:znhoughton/binom-representation-pls.git
+ D Results/znhoughton_opt-babylm-350m-20eps-seed964_step1824/by_layer_mlp.csv
+ D Results/znhoughton_opt-babylm-350m-20eps-seed964_step1824/by_layer_mlp_control.csv
+ D Results/znhoughton_opt-babylm-350m-20eps-seed964_step288/by_layer_mlp.csv
+
+=== 0b. Disk check ===
+  free space here: 67951 GB (want >= 600 GB)
+
+=== 1. Confirm the replacement model is pre-LN ===
+  do_layer_norm_before=True hidden=1024 layers=24
+  OK: pre-LN.
+
+=== 2. Purge the stale HF cache ===
+  removing /opt/modeling/zhoughton//.cache/huggingface/hub/models--znhoughton--opt-babylm-350m-20eps-seed964
+
+=== 3. Final checkpoint: extraction, MLP probes, corpus-freq and controls ===
 Analysis pipeline
   Phases:        [2]
   GPU:           0
@@ -76,29 +98,3 @@ Condition: default  (25/25 layers available)
 --- [350m]  default / Layer 2  (3/25, 22 remaining) --- [skipped]
 
 --- [350m]  default / Layer 3  (4/25, 21 remaining) --- [skipped]
-
---- [350m]  default / Layer 4  (5/25, 20 remaining) --- [skipped]
-
---- [350m]  default / Layer 5  (6/25, 19 remaining) --- [skipped]
-
---- [350m]  default / Layer 6  (7/25, 18 remaining) --- [skipped]
-
---- [350m]  default / Layer 7  (8/25, 17 remaining) --- [skipped]
-
---- [350m]  default / Layer 8  (9/25, 16 remaining) --- [skipped]
-
---- [350m]  default / Layer 9  (10/25, 15 remaining) --- [skipped]
-
---- [350m]  default / Layer 10  (11/25, 14 remaining) --- [skipped]
-
---- [350m]  default / Layer 11  (12/25, 13 remaining) --- [skipped]
-
---- [350m]  default / Layer 12  (13/25, 12 remaining) --- [skipped]
-
---- [350m]  default / Layer 13  (14/25, 11 remaining) --- [skipped]
-  FAILED (exit -9) in 2629s (43.8m)
-
-============================================================
-  PIPELINE COMPLETE
-  Total time: 0.7 hours
-============================================================
