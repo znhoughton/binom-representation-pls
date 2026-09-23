@@ -183,8 +183,17 @@ else
     echo "  no cached copy at $CACHE_DIR"
 fi
 
-say "3. By-layer extraction + MLP probes for the 350M (--force: replace in place)"
-run "$PY" Scripts/pipeline/run_bylayer.py --models 350m --gpu "$GPU" --force
+say "3. Final checkpoint: extraction, MLP probes, corpus-freq and controls"
+# run_pipeline.py phase 2, NOT run_bylayer.py directly. run_bylayer.py only does
+# extraction and MLP CV; phase 2 then runs by_layer_mlp.py --corpus-freq, which is
+# what writes by_layer_corpus_pred.csv, plus the controls, and compresses the result
+# to .xz. Calling run_bylayer.py alone left the final checkpoint with no corpus_pred,
+# which step 5's input guard caught before brms could skip that checkpoint silently.
+#
+# No --force: phase 2's completion test is whether corpus_pred exists, so it will run,
+# while run_bylayer.py skips the extraction and MLP work already done for this model.
+# Forcing here would redo hours of extraction that is already from the corrected model.
+run "$PY" Scripts/pipeline/run_pipeline.py --phases 2 --opt-models 350m --gpu "$GPU"
 
 say "4. The six log-spaced step checkpoints"
 run "$PY" Scripts/pipeline/run_babylm_checkpoints.py --models 350m --gpu "$GPU" --force
