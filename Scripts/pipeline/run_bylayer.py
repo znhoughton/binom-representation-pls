@@ -343,6 +343,18 @@ def main():
 
     total_elapsed = time.perf_counter() - total_t0
     print(f"\n{'='*60}", flush=True)
+    # A failed extraction must not read as a completed run. When the corrected 350M was
+    # promoted without its step-N tags, all 24 checkpoint extractions failed with
+    # "not a valid git identifier", MLP was skipped, and this still printed COMPLETE and
+    # exited 0, leaving the previous model's by_layer_corpus_pred in place to be picked
+    # up by the downstream input check as though it were fresh.
+    if extraction_failed:
+        print(f"  PIPELINE FINISHED WITH FAILURES", flush=True)
+        print(f"  Extraction failed for {len(extraction_failed)} model(s): "
+              f"{', '.join(sorted(extraction_failed))}", flush=True)
+        print("  Their outputs were NOT regenerated; anything on disk is from an earlier run.",
+              flush=True)
+        sys.exit(1)
     print(f"  PIPELINE COMPLETE", flush=True)
     print(f"  Total time: {total_elapsed/3600:.1f} hours", flush=True)
     print(f"{'='*60}", flush=True)

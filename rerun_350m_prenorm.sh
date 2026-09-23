@@ -209,15 +209,39 @@ command -v "$RSCRIPT" >/dev/null 2>&1 || [ -x "$RSCRIPT" ] || {
 # loop then logs "skip" and moves on -- brms would quietly produce no 350M rows
 # at all rather than stale ones. Check the inputs exist before spending hours.
 missing=0
+stale=0
 for slug_dir in Results/${SLUG} Results/${SLUG}_step48 Results/${SLUG}_step96                 Results/${SLUG}_step288 Results/${SLUG}_step768                 Results/${SLUG}_step1824 Results/${SLUG}_step4560; do
-    if [ ! -f "$slug_dir/by_layer_corpus_pred.csv.xz" ] && [ ! -f "$slug_dir/by_layer_corpus_pred.csv.gz" ]; then
+    f=""
+    [ -f "$slug_dir/by_layer_corpus_pred.csv.xz" ] && f="$slug_dir/by_layer_corpus_pred.csv.xz"
+    [ -z "$f" ] && [ -f "$slug_dir/by_layer_corpus_pred.csv.gz" ] && f="$slug_dir/by_layer_corpus_pred.csv.gz"
+    if [ -z "$f" ]; then
         echo "  MISSING input: $slug_dir/by_layer_corpus_pred.csv.{xz,gz}" >&2
         missing=$((missing+1))
+        continue
+    fi
+    # Existence is not freshness. When the corrected 350M was promoted without its
+    # step-N tags, every checkpoint extraction failed, nothing was rewritten, and the
+    # five-month-old files from the previous model sat here and passed this check.
+    # Anything older than the run that was supposed to regenerate it is suspect.
+    if [ "$STAGE" = "all" ]; then
+        mtime=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+        if [ "$mtime" -lt "$RUN_STARTED_AT" ]; then
+            echo "  STALE input: $f" >&2
+            echo "     last written $(date -d @"$mtime" '+%Y-%m-%d %H:%M' 2>/dev/null || echo '?'), before this run began." >&2
+            stale=$((stale+1))
+        fi
     fi
 done
 if [ "$missing" -gt 0 ] && [ "$DRY_RUN" != "1" ]; then
     echo "FATAL: $missing of 7 checkpoints lack by_layer_corpus_pred; brms would skip them" >&2
     echo "       silently. Re-run stages 3-4 first (they produce these)." >&2
+    exit 1
+fi
+if [ "$stale" -gt 0 ] && [ "$DRY_RUN" != "1" ]; then
+    echo "FATAL: $stale of 7 checkpoints have a by_layer_corpus_pred older than this run." >&2
+    echo "       Stages 3-4 were supposed to rewrite them and did not, so they are from a" >&2
+    echo "       previous model. Fitting on them would mix models within one figure." >&2
+    echo "       Delete them and re-run stages 3-4, or pass STAGE=brms if you are certain." >&2
     exit 1
 fi
 
