@@ -117,6 +117,11 @@ LOG       <- file.path(RESULTS, paste0("brms_", SUFFIX, "_progress.log"))
 dir.create(MODEL_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(dirname(OUT_RDS), showWarnings = FALSE, recursive = TRUE)
 
+log_msg <- function(...) {
+  m <- paste0("[", format(Sys.time(), "%H:%M:%S"), "] ", ..., "\n")
+  cat(m); cat(m, file = LOG, append = TRUE)
+}
+
 # Cells whose inputs are absent are skipped, so a run that refits one model would otherwise
 # replace a file holding every model with one holding only that model. Anything already on disk
 # is kept, except the cells this run refits, which supersede their previous values.
@@ -124,11 +129,6 @@ PRIOR <- if (file.exists(OUT_RDS)) readRDS(OUT_RDS) else NULL
 if (!is.null(PRIOR))
   log_msg(sprintf("Found %d existing cells in %s; refitted cells will replace their rows.",
                   nrow(PRIOR), OUT_RDS))
-
-log_msg <- function(...) {
-  m <- paste0("[", format(Sys.time(), "%H:%M:%S"), "] ", ..., "\n")
-  cat(m); cat(m, file = LOG, append = TRUE)
-}
 
 # ── Registry: final checkpoints first, then training checkpoints ──────────────
 final_reg <- tribble(
