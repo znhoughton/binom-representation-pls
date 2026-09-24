@@ -817,25 +817,12 @@ def main():
                            * len(sorted_layers)
                            * len(args.modes)
                            * (len(args.splits or []) + int(bool(args.corpus_freq))))
-        _pool = ThreadPoolExecutor(max_workers=1)
-
-        def _prefetch(tag):
-            return _load_layer_pair(novel_dir, corpus_dir, tag, args.num_layers, args.corpus_freq)
-
-        _future = _pool.submit(_prefetch, sorted_layers[0]) if sorted_layers else None
-
-        for i, layer_tag in enumerate(sorted_layers):
-            layer_idx = int(layer_tag.split("_")[1])
-
-            # Retrieve pre-loaded data; immediately kick off the next layer's disk read
-            _, novel_npz, raw_nov, corpus_npz_cf, raw_cor = _future.result()
-            _future = (_pool.submit(_prefetch, sorted_layers[i + 1])
-                       if i + 1 < len(sorted_layers) else None)
-
-            if novel_npz is None:
-                continue
-
-            # Fast-skip entire layer if all work for it is already done
+        # Decide which layers need work BEFORE queuing any disk read. This test used to run after
+        # _future.result(), so a layer whose work was already finished still paid to load both npz
+        # files first -- the novel split is ~340k binomials and the corpus split ~49k, at the model's
+        # hidden width -- and then threw them away. On network-backed storage that cost minutes per
+        # "skipped" layer, which is most of the wall clock of a resumed run.
+        def _layer_done(layer_idx):
             cv_done = all(
                 (condition, layer_idx, mode, split) in completed and
                 (cv_preds_dir is None or
@@ -849,14 +836,36 @@ def main():
             pred_done = (not args.corpus_freq or all(
                 (condition, layer_idx, mode) in completed_pred for mode in args.modes
             ))
+            return cv_done and freq_done and pred_done
+
+        todo = []
+        for i, layer_tag in enumerate(sorted_layers):
+            layer_idx = int(layer_tag.split("_")[1])
             remaining = len(sorted_layers) - i - 1
-            _hdr = f"[{_model_label}]  {condition} / Layer {layer_idx}  ({i+1}/{len(sorted_layers)}, {remaining} remaining)"
-            if cv_done and freq_done and pred_done:
+            _hdr = (f"[{_model_label}]  {condition} / Layer {layer_idx}  "
+                    f"({i+1}/{len(sorted_layers)}, {remaining} remaining)")
+            if _layer_done(layer_idx):
                 _cv_unit += len(args.modes) * (len(args.splits or []) + int(bool(args.corpus_freq)))
                 print(f"\n--- {_hdr} --- [skipped]", flush=True)
-                del raw_nov
-                if raw_cor is not None:
-                    del raw_cor
+            else:
+                todo.append((layer_tag, _hdr))
+
+        _pool = ThreadPoolExecutor(max_workers=1)
+
+        def _prefetch(tag):
+            return _load_layer_pair(novel_dir, corpus_dir, tag, args.num_layers, args.corpus_freq)
+
+        _future = _pool.submit(_prefetch, todo[0][0]) if todo else None
+
+        for k, (layer_tag, _hdr) in enumerate(todo):
+            layer_idx = int(layer_tag.split("_")[1])
+
+            # Retrieve pre-loaded data; immediately kick off the next NEEDED layer's disk read
+            _, novel_npz, raw_nov, corpus_npz_cf, raw_cor = _future.result()
+            _future = (_pool.submit(_prefetch, todo[k + 1][0])
+                       if k + 1 < len(todo) else None)
+
+            if novel_npz is None:
                 continue
 
             print(f"\n--- {_hdr} ---", flush=True)
