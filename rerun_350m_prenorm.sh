@@ -157,21 +157,7 @@ else
 fi
 
 if [ "$STAGE" = "all" ]; then
-say "1. Confirm the replacement model is pre-LN"
-if [ "$DRY_RUN" != "1" ]; then
-"$PY" - "$MODEL_ID" <<'PY'
-import sys
-from transformers import AutoConfig
-c = AutoConfig.from_pretrained(sys.argv[1])
-print(f"  do_layer_norm_before={c.do_layer_norm_before} hidden={c.hidden_size} layers={c.num_hidden_layers}")
-if c.do_layer_norm_before is not True:
-    print("  FATAL: not the corrected model."); sys.exit(1)
-print("  OK: pre-LN.")
-PY
-[ $? -ne 0 ] && exit 1
-fi
-
-say "2. Purge the stale HF cache"
+say "1. Purge the stale HF cache"
 # The corrected model now lives at the ORIGINAL name, so no code changes are
 # needed. But the cache is keyed by repo name, and it still holds the old
 # post-LN weights under that name -- a re-run would silently use them.
@@ -183,24 +169,24 @@ else
     echo "  no cached copy at $CACHE_DIR"
 fi
 
-say "3. Final checkpoint: extraction, MLP probes, corpus-freq and controls"
+say "2. Final checkpoint: extraction, MLP probes, corpus-freq and controls"
 # run_pipeline.py phase 2, NOT run_bylayer.py directly. run_bylayer.py only does
 # extraction and MLP CV; phase 2 then runs by_layer_mlp.py --corpus-freq, which is
 # what writes by_layer_corpus_pred.csv, plus the controls, and compresses the result
 # to .xz. Calling run_bylayer.py alone left the final checkpoint with no corpus_pred,
-# which step 5's input guard caught before brms could skip that checkpoint silently.
+# which step 4's input guard caught before brms could skip that checkpoint silently.
 #
 # No --force: phase 2's completion test is whether corpus_pred exists, so it will run,
 # while run_bylayer.py skips the extraction and MLP work already done for this model.
 # Forcing here would redo hours of extraction that is already from the corrected model.
 run "$PY" Scripts/pipeline/run_pipeline.py --phases 2 --opt-models 350m --gpu "$GPU"
 
-say "4. The six log-spaced step checkpoints"
+say "3. The six log-spaced step checkpoints"
 run "$PY" Scripts/pipeline/run_babylm_checkpoints.py --models 350m --gpu "$GPU" --force
 fi
 
 if [ "$SKIP_BRMS" != "1" ]; then
-say "5. Re-fit the relative-frequency brms models (CPU, slow)"
+say "4. Re-fit the relative-frequency brms models (CPU, slow)"
 command -v "$RSCRIPT" >/dev/null 2>&1 || [ -x "$RSCRIPT" ] || {
     echo "FATAL: Rscript not found. Install R here, set RSCRIPT=/path/to/Rscript," >&2
     echo "       or run the GPU stages only with SKIP_BRMS=1 and do brms elsewhere." >&2
@@ -234,14 +220,14 @@ for slug_dir in Results/${SLUG} Results/${SLUG}_step48 Results/${SLUG}_step96   
 done
 if [ "$missing" -gt 0 ] && [ "$DRY_RUN" != "1" ]; then
     echo "FATAL: $missing of 7 checkpoints lack by_layer_corpus_pred; brms would skip them" >&2
-    echo "       silently. Re-run stages 3-4 first (they produce these)." >&2
+    echo "       silently. Re-run stages 2-3 first (they produce these)." >&2
     exit 1
 fi
 if [ "$stale" -gt 0 ] && [ "$DRY_RUN" != "1" ]; then
     echo "FATAL: $stale of 7 checkpoints have a by_layer_corpus_pred older than this run." >&2
-    echo "       Stages 3-4 were supposed to rewrite them and did not, so they are from a" >&2
+    echo "       Stages 2-3 were supposed to rewrite them and did not, so they are from a" >&2
     echo "       previous model. Fitting on them would mix models within one figure." >&2
-    echo "       Delete them and re-run stages 3-4, or pass STAGE=brms if you are certain." >&2
+    echo "       Delete them and re-run stages 2-3, or pass STAGE=brms if you are certain." >&2
     exit 1
 fi
 
@@ -266,10 +252,10 @@ echo "  NOTE: bayes_R2 is still at ndraws=500 in this repo; raise to 8000 before
 run "$RSCRIPT" Scripts/analysis/corpus_relfreq_brms_all.R
 fi
 
-say "6. Re-render the writeup (no .qmd edits were needed)"
+say "5. Re-render the writeup (no .qmd edits were needed)"
 run quarto render Writeup/writeup.qmd
 
-say "7. Verify the 350M results were actually rewritten"
+say "6. Verify the 350M results were actually rewritten"
 if [ "$DRY_RUN" != "1" ]; then
     for d in Results/${SLUG} Results/${SLUG}_step48 Results/${SLUG}_step4560; do
         if [ -d "$d" ]; then

@@ -275,7 +275,12 @@ def main():
     # Step 1: Extraction
     extraction_failed = set()  # (model_slug, cond_name) pairs that failed
     if not args.skip_extraction:
-        run_label("STEP 1: Extract embeddings at all layers")
+        # Say which layers, not "all": the banner claimed all of them even when --layers
+        # narrowed the run, and a log that misreports what it extracted is how a wrong
+        # result survives review.
+        _layer_desc = ("all layers" if not args.layers
+                       else ", ".join(f"layer {l}" for l in args.layers))
+        run_label(f"STEP 1: Extract embeddings at {_layer_desc}")
         registry = _override_models if _override_models is not None else MODELS
         _active_models = [m for m in registry
                           if not (_override_models is None and args.models
