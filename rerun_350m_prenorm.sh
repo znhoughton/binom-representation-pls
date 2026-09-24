@@ -248,7 +248,6 @@ else
     echo "  no cached 350M brms fits found"
 fi
 
-echo "  NOTE: bayes_R2 is still at ndraws=500 in this repo; raise to 8000 before submission."
 run "$RSCRIPT" Scripts/analysis/corpus_relfreq_brms_all.R
 fi
 
