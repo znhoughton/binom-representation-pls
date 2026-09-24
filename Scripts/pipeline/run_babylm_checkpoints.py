@@ -199,7 +199,14 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
              "--embeddings-dir", str(emb_dir),
              "--model-id",  model["id"],
              "--checkpoint", str(step),
-             "--slug",      slug]
+             "--slug",      slug,
+             # Final layer only. Nothing consumes intermediate layers: both readers of
+             # by_layer_mlp.csv in the writeup reduce to layer == max(layer) immediately, and
+             # every reported table and figure is final-layer. This script extracted all of
+             # L0..L{n} only because it predates the final-layer design that run_scale_models.py
+             # adopted; the checkpoint path was never brought in line. Set to the full range
+             # again if a by-layer checkpoint analysis is ever actually reported.
+             "--layers",    "last"]
             + (["--force"] if force else []),
             label=f"EXTRACT  {model['flag']} step={step} / {cond['name']}",
         )
@@ -213,7 +220,7 @@ def run_step(model: dict, step: int, gpu: int, emb_dir: Path,
     all_conds = [c["name"] for c in CONDITIONS]
 
     # Global progress counter: main CV → corpus-freq → controls
-    _n_layers   = model["n_layers"] + 1   # L0…L{n_layers}
+    _n_layers   = 1                        # final layer only; see "--layers last" above
     _n_conds    = len(all_conds)           # 2
     _n_modes    = 2                        # mean_pooled, words_only
     _n_splits   = 2                        # pair_novel, word_novel
