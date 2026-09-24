@@ -248,7 +248,12 @@ else
     echo "  no cached 350M brms fits found"
 fi
 
-run "$RSCRIPT" Scripts/analysis/corpus_relfreq_brms_all.R
+# SCALE=raw, because that is the variant the writeup reads. The script defaults to z, which
+# writes brms_relfreq_prop.rds; Writeup/writeup.qmd opens brms_relfreq_rawscale.rds. Left at
+# the default this stage regenerates a file nothing reads, and the paper keeps reporting the
+# previous model. The two variants differ only in whether rel_freq and log_freq are divided
+# by a cell-specific SD; the outcome and the probe prediction are z-scored either way.
+run env SCALE=raw "$RSCRIPT" Scripts/analysis/corpus_relfreq_brms_all.R
 fi
 
 say "5. Re-render the writeup (no .qmd edits were needed)"

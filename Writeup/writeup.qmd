@@ -391,9 +391,9 @@ In this first experiment, we probe three BabyLMs (125M, 350M, and 1.3B parameter
 
 babylm_labels <- c("BabyLM-125M", "BabyLM-350M", "BabyLM-1.3B")
 # ── Main model: y_true ~ y_pred*log_freq + rel_freq*log_freq, sigma ~ log_freq ──
-# (Scripts/analysis/corpus_relfreq_brms_all.R). All four variables z-scored within each
-# cell; rel_freq and log_freq keep their own scales, so they are comparable
-# across cells without standardising. The
+# (Scripts/analysis/corpus_relfreq_brms_all.R). y_true and y_pred are z-scored within
+# each cell so they are comparable across cells; rel_freq and log_freq keep their own
+# scales, a proportion and an e-fold of frequency being interpretable units already. The
 # file holds final checkpoints (step = NA) and training checkpoints together.
 relfreq_all <- if (file.exists("../Data/derived/brms_relfreq_rawscale.rds")) {
   readRDS("../Data/derived/brms_relfreq_rawscale.rds") |>

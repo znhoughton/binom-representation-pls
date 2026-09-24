@@ -117,6 +117,14 @@ LOG       <- file.path(RESULTS, paste0("brms_", SUFFIX, "_progress.log"))
 dir.create(MODEL_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(dirname(OUT_RDS), showWarnings = FALSE, recursive = TRUE)
 
+# Cells whose inputs are absent are skipped, so a run that refits one model would otherwise
+# replace a file holding every model with one holding only that model. Anything already on disk
+# is kept, except the cells this run refits, which supersede their previous values.
+PRIOR <- if (file.exists(OUT_RDS)) readRDS(OUT_RDS) else NULL
+if (!is.null(PRIOR))
+  log_msg(sprintf("Found %d existing cells in %s; refitted cells will replace their rows.",
+                  nrow(PRIOR), OUT_RDS))
+
 log_msg <- function(...) {
   m <- paste0("[", format(Sys.time(), "%H:%M:%S"), "] ", ..., "\n")
   cat(m); cat(m, file = LOG, append = TRUE)
@@ -290,8 +298,12 @@ for (k in seq_len(nrow(jobs))) {
                   vals$pred[1], vals$rel[1], vals$pred_x[1], vals$rel_x[1]))
 
   # write incrementally so a long run is inspectable and survives interruption
-  saveRDS(bind_rows(rows), OUT_RDS)
+  .new  <- bind_rows(rows)
+  .keep <- if (is.null(PRIOR)) NULL
+           else anti_join(PRIOR, .new, by = c("label", "step", "condition"))
+  saveRDS(bind_rows(.keep, .new), OUT_RDS)
   rm(fit, dr); gc(verbose = FALSE)
 }
 
-log_msg(sprintf("Done. %d cells saved to %s", length(rows), OUT_RDS))
+log_msg(sprintf("Done. %d cells refitted; %d cells in %s",
+                length(rows), nrow(readRDS(OUT_RDS)), OUT_RDS))
