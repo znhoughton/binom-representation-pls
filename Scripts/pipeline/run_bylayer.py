@@ -83,9 +83,20 @@ def extract_sharded(model, cond, data_split, gpu, emb_root, force=False,
     out_path = Path(out_dir)
     if not force:
         def _layer_file(l):
+            # An alias may already be on disk under its resolved number, left by a run that
+            # extracted every layer. Accept either spelling, so narrowing an in-progress run to
+            # the final layer does not re-extract embeddings that are already there.
             if l == "last":
-                return out_path / "layer_last.npz"
-            return out_path / f"layer_{l}.npz"
+                cands = [out_path / "layer_last.npz", out_path / f"layer_{num_layers}.npz"]
+            elif l == "second_to_last":
+                cands = [out_path / "layer_second_to_last.npz",
+                         out_path / f"layer_{num_layers - 1}.npz"]
+            else:
+                cands = [out_path / f"layer_{l}.npz"]
+            for c in cands:
+                if c.exists() and c.stat().st_size > 1000:
+                    return c
+            return cands[0]
         existing = [_layer_file(l) for l in layers]
         if all(f.exists() and f.stat().st_size > 1000 for f in existing):
             print("  All requested layers exist, skipping.", flush=True)
