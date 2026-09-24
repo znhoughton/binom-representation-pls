@@ -1,0 +1,160 @@
+nohup: ignoring input
+interpreter: /opt/modeling/zhoughton/envs/propsensity_eval/bin/python3
+torch 2.6.0+cu124 | cuda True | NVIDIA A100 80GB PCIe
+  brms: 4 chains x 6 threads = 24 cores
+        projected RAM ~12GB of 100GB budget
+
+=== 0. Preconditions ===
+  remote: git@github.com:znhoughton/binom-representation-pls.git
+
+=== 0b. Disk check ===
+  free space here: 68339 GB (want >= 600 GB)
+
+=== 4. Re-fit the relative-frequency brms models (CPU, slow) ===
+  no cached 350M brms fits found
+  NOTE: bayes_R2 is still at ndraws=500 in this repo; raise to 8000 before submission.
+CmdStan path set to: /opt/modeling/zhoughton/.cmdstan/cmdstan-2.40.0
+brms parallelism: 4 chains x 6 threads = 24 cores
+[22:30:16] Compiling Stan template (cmdstanr, threading = 6)...
+Loading required namespace: rstan
+[22:34:07] Template compiled in 3.8 min.
+[22:34:07] 104 cells to fit (32 final, 72 checkpoint)
+[22:34:07] skip: BabyLM-125M final | default
+[22:34:07] skip: BabyLM-125M final | attn_zeroed
+[22:34:16] [3/104] BabyLM-350M final | default (n=48478)
+[22:35:05]   [OK] max_rhat=1.002 min_ess=0.398 divergent=0
+[22:35:05]   -> y_pred +0.365 | rel_freq +0.326 | yp:lf -0.015 | rf:lf +0.131
+[22:35:12] [4/104] BabyLM-350M final | attn_zeroed (n=48478)
+[22:36:00]   [OK] max_rhat=1.002 min_ess=0.484 divergent=0
+[22:36:00]   -> y_pred +0.332 | rel_freq +0.236 | yp:lf -0.025 | rf:lf +0.044
+[22:36:00] skip: BabyLM-1.3B final | default
+[22:36:00] skip: BabyLM-1.3B final | attn_zeroed
+[22:36:00] skip: Pythia-160M final | default
+[22:36:00] skip: Pythia-160M final | attn_zeroed
+[22:36:00] skip: Pythia-410M final | default
+[22:36:00] skip: Pythia-410M final | attn_zeroed
+[22:36:00] skip: Pythia-1B final | default
+[22:36:00] skip: Pythia-1B final | attn_zeroed
+[22:36:00] skip: GPT-2 final | default
+[22:36:00] skip: GPT-2 final | attn_zeroed
+[22:36:00] skip: GPT-2-M final | default
+[22:36:00] skip: GPT-2-M final | attn_zeroed
+[22:36:00] skip: GPT-2-L final | default
+[22:36:00] skip: GPT-2-L final | attn_zeroed
+[22:36:00] skip: GPT-2-XL final | default
+[22:36:00] skip: GPT-2-XL final | attn_zeroed
+[22:36:00] skip: OLMo-1B final | default
+[22:36:00] skip: OLMo-1B final | attn_zeroed
+[22:36:00] skip: OLMo-7B final | default
+[22:36:00] skip: OLMo-7B final | attn_zeroed
+[22:36:00] skip: OLMo-2-1B final | default
+[22:36:00] skip: OLMo-2-1B final | attn_zeroed
+[22:36:00] skip: OLMo-2-7B final | default
+[22:36:00] skip: OLMo-2-7B final | attn_zeroed
+[22:36:00] skip: Llama-1.3B final | default
+[22:36:00] skip: Llama-1.3B final | attn_zeroed
+[22:36:00] skip: Llama-3-8B final | default
+[22:36:00] skip: Llama-3-8B final | attn_zeroed
+[22:36:00] skip: BabyLM-125M step 24 | default
+[22:36:00] skip: BabyLM-125M step 24 | attn_zeroed
+[22:36:00] skip: BabyLM-125M step 48 | default
+[22:36:00] skip: BabyLM-125M step 48 | attn_zeroed
+[22:36:00] skip: BabyLM-125M step 144 | default
+[22:36:00] skip: BabyLM-125M step 144 | attn_zeroed
+[22:36:00] skip: BabyLM-125M step 384 | default
+[22:36:00] skip: BabyLM-125M step 384 | attn_zeroed
+[22:36:00] skip: BabyLM-125M step 912 | default
+[22:36:00] skip: BabyLM-125M step 912 | attn_zeroed
+[22:36:00] skip: BabyLM-125M step 2280 | default
+[22:36:00] skip: BabyLM-125M step 2280 | attn_zeroed
+[22:36:01] [45/104] BabyLM-350M step 48 | default (n=48478)
+[22:36:49]   [OK] max_rhat=1.001 min_ess=0.465 divergent=0
+[22:36:49]   -> y_pred +0.638 | rel_freq -0.008 | yp:lf +0.005 | rf:lf +0.005
+[22:36:50] [46/104] BabyLM-350M step 48 | attn_zeroed (n=48478)
+[22:37:38]   [OK] max_rhat=1.001 min_ess=0.474 divergent=0
+[22:37:38]   -> y_pred +0.827 | rel_freq -0.000 | yp:lf -0.005 | rf:lf +0.005
+[22:37:39] [47/104] BabyLM-350M step 96 | default (n=48478)
+[22:38:27]   [OK] max_rhat=1.001 min_ess=0.445 divergent=0
+[22:38:27]   -> y_pred +0.569 | rel_freq -0.008 | yp:lf +0.004 | rf:lf +0.004
+[22:38:28] [48/104] BabyLM-350M step 96 | attn_zeroed (n=48478)
+[22:39:17]   [OK] max_rhat=1.002 min_ess=0.433 divergent=0
+[22:39:17]   -> y_pred +0.786 | rel_freq -0.000 | yp:lf -0.000 | rf:lf +0.005
+[22:39:18] [49/104] BabyLM-350M step 288 | default (n=48478)
+[22:40:05]   [OK] max_rhat=1.002 min_ess=0.482 divergent=0
+[22:40:05]   -> y_pred +0.571 | rel_freq +0.014 | yp:lf +0.002 | rf:lf +0.012
+[22:40:07] [50/104] BabyLM-350M step 288 | attn_zeroed (n=48478)
+[22:40:55]   [OK] max_rhat=1.001 min_ess=0.461 divergent=0
+[22:40:55]   -> y_pred +0.618 | rel_freq +0.016 | yp:lf -0.014 | rf:lf +0.012
+[22:40:55] [51/104] BabyLM-350M step 768 | default (n=48478)
+[22:41:42]   [OK] max_rhat=1.001 min_ess=0.429 divergent=0
+[22:41:42]   -> y_pred +0.516 | rel_freq +0.073 | yp:lf +0.006 | rf:lf +0.024
+[22:41:43] [52/104] BabyLM-350M step 768 | attn_zeroed (n=48478)
+[22:42:30]   [OK] max_rhat=1.001 min_ess=0.451 divergent=0
+[22:42:30]   -> y_pred +0.493 | rel_freq +0.078 | yp:lf -0.010 | rf:lf +0.021
+[22:42:30] [53/104] BabyLM-350M step 1824 | default (n=48478)
+[22:43:18]   [OK] max_rhat=1.001 min_ess=0.461 divergent=0
+[22:43:18]   -> y_pred +0.439 | rel_freq +0.158 | yp:lf -0.009 | rf:lf +0.070
+[22:43:18] [54/104] BabyLM-350M step 1824 | attn_zeroed (n=48478)
+[22:44:06]   [OK] max_rhat=1.003 min_ess=0.486 divergent=0
+[22:44:06]   -> y_pred +0.410 | rel_freq +0.143 | yp:lf -0.015 | rf:lf +0.048
+[22:44:07] [55/104] BabyLM-350M step 4560 | default (n=48478)
+[22:44:56]   [OK] max_rhat=1.001 min_ess=0.437 divergent=0
+[22:44:56]   -> y_pred +0.383 | rel_freq +0.282 | yp:lf -0.010 | rf:lf +0.117
+[22:44:56] [56/104] BabyLM-350M step 4560 | attn_zeroed (n=48478)
+[22:45:45]   [OK] max_rhat=1.001 min_ess=0.487 divergent=0
+[22:45:45]   -> y_pred +0.362 | rel_freq +0.214 | yp:lf -0.023 | rf:lf +0.044
+[22:45:45] skip: BabyLM-1.3B step 97 | default
+[22:45:45] skip: BabyLM-1.3B step 97 | attn_zeroed
+[22:45:45] skip: BabyLM-1.3B step 194 | default
+[22:45:45] skip: BabyLM-1.3B step 194 | attn_zeroed
+[22:45:45] skip: BabyLM-1.3B step 582 | default
+[22:45:45] skip: BabyLM-1.3B step 582 | attn_zeroed
+[22:45:45] skip: BabyLM-1.3B step 1455 | default
+[22:45:45] skip: BabyLM-1.3B step 1455 | attn_zeroed
+[22:45:45] skip: BabyLM-1.3B step 3686 | default
+[22:45:45] skip: BabyLM-1.3B step 3686 | attn_zeroed
+[22:45:45] skip: BabyLM-1.3B step 9021 | default
+[22:45:45] skip: BabyLM-1.3B step 9021 | attn_zeroed
+[22:45:45] skip: Pythia-160M step 16 | default
+[22:45:45] skip: Pythia-160M step 16 | attn_zeroed
+[22:45:45] skip: Pythia-160M step 32 | default
+[22:45:45] skip: Pythia-160M step 32 | attn_zeroed
+[22:45:45] skip: Pythia-160M step 64 | default
+[22:45:45] skip: Pythia-160M step 64 | attn_zeroed
+[22:45:45] skip: Pythia-160M step 256 | default
+[22:45:45] skip: Pythia-160M step 256 | attn_zeroed
+[22:45:45] skip: Pythia-160M step 512 | default
+[22:45:45] skip: Pythia-160M step 512 | attn_zeroed
+[22:45:45] skip: Pythia-160M step 1000 | default
+[22:45:45] skip: Pythia-160M step 1000 | attn_zeroed
+[22:45:45] skip: Pythia-410M step 16 | default
+[22:45:45] skip: Pythia-410M step 16 | attn_zeroed
+[22:45:45] skip: Pythia-410M step 32 | default
+[22:45:45] skip: Pythia-410M step 32 | attn_zeroed
+[22:45:45] skip: Pythia-410M step 64 | default
+[22:45:45] skip: Pythia-410M step 64 | attn_zeroed
+[22:45:45] skip: Pythia-410M step 256 | default
+[22:45:45] skip: Pythia-410M step 256 | attn_zeroed
+[22:45:45] skip: Pythia-410M step 512 | default
+[22:45:45] skip: Pythia-410M step 512 | attn_zeroed
+[22:45:45] skip: Pythia-410M step 1000 | default
+[22:45:45] skip: Pythia-410M step 1000 | attn_zeroed
+[22:45:45] skip: Pythia-1B step 16 | default
+[22:45:45] skip: Pythia-1B step 16 | attn_zeroed
+[22:45:45] skip: Pythia-1B step 32 | default
+[22:45:45] skip: Pythia-1B step 32 | attn_zeroed
+[22:45:45] skip: Pythia-1B step 64 | default
+[22:45:45] skip: Pythia-1B step 64 | attn_zeroed
+[22:45:45] skip: Pythia-1B step 256 | default
+[22:45:45] skip: Pythia-1B step 256 | attn_zeroed
+[22:45:45] skip: Pythia-1B step 512 | default
+[22:45:45] skip: Pythia-1B step 512 | attn_zeroed
+[22:45:45] skip: Pythia-1B step 1000 | default
+[22:45:45] skip: Pythia-1B step 1000 | attn_zeroed
+[22:45:45] Done. 14 cells saved to Data/derived/brms_relfreq_prop.rds
+
+=== 5. Re-render the writeup (no .qmd edits were needed) ===
+rerun_350m_prenorm.sh: line 108: quarto: command not found
+
+FAILED (exit 127): quarto render Writeup/writeup.qmd
+Stopping before anything downstream consumes a half-finished result.
