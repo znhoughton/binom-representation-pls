@@ -824,6 +824,9 @@ pythia_ck <- c("Pythia-160M", "Pythia-410M", "Pythia-1B")
 N_EARLY   <- 3          # "the first three checkpoints" in the prose below
 
 fmt3 <- function(x) sprintf("%.3f", x)
+# As fmt3 but with the precision chosen at the call site, for the few places the prose wants
+# two decimals rather than three. Same helper, and same name, as the separability paper.
+g <- function(x, digits = 3) formatC(x, format = "f", digits = digits)
 # "a, b and c"
 serial <- function(v) paste0(paste(head(v, -1), collapse = ", "), " and ", tail(v, 1))
 rng3 <- function(x) paste0(fmt3(min(x)), "--", fmt3(max(x)))
