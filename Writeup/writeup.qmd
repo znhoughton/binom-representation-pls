@@ -363,19 +363,17 @@ Finally, following @hewitt-liang-2019-designing, we train a matched control prob
 
 We report two measurements. The first is the probe's cross-validated $R^2$ under the two splits described prevously, of which word-held-out is the stricter (since binomial-held-out $R^2$ may be inflated by general lexical preferences).
 
-The second measurement evaluates the probe on the attested set. Since the probe has seen only binomials the model has not encountered (or encountered rarely in the case of the larger models), its prediction $\hat{y}$ for an attested binomial estimates what abstract knowledge alone would predict, and cannot reflect the probe (or the LLM) having memorized that binomial. In order to analyze the extent to which the model's ordering preference within the attested set is driven by abstract vs holistic knowledge, we implement a Bayesian regression model using *brms* [@burkner2017brms] with default priors. Our dependent variable is $y_{\text{true}}$, the model's ordering preference. The probe's prediction, $\hat{y}$, stands in for abstract preferences. Relative frequency, $r$, is the centered proportion of occurrences in alphabetical ordering: $0.5$ means the binomial always occurs in alphabetical ordering in the corpus, $0$ means it occurs evenly in both orderings, and $-0.5$ means it always occurs in non-alphabetical ordering. Letting $f$ be log overall frequency (overall occurrences in the model's corpus, logged[^3]), our regression equation is:
+The second measurement evaluates the probe on the attested set. Since the probe has seen only binomials the model has not encountered (or encountered rarely in the case of the larger models), its prediction $\hat{y}$ for an attested binomial estimates what abstract knowledge alone would predict, and cannot reflect the probe (or the LLM) having memorized that binomial. In order to analyze the extent to which the model's ordering preference within the attested set is driven by abstract vs holistic knowledge, we implement a Bayesian regression model using *brms* [@burkner2017brms] with default priors. Our dependent variable is $y_{\text{true}}$, the model's ordering preference. The probe's prediction, $\hat{y}$, stands in for abstract preferences. Relative frequency, $\text{RelFreq}$, is the centered proportion of occurrences in alphabetical ordering: $0.5$ means the binomial always occurs in alphabetical ordering in the corpus, $0$ means it occurs evenly in both orderings, and $-0.5$ means it always occurs in non-alphabetical ordering. Letting $\text{log(Frequency)}$ be log overall frequency (overall occurrences in the model's corpus, logged[^3]), our regression equation is:
 
 [^3]: Frequency is each binomial's exposure in the model's own training corpus: exact counts for BabyLM [@warstadt-etal-2023-findings] and Pythia, and infini-gram Pile counts [@gao2020pile; @liu2024infinigram] standing in as a proxy for the rest. Appendix \ref{sec-appendix-corpus-freq} gives the distributions.
 
 $$
 \begin{aligned}
-y_{\text{true}} &\sim \beta_0 + \beta_1\hat{y} + \beta_2 r + \beta_3 f\\
-                &\quad + \beta_4\,(\hat{y} \times f) + \beta_5\,(r \times f)\\
-\log \sigma     &= \gamma_0 + \gamma_1 f
+& y_{\text{true}} \sim \hat{y} * \text{log(Frequency)} \\ & \quad + \text{RelFreq} * \text{log(Frequency)} \\ & \log(\sigma) \sim \text{log(Frequency)}
 \end{aligned}
 $$ {#eq-relfreq}
 
-$y_{\text{true}}$ and $\hat{y}$ are centered and scaled within each fit; $f$ is centered but not scaled; $r$ is left on its original scale, which already runs from $-0.5$ to $+0.5$ (Appendix \ref{sec-appendix-relfreq}).
+$y_{\text{true}}$ and $\hat{y}$ are centered and scaled within each fit; $\text{log(Frequency)}$ is centered but not scaled; $\text{RelFreq}$ is left on its original scale, which already runs from $-0.5$ to $+0.5$ (Appendix \ref{sec-appendix-relfreq}).
 
 The residual scale is modeled rather than assumed constant. The spread of $y_{\text{true}}$ varies with frequency, and an unmodeled trend there would inflate the slopes at one end of the range.
 
@@ -564,13 +562,13 @@ held-out")),
         axis.text.x = element_text(size = 7))
 ```
 
-For the binomial-level conditions, binomial-held-out R² ranges from 0.24 to 0.34; word-held-out R² is consistently lower, ranging from 0.12 to 0.23. The drop reflects a lexical generalization cost: some of the preference signal is tied to word identity rather than being fully abstract. Probe accuracy is non-monotonic with model size, and the full-context condition yields higher binomial-held-out R² than attention-zeroed, a difference we report but do not build on.
+For the binomial-level conditions, binomial-held-out R² ranges from 0.24 to 0.33; word-held-out R² is consistently lower, ranging from 0.12 to 0.21. The drop reflects a lexical generalization cost: some of the preference signal is tied to word identity rather than being fully abstract. Probe accuracy is non-monotonic with model size, and the full-context condition yields higher binomial-held-out R² than attention-zeroed in the 125M and 1.3B models though not in the 350M, a difference we report but do not build on.
 
 ### Abstract and Stored Contributions
 
-Results are shown in @fig-relfreq-babylm. Both abstract preferences and relative corpus frequency predict the model's ordering preference, and both do so credibly in all three models (Appendix \ref{sec-appendix-relfreq}). The effect of relative frequency is stronger for high-frequency binomials, while the effect of abstract preferences is constant across different frequencies.
+Results are shown in @fig-relfreq-babylm. Both abstract preferences and relative corpus frequency predict the model's ordering preference, and both do so credibly in all three models (Appendix \ref{sec-appendix-relfreq}). The effect of relative frequency is stronger for high-frequency binomials, while the effect of abstract preferences is largely flat across frequencies, declining credibly only in the 350M.
 
-Zeroing out attention reduces both the effects of abstract preferences and relative frequency for the BabyLMs and additionally results in a negative interaction effect between abstract preferences and overall frequency, suggesting that abstract preferences are a slightly *worse* predictor of ordering preferences for high-frequency binomials when attention is zeroed.
+Zeroing out attention reduces both the effects of abstract preferences and relative frequency for the BabyLMs, and makes the interaction between abstract preferences and overall frequency credibly negative in all three, suggesting that abstract preferences are a slightly *worse* predictor of ordering preferences for high-frequency binomials when attention is zeroed.
 
 ```{r}
 #| label: fig-relfreq-babylm
@@ -923,7 +921,7 @@ The effect of relative frequency is small across the first three checkpoints of 
 
 At the fourth checkpoint, the first at which relative frequency is credibly positive in every model, attention-zeroing removes none of the effect. In other words, at the point where storage is first measurable, it survives an intervention that removes the phrasal representation, so what has shifted at that point is the lexical representations. The phrasal representations shift afterwards. This is demonstrated from the amount of the relative-frequency effect that is removed from zeroing out cross attention. After the fourth checkpoint, the amount that the the relative-frequency effect removed by zeroing out attention rises from nothing at the fourth checkpoint to `r ck_joint_rng(pythia_ck, "last")`% by the last in the three Pythia models and `r ck_joint_rng(babylm_ck, "last")`% in the three BabyLM models, and reaches `r fin_joint_rng(large_models)`% in the fully trained large-scale models. The interaction effect between relative frequency and overall frequency follows the same course, reaching `r ck_gap_list(babylm_ck, "last", "rel_x")` in the BabyLMs and `r ck_gap_list(pythia_ck, "last", "rel_x")` in the Pythia models.
 
-The effect of abstract preferences moves independently of all this. It declines steadily across BabyLM training in both conditions. For Pythia it rises over the early window, then falls below its starting value by the final model. Its interaction with overall frequency is credibly negative under attention-zeroing in `r n_cred_n(ck[ck$condition == "attn_zeroed", ], "pred_x")` of the `r sum(ck$condition == "attn_zeroed")` checkpoints.
+The effect of abstract preferences moves independently of all this. It declines steadily across BabyLM training in both conditions. For Pythia it rises over the early window, then falls below its starting value by the final model. Its interaction with overall frequency is credibly negative under attention-zeroing in `r n_cred_n(ck[ck$condition == "attn_zeroed", ], "pred_x")` of the `r sum(ck$condition == "attn_zeroed")` model-checkpoint fits (six checkpoints for each of the six models).
 
 ```{r}
 #| label: fig-checkpoints
@@ -1347,7 +1345,7 @@ The figure below compares the frequency distributions of the approximately 47,00
 ```{r}
 #| label: fig-corpus-freq
 #| fig-pos: "H"
-#| fig-cap: "Frequency distributions for the ~47K corpus binomials in the BabyLM training corpus (150M tokens, 20 epochs) and the Pile. Left: histogram of log$_{10}$ raw counts. Right: rank-frequency plot treating counts as a probability distribution (probability = count / $\\sum$ counts); both axes log-scaled. BabyLM's distribution is heavily concentrated at a single occurrence per pair (70.7% of pairs appear exactly once), whereas Pile frequencies span several orders of magnitude with a median of 365 occurrences per pair."
+#| fig-cap: "Frequency distributions for the ~47K corpus binomials in the BabyLM training corpus (150M tokens, 20 epochs) and the Pile. Left: histogram of log$_{10}$ raw counts. Right: rank-frequency plot treating counts as a probability distribution (probability = count / $\\sum$ counts); both axes log-scaled. BabyLM's distribution is heavily concentrated at a single occurrence per pair (71.2% of pairs appear exactly once), whereas Pile frequencies span several orders of magnitude with a median of 365 occurrences per pair."
 #| fig-width: 7
 #| fig-height: 3.2
 
@@ -1399,7 +1397,7 @@ p_rank <- corpus_freq_df |>
 p_hist + p_rank + plot_layout(ncol = 2, widths = c(1, 1))
 ```
 
-The BabyLM training corpus is a 150M-token collection of child-directed and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles, Wikipedia), trained for 20 epochs. The Pile is a \~300B-token web-scraped corpus used to train the Pythia family. For each of the \~47K corpus binomials, we extracted 3-gram counts (i.e., the frequency of "word$_1$ and word$_2$" and its reverse) from each corpus via infini-gram [@liu2024infinigram]. As @fig-corpus-freq shows, the BabyLM corpus produces a highly skewed frequency distribution: 70.7% of binomials appear exactly once, 87.4% appear at most twice, and 98.2% appear at most ten times, with a maximum of 1,095 occurrences. The Pile distribution is far richer: the median binomial appears 365 times, the 25th percentile is 62 occurrences, and the 99th percentile exceeds 77,000.
+The BabyLM training corpus is a 150M-token collection of child-directed and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles, Wikipedia), trained for 20 epochs. The Pile is a \~300B-token web-scraped corpus used to train the Pythia family. For each of the \~47K corpus binomials, we extracted 3-gram counts (i.e., the frequency of "word$_1$ and word$_2$" and its reverse) from each corpus via infini-gram [@liu2024infinigram]. As @fig-corpus-freq shows, the BabyLM corpus produces a highly skewed frequency distribution: 71.2% of binomials appear exactly once, 87.7% appear at most twice, and 98.2% appear at most ten times, with a maximum of 1,095 occurrences. The Pile distribution is far richer: the median binomial appears 365 times, the 25th percentile is 62 occurrences, and the 99th percentile exceeds 77,000.
 
 In absolute training exposure terms (accounting for BabyLM's 20 epochs), the most frequent BabyLM binomials are seen at most \~21,900 times total across all training steps, while the equivalent Pile binomials are seen over 1.5 million times in a single pass. Even the median Pile binomial (365 occurrences per pass) substantially exceeds BabyLM's total exposure for a typical singleton binomial (1 × 20 = 20 exposures).
 
@@ -1409,11 +1407,11 @@ This appendix provides supplementary materials for Experiment 1 (§\ref{sec-exp1
 
 ## Probe and Control R² {#sec-appendix-full-r2-babylm}
 
-Probe R² at the final hidden layer for the BabyLM models, at the binomial level by attention condition, alongside the control probe fit to randomly permuted labels on the same folds. Selectivity is the difference between the two.
+Probe R² at the final hidden layer for the BabyLM models, at the binomial level by attention condition, alongside the control probe fit to randomly permuted labels on the same folds. ΔR² is the difference between the two.
 
 ```{r}
 #| label: tbl-r2-babylm
-#| tbl-cap: "Probe R² at the final hidden layer for BabyLM models, at the binomial level by attention condition, with the label-shuffle control and selectivity (R² minus control). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses. Control values carry an extra decimal place because they sit near zero."
+#| tbl-cap: "Probe R² at the final hidden layer for BabyLM models, at the binomial level by attention condition, with the label-shuffle control and ΔR² (R² minus control). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses. Control values carry an extra decimal place because they sit near zero."
 #| eval: !expr nrow(all_r2) > 0
 
 all_r2 |>
@@ -1430,10 +1428,10 @@ all_r2 |>
     Split     = if_else(split == "pair_novel", "B", "W"),
     `R²`           = sprintf("%.3f (%.3f)", r2_main, sd_main),
     `Control R²`   = sprintf("%.4f (%.4f)", r2_ctrl, sd_ctrl),
-    Selectivity    = sprintf("%.3f", r2_main - r2_ctrl)
+    `ΔR²`    = sprintf("%.3f", r2_main - r2_ctrl)
   ) |>
   arrange(model, condition, split) |>
-  select(Model = model, Condition = condition, Split, `R²`, `Control R²`, Selectivity) |>
+  select(Model = model, Condition = condition, Split, `R²`, `Control R²`, `ΔR²`) |>
   kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
   kable_styling(font_size = 8, latex_options = c("repeat_header")) |>
   collapse_rows(columns = 1:2, latex_hline = "major") |>
@@ -1452,7 +1450,7 @@ Because a Pearson correlation can in principle be carried by a minority of high-
 
 Rank correlations track the Pearson values closely (0.371–0.406 for BabyLM on novel binomials), and the models order the same binomial the same way on 60% to 70% of items against a chance rate of 50%, a statistic that ignores magnitude and weights every binomial equally.
 
-Two further patterns appear in @tbl-agreement. Agreement within a family is roughly constant across all four cells, near $r = 0.68$, whereas agreement between families falls from 0.56 on attested binomials under full context to 0.28 on novel binomials under attention-zeroing. What the models share thus survives novelty when the training corpus is shared and degrades when it is not, as expected if the preference is driven by distributional structure in the training data. This also rules out the shared sentence frame as the source of the agreement: the frame is identical for all sixteen models, so it cannot produce a gap between within-family and between-family agreement.
+Two further patterns appear in @tbl-agreement. Agreement within a family is roughly constant across all four cells, between $r = 0.68$ and $0.72$, whereas agreement between families falls from 0.56 on attested binomials under full context to 0.28 on novel binomials under attention-zeroing. What the models share thus survives novelty when the training corpus is shared and degrades when it is not, as expected if the preference is driven by distributional structure in the training data. This also rules out the shared sentence frame as the source of the agreement: the frame is identical for all sixteen models, so it cannot produce a gap between within-family and between-family agreement.
 
 ```{r}
 #| label: tbl-agreement
@@ -1488,11 +1486,11 @@ read_csv(file.path(RES, "cross_model_agreement_summary.csv"),
 
 We trained the MLP probe using word-level representations for the three BabyLM models to verify that the preference signal is not an artifact of mean pooling across the full binomial phrase. Under this condition the probe receives a concatenation of two word vectors extracted from isolated sentence contexts ("*the bread*", "*the butter*"), so it cannot rely on any co-occurrence signal from the two words' shared sentence context.
 
-Binomial-held-out R² ranges from 0.31 to 0.33, within a few percentage points of the corresponding binomial-level values (0.29–0.34). The generalization pattern is preserved: word-held-out R² is consistently lower than binomial-held-out R² for all three models (word-held-out 0.18–0.20; binomial-minus-word gap 0.127–0.129), confirming that the lexical generalization cost seen at the binomial level is a property of the lexical representation itself rather than an artifact of the mean-pooled representation. The frequency-dependent preference regression was fit at the binomial level only, so it has no word-level counterpart. Full results are in @tbl-r2-babylm-words-only.
+Binomial-held-out R² ranges from 0.28 to 0.31, within a few percentage points of the corresponding binomial-level values (0.29–0.31). The generalization pattern is preserved: word-held-out R² is consistently lower than binomial-held-out R² for all three models (word-held-out 0.15–0.18; binomial-minus-word gap 0.128–0.133), confirming that the lexical generalization cost seen at the binomial level is a property of the lexical representation itself rather than an artifact of the mean-pooled representation. The frequency-dependent preference regression was fit at the binomial level only, so it has no word-level counterpart. Full results are in @tbl-r2-babylm-words-only.
 
 ```{r}
 #| label: tbl-r2-babylm-words-only
-#| tbl-cap: "Word-level probe R² and selectivity (main $-$ control R²) for BabyLM models (final layer). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
+#| tbl-cap: "Word-level probe R² and ΔR² (main $-$ control R²) for BabyLM models (final layer). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
 
 all_r2 |>
   filter(family == "BabyLM", mode == "words_only", condition == "default") |>
@@ -1503,16 +1501,16 @@ all_r2 |>
   rename(r2_main = mean_r2_FALSE, sd_main = sd_r2_FALSE,
          r2_ctrl = mean_r2_TRUE,  sd_ctrl = sd_r2_TRUE) |>
   mutate(
-    selectivity = r2_main - r2_ctrl,
+    delta_r2 = r2_main - r2_ctrl,
     mode        = recode(mode, !!!mode_labels),
     model       = factor(model, levels = model_order),
     Split       = if_else(split == "pair_novel", "B", "W"),
     `R²`        = sprintf("%.3f (%.3f)", r2_main, sd_main),
     Ctrl        = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
-    Sel.        = sprintf("%.3f", selectivity)
+    `ΔR²`       = sprintf("%.3f", delta_r2)
   ) |>
   arrange(model, split) |>
-  select(Model = model, Mode = mode, Split, `R²`, Ctrl, Sel.) |>
+  select(Model = model, Mode = mode, Split, `R²`, Ctrl, `ΔR²`) |>
   kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
   kable_styling(font_size = 8, latex_options = c("repeat_header")) |>
   collapse_rows(columns = 1:2, latex_hline = "major") |>
@@ -1527,11 +1525,11 @@ This appendix provides supplementary materials for Experiment 2 (§\ref{sec-exp2
 
 ## Probe and Control R² {#sec-appendix-full-r2}
 
-Probe R² for all 16 models at the final hidden layer, binomial-level input mode, by attention condition and cross-validation split, alongside the label-shuffle control fit on the same folds and the resulting selectivity. B = binomial-held-out; W = word-held-out. SD across 10 folds in parentheses.
+Probe R² for all 16 models at the final hidden layer, binomial-level input mode, by attention condition and cross-validation split, alongside the label-shuffle control fit on the same folds and the resulting ΔR². B = binomial-held-out; W = word-held-out. SD across 10 folds in parentheses.
 
 ```{r}
 #| label: tbl-r2
-#| tbl-cap: "Probe R² at the final hidden layer for all 16 models, at the binomial level by attention condition, with the label-shuffle control and selectivity (R² minus control). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses. Control values carry an extra decimal place because they sit near zero."
+#| tbl-cap: "Probe R² at the final hidden layer for all 16 models, at the binomial level by attention condition, with the label-shuffle control and ΔR² (R² minus control). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses. Control values carry an extra decimal place because they sit near zero."
 #| eval: !expr nrow(all_r2) > 0
 
 all_r2 |>
@@ -1548,10 +1546,10 @@ all_r2 |>
     Split     = if_else(split == "pair_novel", "B", "W"),
     `R²`         = sprintf("%.3f (%.3f)", r2_main, sd_main),
     `Control R²` = sprintf("%.4f (%.4f)", r2_ctrl, sd_ctrl),
-    Selectivity  = sprintf("%.3f", r2_main - r2_ctrl)
+    `ΔR²`  = sprintf("%.3f", r2_main - r2_ctrl)
   ) |>
   arrange(model, condition, split) |>
-  select(Model = model, Condition = condition, Split, `R²`, `Control R²`, Selectivity) |>
+  select(Model = model, Condition = condition, Split, `R²`, `Control R²`, `ΔR²`) |>
   kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
   kable_styling(font_size = 7, latex_options = c("scale_down", "repeat_header")) |>
   collapse_rows(columns = 1:2, latex_hline = "major") |>
@@ -1564,7 +1562,7 @@ Across all 16 models, word-level probing reproduces the main findings from Exper
 
 ```{r}
 #| label: tbl-r2-words-only
-#| tbl-cap: "Word-level probe R² and selectivity (main $-$ control R²) for all 16 models (final layer). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
+#| tbl-cap: "Word-level probe R² and ΔR² (main $-$ control R²) for all 16 models (final layer). B = binomial-held-out split; W = word-held-out split. SD across 10 folds in parentheses."
 
 all_r2 |>
   filter(mode == "words_only", condition == "default") |>
@@ -1575,16 +1573,16 @@ all_r2 |>
   rename(r2_main = mean_r2_FALSE, sd_main = sd_r2_FALSE,
          r2_ctrl = mean_r2_TRUE,  sd_ctrl = sd_r2_TRUE) |>
   mutate(
-    selectivity = r2_main - r2_ctrl,
+    delta_r2 = r2_main - r2_ctrl,
     mode        = recode(mode, !!!mode_labels),
     model       = factor(model, levels = model_order),
     Split       = if_else(split == "pair_novel", "B", "W"),
     `R²`        = sprintf("%.3f (%.3f)", r2_main, sd_main),
     Ctrl        = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
-    Sel.        = sprintf("%.3f", selectivity)
+    `ΔR²`       = sprintf("%.3f", delta_r2)
   ) |>
   arrange(family, model, split) |>
-  select(Family = family, Model = model, Mode = mode, Split, `R²`, Ctrl, Sel.) |>
+  select(Family = family, Model = model, Mode = mode, Split, `R²`, Ctrl, `ΔR²`) |>
   kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
   kable_styling(font_size = 8, latex_options = c("repeat_header")) |>
   collapse_rows(columns = 1:3, latex_hline = "major") |>
@@ -1619,10 +1617,10 @@ make_ckpt_r2_tbl <- function(df, cond_val, mode_val) {
       Tokens = sprintf("%.0f M", tokens_M),
       `R²`   = sprintf("%.3f (%.3f)", r2_main, sd_main),
       Ctrl   = sprintf("%.3f (%.3f)", r2_ctrl,  sd_ctrl),
-      Sel.   = sprintf("%.3f", r2_main - r2_ctrl)
+      `ΔR²`   = sprintf("%.3f", r2_main - r2_ctrl)
     ) |>
     arrange(model, step, split) |>
-    select(Model = model, Step = step, Tokens, Split, `R²`, Ctrl, Sel.) |>
+    select(Model = model, Step = step, Tokens, Split, `R²`, Ctrl, `ΔR²`) |>
     kbl(longtable = TRUE, booktabs = TRUE, linesep = "") |>
     kable_styling(font_size = 8, latex_options = c("repeat_header")) |>
     collapse_rows(columns = 1:2, latex_hline = "major") |>

@@ -18,6 +18,10 @@ $endif$
 \usepackage{latexsym}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+% The \Delta in the table headers reaches LaTeX as a raw UTF-8 character from
+% kableExtra, and this document builds with pdflatex and no Greek support, so declare
+% it here rather than switching those tables to escape = FALSE.
+\DeclareUnicodeCharacter{0394}{\ensuremath{\Delta}}
 \usepackage{textcomp}   % euro sign and other symbols
 \usepackage{microtype}
 \usepackage{inconsolata}
