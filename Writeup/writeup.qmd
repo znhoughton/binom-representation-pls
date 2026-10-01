@@ -279,7 +279,7 @@ Language models offer a way to study this trade-off that behavioral work cannot.
 
 The evidence for abstract preferences and holistic storage in language models has been more mixed than in the human behavioral literature. Models clearly generalize beyond what they have seen: @misraLanguageModelsLearn2024 show that language models can produce the rare *a beautiful five days* construction even when it is withheld from training, generalizing to it from related constructions that are better attested, and @yaoBothDirectIndirect2025 find that dative alternation preferences are shaped by abstract constraints. At the same time, models retain a great deal item-specifically. @mccoy2023howmuchlanguage find that while model-generated text is often as structurally novel as human text, the same models also reproduce passages of over a thousand words verbatim from their training data. As such, it is clear that both abstract preferences and holistic storage are clearly at play within language models, however what remains unclear is how these types of knowledge trade off and when they emerge during training.
 
-Perhaps most related to the present study, language models' ordering preferences for binomials appear not to be driven by abstract preferences at all]. @houghton2025role examined whether language models showed the same abstract preferences as humans, and found that the models' ordering preferences were driven exclusively by frequency statistics, with no evidence of an effect of abstract preferences. However, that finding faces limitations along two main dimensions. First, the study can only claim to find no evidence that the models' ordering preferences were driven by *human* ordering preferences; it may very well be that their preferences are driven by abstract preferences that simply differ from those humans show. Second, the examination was conducted on model behavior, in the form of output probabilities, rather than over the representations that produce it. A model could in principle derive an ordering from abstract properties of the binomial and still produce output statistics that look frequency-driven.
+Perhaps most related to the present study, language models' ordering preferences for binomials appear not to be driven by abstract preferences at all\]. @houghton2025role examined whether language models showed the same abstract preferences as humans, and found that the models' ordering preferences were driven exclusively by frequency statistics, with no evidence of an effect of abstract preferences. However, that finding faces limitations along two main dimensions. First, the study can only claim to find no evidence that the models' ordering preferences were driven by *human* ordering preferences; it may very well be that their preferences are driven by abstract preferences that simply differ from those humans show. Second, the examination was conducted on model behavior, in the form of output probabilities, rather than over the representations that produce it. A model could in principle derive an ordering from abstract properties of the binomial and still produce output statistics that look frequency-driven.
 
 ## Present Study
 
@@ -375,7 +375,7 @@ y_{\text{true}} &\sim \beta_0 + \beta_1\hat{y} + \beta_2 r + \beta_3 f\\
 \end{aligned}
 $$ {#eq-relfreq}
 
-$y_{\text{true}}$ and $\hat{y}$ are centered and scaled within each fit; $f$ is centered but not scaled; $r$ is left on its original scale, which already runs from $-0.5$ to $+0.5$ (Appendix\ \ref{sec-appendix-relfreq}).
+$y_{\text{true}}$ and $\hat{y}$ are centered and scaled within each fit; $f$ is centered but not scaled; $r$ is left on its original scale, which already runs from $-0.5$ to $+0.5$ (Appendix \ref{sec-appendix-relfreq}).
 
 The residual scale is modeled rather than assumed constant. The spread of $y_{\text{true}}$ varies with frequency, and an unmodeled trend there would inflate the slopes at one end of the range.
 
@@ -622,8 +622,6 @@ Experiment 1 demonstrates that binomial ordering preferences within the BabyLMs 
 
 ### Probe Performance
 
-
-
 @fig-r2 shows both cross-validation splits for all 16 models; full numbers, control probes, and the word-level replication are in Appendix \ref{sec-appendix-exp2}. Control R² was near zero throughout. All large-scale models substantially outperform BabyLM: full-context binomial-held-out R² spans 0.43 to 0.65 against 0.29–0.34, and word-held-out R² is lower than binomial-held-out for every model and condition. Attention-zeroing raises binomial-held-out R² in every large-scale family, most sharply in GPT-2, where it reaches 0.79 at 117M against 0.65 under full context; Llama-3-8B is the sole exception. Scale effects within families are non-monotonic as a function of number of parameters.
 
 ```{r}
@@ -687,7 +685,6 @@ all_r2 |>
     strip.clip = "off"
   )
 ```
-
 
 ```{r}
 #| label: load-brms-all
@@ -1048,7 +1045,7 @@ purrr::map_dfr(names(row_lab), function(s) {
 
 The present study examined whether language models' binomial ordering preferences are driven by abstract structure, and if so, how that structure emerges throughout training. Across 16 models from five families, we found evidence for both abstract and item-specific sources of ordering preference. Preferences generalize to binomials composed entirely of words absent from training, demonstrating abstract structure that is shared across independently trained models. At the same time, a binomial's relative frequency contributes over and above abstract preferences, and contributes more as the binomial becomes more frequent. These two sources also behave differently over training: abstract preferences are present early, whereas the item-specific contribution only becomes measurable later, which bounds when it can be observed rather than when it arises. Finally, zeroing out cross-word attention removes only part of the relative-frequency contribution, suggesting that storage shifts the lexical representations as well as the phrasal one.
 
-The evidence for abstract preferences is particularly strong because it does not depend on generalization across familiar words alone. The probe recovers a model's preference for binomials built entirely from words it was never trained on. A ridge probe with a single tuned hyperparameter recovers the same pattern, showing that the result does not depend on the MLP's capacity (Appendix\ \ref{sec-appendix-linear}). The answer to the question left open by @houghton2025role is therefore that models do have abstract preferences, but ones that a test for human constraints failed to detect. Further evidence that these preferences are systematic comes without the probe at all: independently trained models converge on the same preferences for the same novel binomials ($r = 0.45$, against a shuffled baseline of $r \approx 0.00$). This agreement holds even among the three BabyLM models, which share a training corpus but differ in capacity, and is stronger within model families than between families. Because all sixteen models received the same sentence frame, the latter pattern cannot be attributed to the frame itself.
+The evidence for abstract preferences is particularly strong because it does not depend on generalization across familiar words alone. The probe recovers a model's preference for binomials built entirely from words it was never trained on. A ridge probe with a single tuned hyperparameter recovers the same pattern, showing that the result does not depend on the MLP's capacity (Appendix \ref{sec-appendix-linear}). The answer to the question left open by @houghton2025role is therefore that models do have abstract preferences, but ones that a test for human constraints failed to detect. Further evidence that these preferences are systematic comes without the probe at all: independently trained models converge on the same preferences for the same novel binomials ($r = 0.45$, against a shuffled baseline of $r \approx 0.00$). This agreement holds even among the three BabyLM models, which share a training corpus but differ in capacity, and is stronger within model families than between families. Because all sixteen models received the same sentence frame, the latter pattern cannot be attributed to the frame itself.
 
 Abstract structure, however, does not fully determine a model's preference for a particular binomial. A binomial's relative frequency predicts the model's preference over and above what the abstract structure predicts, and this item-specific contribution increases with frequency. Unlike the abstract structure, this information is specific to the particular binomial. The result therefore reveals a frequency-dependent division between generalizable structure and experience with individual items, closely paralleling the trade-off between abstract preferences and item-specific experience observed by @morgan2016 in humans.
 
@@ -1270,7 +1267,6 @@ tibble::tribble(
   kable_styling(font_size = 9, latex_options = c("repeat_header"))
 ```
 
-
 \newpage
 
 # Frequency-Dependent Preference Regression {#sec-appendix-relfreq}
@@ -1345,7 +1341,6 @@ relfreq |>
   theme_paper(base_size = 8) +
   theme(legend.position = "bottom", panel.spacing = unit(0.6, "lines"))
 ```
-
 
 \newpage
 
@@ -1457,7 +1452,7 @@ We therefore correlate $y_{\text{true}}$ across models on identical binomials, s
 
 The three BabyLM models are the decisive comparison. They share a training corpus and its ordering but differ in capacity, and they are the only models for which the novel binomials are genuinely absent from training (@sec-exp2, Methods). On novel binomials they agree at $r = 0.45$ under full context and $r = 0.41$ under attention-zeroing, against a shuffled baseline of $r \approx 0.00$. In other words, preferences for binomials the models never encountered are reproducible across models of different sizes trained on the same data. They are therefore not arbitrary.
 
-Because a Pearson correlation can in principle be carried by a minority of high-magnitude items, we checked whether the agreement is concentrated in strong preferences while the bulk of binomials agree at chance. It is not. Preferences on novel binomials are not weak to begin with: median $|y_{\text{true}}|$ ranges from 1.79 to 3.21 across the three models, so the preferred ordering is between roughly six and twenty-five times more likely, and only 9% to 17% of binomials fall below 0.5. 
+Because a Pearson correlation can in principle be carried by a minority of high-magnitude items, we checked whether the agreement is concentrated in strong preferences while the bulk of binomials agree at chance. It is not. Preferences on novel binomials are not weak to begin with: median $|y_{\text{true}}|$ ranges from 1.79 to 3.21 across the three models, so the preferred ordering is between roughly six and twenty-five times more likely, and only 9% to 17% of binomials fall below 0.5.
 
 Rank correlations track the Pearson values closely (0.371–0.406 for BabyLM on novel binomials), and the models order the same binomial the same way on 60% to 70% of items against a chance rate of 50%, a statistic that ignores magnitude and weights every binomial equally. Stratifying by preference strength, using the third model's $|y_{\text{true}}|$ so that the bins are independent of the two series being correlated, agreement is graded but present throughout: in the weakest quintile $r = 0.30$ under full context and $0.28$ under attention-zeroing, with directional agreement near 59% in both, rising to $r = 0.61$ and 73% in the strongest. That gradient is itself informative, since agreement increasing with preference strength is the signature of a signal measured with noise rather than of an arbitrary function of a particular set of weights.
 
