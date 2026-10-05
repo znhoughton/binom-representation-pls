@@ -93,3 +93,9 @@ Writeup/writeup_files/figure-latex/
 
 # Draft kept outside the paper build
 Writeup/_experiment4_saved.qmd
+
+
+# The paper source carries the author block in its YAML header, so it is kept out of
+# the public repository while the work is under double-blind review. Re-add it with
+# `git add -f` once the paper is accepted.
+Writeup/writeup.qmd
