@@ -894,13 +894,6 @@ token counts.
 
 \begin{longtable}[t]{llll}
 
-\caption{\label{tbl-models}Models used across experiments. Training
-token counts for full-scale models are approximate; GPT-2 counts are
-estimated from the reported 40GB WebText corpus. BabyLM models train for
-20 epochs over 150M tokens (3B effective token exposures).}
-
-\tabularnewline
-
 \toprule
 Family & Model & Parameters & Tokens\\
 \midrule
@@ -912,7 +905,6 @@ Family & Model & Parameters & Tokens\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  & BabyLM-125M & 125M & 150M\\
 \nopagebreak
@@ -945,7 +937,15 @@ Family & Model & Parameters & Tokens\\
  & Llama-1.3B & 1.2B & \textasciitilde{}9T\\
 \nopagebreak
 \multirow{-2}{*}{\raggedright\arraybackslash Llama} & Llama-3-8B & 8B & \textasciitilde{}15T\\*
+\bottomrule
 
+
+\caption{\label{tbl-models}Models used across experiments. Training
+token counts for full-scale models are approximate; GPT-2 counts are
+estimated from the reported 40GB WebText corpus. BabyLM models train for
+20 epochs over 150M tokens (3B effective token exposures).}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1030,13 +1030,6 @@ average (0.410 vs.~0.466).
 
 \begin{longtable}[t]{llllll}
 
-\caption{\label{tbl-linear}Linear (ridge) versus MLP probe R² at the
-final hidden layer, binomial-level input mode. Both probes use identical
-cross-validation folds. B = binomial-held-out; W = word-held-out. Gap =
-MLP minus linear.}
-
-\tabularnewline
-
 \toprule
 Model & Condition & Split & Linear & MLP & Gap\\
 \midrule
@@ -1048,7 +1041,6 @@ Model & Condition & Split & Linear & MLP & Gap\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & B & 0.169 & 0.244 & +0.075\\
 \nopagebreak
@@ -1177,7 +1169,15 @@ Model & Condition & Split & Linear & MLP & Gap\\
  &  & B & 0.413 & 0.532 & +0.118\\
 \nopagebreak
 \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash pythia-410m} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.392 & 0.461 & +0.069\\*
+\bottomrule
 
+
+\caption{\label{tbl-linear}Linear (ridge) versus MLP probe R² at the
+final hidden layer, binomial-level input mode. Both probes use identical
+cross-validation folds. B = binomial-held-out; W = word-held-out. Gap =
+MLP minus linear.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1216,13 +1216,6 @@ Table~\ref{tbl-cv-sizes} gives the resulting sizes.
 
 \begin{longtable}[t]{llll}
 
-\caption{\label{tbl-cv-sizes}Cross-validation fold sizes for the novel
-set (340,042 binomials over 50,137 unique words). Ranges are across the
-10 folds. Discarded items under word-held-out are binomials with exactly
-one word in the held-out vocabulary fold.}
-
-\tabularnewline
-
 \toprule
 Split & Train / fold & Test / fold & Discarded / fold\\
 \midrule
@@ -1234,11 +1227,18 @@ Split & Train / fold & Test / fold & Discarded / fold\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
 Binomial-held-out & 306,038 & 34,004 & 0\\
 Word-held-out & 271,560--279,306 & 3,086--3,839 & 61,101 (18.0\%)\\*
+\bottomrule
 
+
+\caption{\label{tbl-cv-sizes}Cross-validation fold sizes for the novel
+set (340,042 binomials over 50,137 unique words). Ranges are across the
+10 folds. Discarded items under word-held-out are binomials with exactly
+one word in the held-out vocabulary fold.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1278,19 +1278,6 @@ thing in every corpus.
 
 \begin{longtable}[t]{llllll}
 
-\caption{\label{tbl-relfreq}Frequency-dependent preference regression
-(Equation~\ref{eq-relfreq}) for all 16 models at their final checkpoint,
-by attention condition. \texttt{y\_true} and \texttt{y\_pred} are
-z-scored within each fit; \texttt{rel\_freq} is a proportion from
-\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centered but not scaled,
-so both mean the same thing in every corpus. 95\% credible intervals in
-brackets. Holistic storage predicts a negative \texttt{y\_pred}
-\(\times\) \texttt{log\_freq} and a positive \texttt{rel\_freq}
-\(\times\) \texttt{log\_freq}, both attenuating under
-attention-zeroing.}
-
-\tabularnewline
-
 \toprule
 Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\times$ \texttt{log\_freq} & \texttt{rel\_freq} $\times$ \texttt{log\_freq}\\
 \midrule
@@ -1302,7 +1289,6 @@ Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\t
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  & Full context & 0.418 [0.411, 0.426] & 0.535 [0.519, 0.551] & 0.003 [-0.010, 0.015] & 0.393 [0.363, 0.423]\\
 \nopagebreak
@@ -1367,7 +1353,21 @@ Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\t
  & Full context & 0.607 [0.601, 0.614] & 0.903 [0.880, 0.925] & -0.015 [-0.018, -0.013] & 0.124 [0.116, 0.132]\\
 \nopagebreak
 \multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} & Attention-zeroed & 0.640 [0.633, 0.647] & 0.499 [0.475, 0.523] & -0.016 [-0.018, -0.013] & 0.052 [0.045, 0.060]\\*
+\bottomrule
 
+
+\caption{\label{tbl-relfreq}Frequency-dependent preference regression
+(Equation~\ref{eq-relfreq}) for all 16 models at their final checkpoint,
+by attention condition. \texttt{y\_true} and \texttt{y\_pred} are
+z-scored within each fit; \texttt{rel\_freq} is a proportion from
+\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centered but not scaled,
+so both mean the same thing in every corpus. 95\% credible intervals in
+brackets. Holistic storage predicts a negative \texttt{y\_pred}
+\(\times\) \texttt{log\_freq} and a positive \texttt{rel\_freq}
+\(\times\) \texttt{log\_freq}, both attenuating under
+attention-zeroing.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1471,14 +1471,6 @@ between the two.
 
 \begin{longtable}[t]{llllll}
 
-\caption{\label{tbl-r2-babylm}Probe R² at the final hidden layer for
-BabyLM models, at the binomial level by attention condition, with the
-label-shuffle control and ΔR² (R² minus control). B = binomial-held-out
-split; W = word-held-out split. SD across 10 folds in parentheses.
-Control values carry an extra decimal place because they sit near zero.}
-
-\tabularnewline
-
 \toprule
 Model & Condition & Split & R² & Control R² & ΔR²\\
 \midrule
@@ -1490,7 +1482,6 @@ Model & Condition & Split & R² & Control R² & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & B & 0.314 (0.010) & 0.0001 (0.0001) & 0.314\\
 \nopagebreak
@@ -1515,7 +1506,16 @@ Model & Condition & Split & R² & Control R² & ΔR²\\
  &  & B & 0.263 (0.012) & 0.0000 (0.0000) & 0.263\\
 \nopagebreak
 \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.0001 (0.0001) & 0.121\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-babylm}Probe R² at the final hidden layer for
+BabyLM models, at the binomial level by attention condition, with the
+label-shuffle control and ΔR² (R² minus control). B = binomial-held-out
+split; W = word-held-out split. SD across 10 folds in parentheses.
+Control values carry an extra decimal place because they sit near zero.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1576,14 +1576,6 @@ agreement.
 
 \begin{longtable}[t]{lllll}
 
-\caption{\label{tbl-agreement}Cross-model agreement (Pearson \(r\) on
-\(y_{   ext{true}}\)) for identical binomials, by item set and attention
-condition. Shuffled = one model's values permuted. Within-family
-averages over model pairs from the same family; BabyLM is broken out
-because its novel binomials are genuinely unseen.}
-
-\tabularnewline
-
 \toprule
 Set & Condition & Scope & $r$ & Shuffled\\
 \midrule
@@ -1595,7 +1587,6 @@ Set & Condition & Scope & $r$ & Shuffled\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & All & 0.470 & -0.003\\
 \nopagebreak
@@ -1628,7 +1619,16 @@ Set & Condition & Scope & $r$ & Shuffled\\
  &  & Between family & 0.403 & -0.002\\
 \nopagebreak
 \multirow{-8}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Novel} & \multirow{-4}{*}{\raggedright\arraybackslash Full context} & Within BabyLM & 0.452 & -0.002\\*
+\bottomrule
 
+
+\caption{\label{tbl-agreement}Cross-model agreement (Pearson \(r\) on
+\(y_{   ext{true}}\)) for identical binomials, by item set and attention
+condition. Shuffled = one model's values permuted. Within-family
+averages over model pairs from the same family; BabyLM is broken out
+because its novel binomials are genuinely unseen.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1658,13 +1658,6 @@ counterpart. Full results are in Table~\ref{tbl-r2-babylm-words-only}.
 
 \begin{longtable}[t]{llllll}
 
-\caption{\label{tbl-r2-babylm-words-only}Word-level probe R² and ΔR²
-(main \(-\) control R²) for BabyLM models (final layer). B =
-binomial-held-out split; W = word-held-out split. SD across 10 folds in
-parentheses.}
-
-\tabularnewline
-
 \toprule
 Model & Mode & Split & R² & Ctrl & ΔR²\\
 \midrule
@@ -1676,7 +1669,6 @@ Model & Mode & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & B & 0.312 (0.012) & 0.000 (0.000) & 0.312\\
 \nopagebreak
@@ -1687,7 +1679,15 @@ Model & Mode & Split & R² & Ctrl & ΔR²\\
  &  & B & 0.306 (0.003) & 0.000 (0.000) & 0.306\\
 \nopagebreak
 \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-6}{*}{\raggedright\arraybackslash Word-level} & W & 0.177 (0.023) & 0.000 (0.000) & 0.177\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-babylm-words-only}Word-level probe R² and ΔR²
+(main \(-\) control R²) for BabyLM models (final layer). B =
+binomial-held-out split; W = word-held-out split. SD across 10 folds in
+parentheses.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1715,14 +1715,6 @@ parentheses.
 
 \begin{longtable}[t]{llllll}
 
-\caption{\label{tbl-r2}Probe R² at the final hidden layer for all 16
-models, at the binomial level by attention condition, with the
-label-shuffle control and ΔR² (R² minus control). B = binomial-held-out
-split; W = word-held-out split. SD across 10 folds in parentheses.
-Control values carry an extra decimal place because they sit near zero.}
-
-\tabularnewline
-
 \toprule
 Model & Condition & Split & R² & Control R² & ΔR²\\
 \midrule
@@ -1734,7 +1726,6 @@ Model & Condition & Split & R² & Control R² & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & B & 0.314 (0.010) & 0.0001 (0.0001) & 0.314\\
 \nopagebreak
@@ -1863,7 +1854,16 @@ Model & Condition & Split & R² & Control R² & ΔR²\\
  &  & B & 0.521 (0.016) & 0.0000 (0.0000) & 0.521\\
 \nopagebreak
 \multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.470 (0.024) & 0.0002 (0.0002) & 0.470\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2}Probe R² at the final hidden layer for all 16
+models, at the binomial level by attention condition, with the
+label-shuffle control and ΔR² (R² minus control). B = binomial-held-out
+split; W = word-held-out split. SD across 10 folds in parentheses.
+Control values carry an extra decimal place because they sit near zero.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1888,12 +1888,6 @@ Table~\ref{tbl-r2-words-only}.
 
 \begin{longtable}[t]{lllllll}
 
-\caption{\label{tbl-r2-words-only}Word-level probe R² and ΔR² (main
-\(-\) control R²) for all 16 models (final layer). B = binomial-held-out
-split; W = word-held-out split. SD across 10 folds in parentheses.}
-
-\tabularnewline
-
 \toprule
 Family & Model & Mode & Split & R² & Ctrl & ΔR²\\
 \midrule
@@ -1905,7 +1899,6 @@ Family & Model & Mode & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  &  & B & 0.312 (0.012) & 0.000 (0.000) & 0.312\\
 \nopagebreak
@@ -1966,7 +1959,14 @@ Family & Model & Mode & Split & R² & Ctrl & ΔR²\\
  &  &  & B & 0.523 (0.006) & 0.000 (0.000) & 0.523\\
 \nopagebreak
 \multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia} & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & \multirow{-32}{*}{\raggedright\arraybackslash Word-level} & W & 0.454 (0.024) & 0.000 (0.000) & 0.454\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-words-only}Word-level probe R² and ΔR² (main
+\(-\) control R²) for all 16 models (final layer). B = binomial-held-out
+split; W = word-held-out split. SD across 10 folds in parentheses.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -1993,12 +1993,6 @@ representation under full-context and attention-zeroed conditions.
 
 \begin{longtable}[t]{lrlllll}
 
-\caption{\label{tbl-r2-checkpoints-babylm-default-mean}BabyLM checkpoint
-probe R²:full context, binomial-level. B = binomial-held-out; W =
-word-held-out. SD in parentheses.}
-
-\tabularnewline
-
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \midrule
@@ -2010,7 +2004,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & 20 M & B & 0.671 (0.022) & 0.000 (0.000) & 0.671\\
 \nopagebreak
@@ -2083,7 +2076,14 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
  &  & 1848 M & B & 0.315 (0.007) & 0.000 (0.000) & 0.315\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.180 (0.024) & 0.000 (0.000) & 0.179\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-checkpoints-babylm-default-mean}BabyLM checkpoint
+probe R²:full context, binomial-level. B = binomial-held-out; W =
+word-held-out. SD in parentheses.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2091,11 +2091,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
-
-\caption{\label{tbl-r2-checkpoints-babylm-attn-mean}BabyLM checkpoint
-probe R²:attention-zeroed, binomial-level.}
-
-\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
@@ -2108,7 +2103,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & 20 M & B & 0.799 (0.019) & 0.000 (0.000) & 0.799\\
 \nopagebreak
@@ -2181,7 +2175,13 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
  &  & 1848 M & B & 0.268 (0.007) & 0.000 (0.000) & 0.268\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.131 (0.026) & 0.000 (0.000) & 0.131\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-checkpoints-babylm-attn-mean}BabyLM checkpoint
+probe R²:attention-zeroed, binomial-level.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2189,11 +2189,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
-
-\caption{\label{tbl-r2-checkpoints-pythia-default-mean}Pythia checkpoint
-probe R²:full context, binomial-level.}
-
-\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
@@ -2206,7 +2201,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & 34 M & B & 0.681 (0.005) & 0.000 (0.000) & 0.681\\
 \nopagebreak
@@ -2279,7 +2273,13 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
  &  & 2097 M & B & 0.764 (0.005) & 0.000 (0.000) & 0.764\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.683 (0.016) & 0.000 (0.000) & 0.683\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-checkpoints-pythia-default-mean}Pythia checkpoint
+probe R²:full context, binomial-level.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2287,11 +2287,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
-
-\caption{\label{tbl-r2-checkpoints-pythia-attn-mean}Pythia checkpoint
-probe R²:attention-zeroed, binomial-level.}
-
-\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
@@ -2304,7 +2299,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & 34 M & B & 0.692 (0.009) & 0.000 (0.000) & 0.692\\
 \nopagebreak
@@ -2377,7 +2371,13 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
  &  & 2097 M & B & 0.760 (0.007) & 0.000 (0.000) & 0.760\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.660 (0.017) & 0.000 (0.000) & 0.660\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-checkpoints-pythia-attn-mean}Pythia checkpoint
+probe R²:attention-zeroed, binomial-level.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2385,16 +2385,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \begingroup\fontsize{6}{8}\selectfont
 
 \begin{longtable}[t]{lrlllll}
-
-\caption{\label{tbl-relfreq-checkpoints}Frequency-dependent preference
-regression (Equation~\ref{eq-relfreq}) at every training checkpoint,
-both attention conditions. \texttt{y\_true} and \texttt{y\_pred} are
-z-scored within each fit; \texttt{rel\_freq} is a proportion from
-\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centered but not scaled,
-so both mean the same thing in every corpus. 95\% credible intervals in
-brackets.}
-
-\tabularnewline
 
 \toprule
 Model & Step & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\times$ \texttt{log\_freq} & \texttt{rel\_freq} $\times$ \texttt{log\_freq}\\
@@ -2407,7 +2397,6 @@ Model & Step & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pr
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  & 24 & Full context & 0.625 [0.618, 0.632] & -0.020 [-0.035, -0.006] & 0.033 [0.021, 0.045] & 0.003 [-0.026, 0.032]\\
 \nopagebreak
@@ -2552,7 +2541,18 @@ Model & Step & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pr
  & 512 & Attention-zeroed & 0.643 [0.636, 0.650] & 0.446 [0.422, 0.469] & -0.002 [-0.005, 0.001] & 0.064 [0.056, 0.073]\\
 \nopagebreak
 \multirow{-12}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & Attention-zeroed & 0.652 [0.645, 0.659] & 0.410 [0.387, 0.434] & -0.003 [-0.006, -0.001] & 0.060 [0.052, 0.068]\\*
+\bottomrule
 
+
+\caption{\label{tbl-relfreq-checkpoints}Frequency-dependent preference
+regression (Equation~\ref{eq-relfreq}) at every training checkpoint,
+both attention conditions. \texttt{y\_true} and \texttt{y\_pred} are
+z-scored within each fit; \texttt{rel\_freq} is a proportion from
+\(-0.5\) to \(+0.5\) and \texttt{log\_freq} is centered but not scaled,
+so both mean the same thing in every corpus. 95\% credible intervals in
+brackets.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2576,12 +2576,6 @@ coefficients are in Table~\ref{tbl-relfreq-checkpoints}.
 
 \begin{longtable}[t]{lrlllll}
 
-\caption{\label{tbl-r2-checkpoints-babylm-default-words}BabyLM
-checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
-word-held-out. SD in parentheses.}
-
-\tabularnewline
-
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \midrule
@@ -2593,7 +2587,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & 20 M & B & 0.450 (0.056) & 0.000 (0.000) & 0.450\\
 \nopagebreak
@@ -2666,7 +2659,14 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
  &  & 1848 M & B & 0.320 (0.004) & 0.000 (0.000) & 0.320\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.185 (0.022) & 0.000 (0.000) & 0.184\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-checkpoints-babylm-default-words}BabyLM
+checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
+word-held-out. SD in parentheses.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}
@@ -2674,12 +2674,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrlllll}
-
-\caption{\label{tbl-r2-checkpoints-pythia-default-words}Pythia
-checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
-word-held-out. SD in parentheses.}
-
-\tabularnewline
 
 \toprule
 Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
@@ -2692,7 +2686,6 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 \endhead
 
 \endfoot
-\bottomrule
 \endlastfoot
  &  & 34 M & B & 0.563 (0.009) & 0.000 (0.000) & 0.562\\
 \nopagebreak
@@ -2765,7 +2758,14 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
  &  & 2097 M & B & 0.723 (0.004) & 0.000 (0.000) & 0.723\\
 \nopagebreak
 \multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.619 (0.019) & 0.001 (0.000) & 0.618\\*
+\bottomrule
 
+
+\caption{\label{tbl-r2-checkpoints-pythia-default-words}Pythia
+checkpoint probe R²:full context, word-level. B = binomial-held-out; W =
+word-held-out. SD in parentheses.}
+
+\tabularnewline
 \end{longtable}
 
 \endgroup{}

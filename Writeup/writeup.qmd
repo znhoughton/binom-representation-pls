@@ -19,11 +19,13 @@ abstract: |
   Humans balance abstract and item-specific knowledge when ordering binomials: abstract constraints shape the preferences for infrequent binomials, while idiosyncratic knowledge drives them for frequent ones. Evaluating 16 language models across five families, we demonstrate a parallel trade-off. Probing hidden-state representations shows that language models do learn abstract preferences. However, a binomial's relative frequency in the training corpus predicts a model's preference over and above anything those abstract preferences supply, and predicts it more strongly for high-frequency binomials. To locate that item-specific component, we zero out cross-word attention, forcing the representation into a strictly additive function of the two words. The intervention mitigates but does not remove the idiosyncrasy of high-frequency binomials, indicating that the lexical representations themselves come to represent some amount of the phrase-level representation as well. Examining the developmental trajectory across checkpoints further shows that abstract preferences are present early while the frequency-dependent storage is not observable until later, with the point of detection governed by training tokens rather than model scale.
 
 bibliography: references.bib
-# Captions above tables. With bottom captions Quarto appends the caption as a
+# Captions below tables, per ACL convention. Quarto appends the caption as a
 # trailing row of the longtable, so kableExtra's \bottomrule (which lives in
-# \endlastfoot) is emitted *after* it and draws a rule underneath the caption
-# text. Placing the caption in the header removes that stray rule.
-tbl-cap-location: top
+# \endlastfoot) would otherwise be typeset after it and draw a rule underneath
+# the caption text. The acl extension's longtable-bottomrule.lua filter moves the
+# rule out of \endlastfoot and onto the end of the body, which fixes it at the
+# template level so every table here keeps a bottom caption.
+tbl-cap-location: bottom
 header-includes:
   - \usepackage{float}
 execute:
@@ -1065,6 +1067,7 @@ Finally, the intervention separates additive from non-additive information, not 
 \bibliography{references}
 \clearpage
 ```
+
 \onecolumn
 
 \appendix
@@ -1092,6 +1095,7 @@ Finally, the intervention separates additive from non-additive information, not 
 \raggedbottom
 \floatplacement{figure}{H}
 ```
+
 # Model Details {#sec-appendix-models}
 
 Table \ref{tbl-models} lists all 16 models used across experiments, organized by family, with approximate parameter counts and training token counts.
