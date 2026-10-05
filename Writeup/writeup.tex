@@ -9,6 +9,48 @@
 % Do NOT load those packages again here.
 \usepackage[review]{acl}
 
+% --- Link footnotes ---------------------------------------------------------
+% Set any of these in the document YAML:
+%   code-url / anon-code-url          written in the text as \codefootnote
+%   weights-url / anon-weights-url    written in the text as \weightsfootnote
+% acl-mode decides which URL of each pair appears, so the anonymous and the
+% camera-ready builds come from one source and the URLs live in the header
+% rather than being typed into the prose. With no anon-* URL set, the review
+% build says the link is withheld; with no url at all, nothing is emitted.
+\newcommand{\coderepourl}{https://github.com/znhoughton/binom-representation-pls}
+\newcommand{\anoncoderepourl}{https://anonymous.4open.science/r/binom-representation-pls-6EA0/}
+
+
+\newcommand{\aclmodename}{review}
+\newcommand{\codefootnote}{%
+  \ifnum\pdfstrcmp{\aclmodename}{review}=0
+    \ifdefined\anoncoderepourl
+      \footnote{All code and analyses in this paper can be found here: \url{\anoncoderepourl}.}%
+    \else
+      \footnote{All code and analyses will be released on acceptance; the link is
+        omitted here to preserve double-blind review.}%
+    \fi
+  \else
+    \ifdefined\coderepourl
+      \footnote{All code and analyses in this paper can be found here: \url{\coderepourl}.}%
+    \fi
+  \fi}
+\newcommand{\weightsfootnote}{%
+  \ifnum\pdfstrcmp{\aclmodename}{review}=0
+    \ifdefined\anonweightsrepourl
+      \footnote{Model weights and checkpoints are released at \url{\anonweightsrepourl}.}%
+    \else
+      \footnote{A model-weights link is omitted here to preserve double-blind
+        review; the weights and checkpoints are released.}%
+    \fi
+  \else
+    \ifdefined\weightsrepourl
+      \footnote{Model weights and checkpoints are released at \url{\weightsrepourl}.}%
+    \fi
+  \fi}
+
+
+
 % Packages from the official ACL template (acl_latex.tex) — safe to load after acl.sty
 \usepackage{times}
 \usepackage{latexsym}
@@ -296,7 +338,7 @@ All three experiments apply the same procedure and differ only in which
 models\footnote{Appendix \ref{sec-appendix-models} lists all sixteen
   models with their parameter counts and training-token estimates.} and
 checkpoints it is applied to. This section describes that procedure: the
-datasets, the probes, and the analyses.
+datasets, the probes, and the analyses.\codefootnote
 
 \subsection{Datasets}\label{datasets}
 
