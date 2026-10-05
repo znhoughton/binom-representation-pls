@@ -9,8 +9,8 @@ Wikipedia (~340k pairs) via 10-fold cross-validation. Three embedding modes,
 two experimental conditions, and a Hewitt & Liang (2019) label-shuffle control
 are supported throughout.
 
-Current results: [`Writeup/writeup.qmd`](Writeup/writeup.qmd) (renders to the ACL
-paper). Earlier pilot notes are archived in
+Current results are reported in the rendered paper under `Writeup/`; the Quarto
+source is withheld while the work is under double-blind review. Earlier pilot notes are archived in
 [`docs/archive/`](docs/archive/).
 
 ---
@@ -74,8 +74,8 @@ binom-corpus-pls/
 │       ├── per_word_preference.py
 │       └── ...
 │
-├── Writeup/                               # Quarto paper (ACL format)
-│   └── writeup.qmd                        #   Renders with: quarto render --to acl-pdf
+├── Writeup/                               # rendered paper (ACL format)
+│                                          #   source withheld during review
 │
 ├── docs/archive/                          # Notes from pilot and superseded analyses
 │
