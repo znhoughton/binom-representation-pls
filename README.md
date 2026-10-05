@@ -3,9 +3,9 @@
 MLP probing of transformer layers for binomial ordering preferences, across
 model scale and training dynamics.
 
-Attested binomials from the BabyLM training corpus (~49k pairs) are used as
+Attested binomials from the BabyLM training corpus (about 49k pairs) are used as
 transfer-training data; predictions are evaluated on novel binomials from
-Wikipedia (~340k pairs) via 10-fold cross-validation. Three embedding modes,
+Wikipedia (about 340k pairs) via 10-fold cross-validation. Three embedding modes,
 two experimental conditions, and a Hewitt & Liang (2019) label-shuffle control
 are supported throughout.
 
