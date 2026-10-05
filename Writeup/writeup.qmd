@@ -1,6 +1,8 @@
 ---
 title: "Stored or Computed? Separating Compositional from Holistic Representations of Binomials in Language Models"
 acl-mode: review
+code-url: https://github.com/znhoughton/binom-representation-pls
+# anon-code-url: https://anonymous.4open.science/r/XXXXXX
 format:
   acl-pdf:
     keep-tex: true
@@ -295,7 +297,7 @@ Our main contributions are:
 
 # Methods {#sec-methods}
 
-All three experiments apply the same procedure and differ only in which models[^1] and checkpoints it is applied to. This section describes that procedure: the datasets, the probes, and the analyses.
+All three experiments apply the same procedure and differ only in which models[^1] and checkpoints it is applied to. This section describes that procedure: the datasets, the probes, and the analyses.`\codefootnote`{=latex}
 
 [^1]: Appendix \ref{sec-appendix-models} lists all sixteen models with their parameter counts and training-token estimates.
 
