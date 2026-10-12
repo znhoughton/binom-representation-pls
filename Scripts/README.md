@@ -43,10 +43,52 @@ Outputs `Data/corpus_binomials.csv`, `Data/wikipedia_novel_binomials.csv`, and
 | `run_babylm_checkpoints.py` | BabyLM training checkpoints |
 | `run_pythia_checkpoints.py` | Pythia checkpoints, **all layers**. The main paper uses `run_scale_models.py --checkpoints` (final layer only); this one is kept because the supplementary driver below needs every layer |
 | `run_pythia_supplementary_babylm_checkpoints.sh` | Pythia by-layer checkpoints at BabyLM-comparable token counts |
+| `make_random_init.py` | Rebuilds the BabyLM models' untrained initializations (seed 964, config pulled from the published repo) |
+| `run_step0_baseline.py` | Checkpoint-0 floor for Experiment 3: the same final-layer probe on models that have seen zero tokens |
 
 Writes `Results/{slug}/by_layer_mlp.csv`, `by_layer_mlp_control.csv`, and
 `by_layer_corpus_pred.csv.xz`. The `.npz` embeddings and `.xz` predictions are
 gitignored: together they are ~17 GB and regenerable from here.
+
+### Checkpoint 0
+
+Experiment 3 reads a high probe R² at the earliest saved checkpoint as abstract
+preferences being present early in training. That reading needs a floor: an
+untrained model of the same architecture, probed the same way. `run_step0_baseline.py`
+supplies it.
+
+```bash
+python Scripts/pipeline/run_step0_baseline.py --models babylm-125m --gpu 0   # time one cell
+python Scripts/pipeline/run_step0_baseline.py --gpu 0                        # all six
+python Scripts/pipeline/run_step0_baseline.py --help-agreement               # the follow-up
+```
+
+Pythia publishes its initialization as revision `step0`, so that half needs no
+reconstruction. The BabyLM models were trained from scratch under the HF
+Trainer, which writes nothing before the first `save_steps`, so
+`make_random_init.py` rebuilds their init: `set_seed(964)` then
+`AutoModelForCausalLM.from_config(...)`, the same two calls in the same order as
+`train_autoreg.py`, with the config pulled from the published repo rather than
+from `facebook/opt-*` so the init cannot disagree with the trained model about
+architecture. It prints `do_layer_norm_before` and `word_embed_proj_dim`, which
+is where the post-LN bug entered. Exact reproduction of the original draw is
+likely but not guaranteed; `--seeds` puts several independent draws on the plot
+if one looks too convenient.
+
+Results land under the existing checkpoint convention
+(`Results/{slug}_step0/`), so adding `0` to the step vectors in
+`Writeup/writeup.qmd` and in `corpus_relfreq_brms_all.R`'s `CKPT_REGISTRY` is
+all that is needed to pull step 0 into the Experiment 3 figures, tables, and
+Eq. 1 fits.
+
+A high step-0 R² would not by itself mean the architecture knows English. The
+probe target is the model's own log-probability difference between the two
+orderings, so at every checkpoint the probe is recovering the model's own
+scoring function from the hidden states that feed it, and for an untrained net
+that function is arbitrary but still smooth and still a function of exactly
+those representations. `cross_model_agreement.py --slug-suffix _step0 --out-tag
+step0` is what separates the two readings: an arbitrary function of one random
+init has no reason to match another random init.
 
 ## analysis/ — the regressions in the paper
 
@@ -91,7 +133,7 @@ mismatch silently mislabels every frequency axis.
 | `supplementary_jobs.py` | Emits that driver's job list |
 | `supplementary_probes.py` | The probe analyses themselves; standalone |
 | `supplementary_backfill_markers.py` | Writes completion markers so a re-run skips finished cells |
-| `cross_model_agreement.py` | Do independently trained models agree on novel binomials? |
+| `cross_model_agreement.py` | Do independently trained models agree on novel binomials? `--slug-suffix`/`--out-tag` point it at a checkpoint slice instead of the final models |
 | `agreement_by_strength.py` | Is that agreement carried by a few high-magnitude items? |
 | `per_word_preference.py` | Word-level ordering preferences |
 | `probe_convergence.py` | Do probes on different models converge on the same solution? |

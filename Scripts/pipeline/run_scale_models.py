@@ -205,14 +205,19 @@ def model_complete(slug: str) -> bool:
 
 def run_model(model: dict, gpu: int, emb_dir: Path,
               skip_controls: bool, force: bool = False,
-              revision: str = None):
+              revision: str = None, slug_override: str = None):
     """Run final-layer extraction + probes for one model (or one checkpoint).
 
     revision: HF Hub revision string (e.g. "step256" for Pythia). When given,
               appended to the slug and passed to extraction with --revision.
+    slug_override: write results under this slug instead of one derived from
+              model["id"]. Needed when model["id"] is a local directory rather
+              than a Hub id, which is how run_step0_baseline.py probes the
+              reconstructed BabyLM initializations: the path would otherwise
+              become the slug.
     """
     base_slug = model_slug(model["id"])
-    slug = f"{base_slug}_{revision}" if revision else base_slug
+    slug = slug_override or (f"{base_slug}_{revision}" if revision else base_slug)
 
     if not force and model_complete(slug):
         banner(f"MODEL: {model['id']}  {revision or 'final'}  ALREADY COMPLETE — skipping")

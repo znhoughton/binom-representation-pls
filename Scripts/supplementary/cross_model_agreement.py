@@ -145,11 +145,31 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sets", nargs="*", default=["attested", "novel"])
     ap.add_argument("--conditions", nargs="*", default=["default", "attn_zeroed"])
+    # Lets the same analysis run over a checkpoint slice of the sweep instead of
+    # the final models. The step-0 baseline is why this exists: whether UNTRAINED
+    # models agree with each other is what separates real shared structure from a
+    # probe recovering one random net's arbitrary function. See
+    # Scripts/pipeline/run_step0_baseline.py --help-agreement.
+    ap.add_argument("--slug-suffix", default="", dest="slug_suffix",
+                    help="Append to every slug in FAMILY, e.g. _step0 or _step16")
+    ap.add_argument("--out-tag", default="", dest="out_tag",
+                    help="Suffix for the output filenames, so a checkpoint run "
+                         "does not overwrite the final-model results")
     args = ap.parse_args()
 
     rng = np.random.default_rng(SEED)
+    # Re-key FAMILY to the slugs actually on disk, so the FAMILY[a] lookups in
+    # the pair loop below still resolve once a suffix is applied.
+    if args.slug_suffix:
+        for base in list(FAMILY):
+            FAMILY[base + args.slug_suffix] = FAMILY.pop(base)
     slugs = [s for s in FAMILY if (RES / s).is_dir()]
-    print(f"model dirs found: {len(slugs)}/{len(FAMILY)}\n", flush=True)
+    suffix_note = f"  (suffix {args.slug_suffix!r})" if args.slug_suffix else ""
+    print(f"model dirs found: {len(slugs)}/{len(FAMILY)}{suffix_note}\n", flush=True)
+    if len(slugs) < 2:
+        raise SystemExit(
+            "fewer than 2 model dirs match, nothing to correlate. Check that the "
+            "suffix matches the slugs actually present in Results/.")
 
     rows, summaries = [], []
     for item_set in args.sets:
@@ -226,9 +246,12 @@ def main():
     if not rows:
         raise SystemExit("no cells produced results")
 
-    pd.DataFrame(rows).to_csv(RES / "cross_model_agreement.csv", index=False)
+    tag = f"_{args.out_tag}" if args.out_tag else ""
+    out_pairs   = RES / f"cross_model_agreement{tag}.csv"
+    out_summary = RES / f"cross_model_agreement{tag}_summary.csv"
+    pd.DataFrame(rows).to_csv(out_pairs, index=False)
     S = pd.DataFrame(summaries)
-    S.to_csv(RES / "cross_model_agreement_summary.csv", index=False)
+    S.to_csv(out_summary, index=False)
 
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 30)
@@ -238,8 +261,8 @@ def main():
     print("  absolute level inflated by the shared sentence frame; read CONTRASTS")
     print("=" * 78)
     print(S.round(3).to_string(index=False))
-    print(f"\nwrote {RES / 'cross_model_agreement.csv'}")
-    print(f"wrote {RES / 'cross_model_agreement_summary.csv'}")
+    print(f"\nwrote {out_pairs}")
+    print(f"wrote {out_summary}")
 
 
 if __name__ == "__main__":
