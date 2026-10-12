@@ -99,3 +99,14 @@ Writeup/_experiment4_saved.qmd
 # the public repository while the work is under double-blind review. Re-add it with
 # `git add -f` once the paper is accepted.
 Writeup/writeup.qmd
+# Carrier-sentence harvest (Scripts/corpus/harvest_carrier_sentences.py).
+# ~92 MB and regenerable in ~40 min from a streaming Wikipedia pass.
+Data/carrier_sentences.csv
+Data/carrier_sentences_shard*.csv
+
+# Reconstructed checkpoint-0 weights (Scripts/pipeline/make_random_init.py).
+# ~6.5 GB of fp32 safetensors, rebuilt from config + seed in a couple of minutes.
+Data/random_init/
+
+# Cached pilot extractions (Scripts/pipeline/pilot_cross_context.py).
+Data/pilot_cache/
