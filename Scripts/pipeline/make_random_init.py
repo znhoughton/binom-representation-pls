@@ -162,8 +162,11 @@ def main():
     built = []
     for flag in args.models:
         for seed in args.seeds:
-            print(f"── {flag}  seed={seed} "
-                  f"{'─' * max(0, 44 - len(flag))}", flush=True)
+            # ASCII only. The box-drawing characters the other pipeline scripts
+            # use crash this one on a cp1252 console, and a banner is not worth
+            # an encoding dependency.
+            print(f"-- {flag}  seed={seed} "
+                  f"{'-' * max(0, 44 - len(flag))}", flush=True)
             built.append(build(flag, seed, args.force))
             print(flush=True)
 
