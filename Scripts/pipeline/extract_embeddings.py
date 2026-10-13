@@ -761,6 +761,17 @@ def main():
             cs = pd.read_csv(carrier_path)
             cs = cs[(cs["set"] == args.data)
                     & cs["sent_1"].notna() & cs["sent_2"].notna()]
+            # Reduplicatives ("again and again") have identical orderings, so
+            # the preference is exactly 0 in both sentences. Under the
+            # cross-context target that makes the probe trivially correct on
+            # them, inflating R2 for free. Eq. 1 already drops them, for a
+            # different reason: zero outcome variance parked at rel_freq=+0.5
+            # biases that slope toward zero. Dropping here keeps the probe and
+            # the regression on the same item set.
+            n_redup = int((cs["word1"].astype(str) == cs["word2"].astype(str)).sum())
+            cs = cs[cs["word1"].astype(str) != cs["word2"].astype(str)]
+            if n_redup:
+                print(f"Dropped {n_redup:,} reduplicatives")
             pairs_df = pd.DataFrame({
                 "word1": cs["word1"].values, "word2": cs["word2"].values,
                 "example_sentence": cs["sent_1"].values,

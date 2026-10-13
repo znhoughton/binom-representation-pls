@@ -82,8 +82,15 @@ def load_targets():
                      ("novel", "wikipedia_novel_binomials.csv")]:
         df = pd.read_csv(DATA / fn)
         for w1, w2 in zip(df["word1"].astype(str), df["word2"].astype(str)):
-            key = tuple(sorted((w1.lower().strip(), w2.lower().strip())))
-            out.setdefault(key, name)
+            a, b = w1.lower().strip(), w2.lower().strip()
+            # Reduplicatives are excluded everywhere downstream (Eq. 1 drops
+            # them because zero outcome variance at rel_freq=+0.5 biases that
+            # slope; the probe drops them because a preference of exactly 0 in
+            # both sentences is free accuracy). No point harvesting sentences
+            # for items nothing will use.
+            if a == b:
+                continue
+            out.setdefault(tuple(sorted((a, b))), name)
     return out
 
 
@@ -96,8 +103,10 @@ def main():
                    help="Sentences to keep per pair (default 2)")
     p.add_argument("--max-similarity", type=float, default=0.8,
                    dest="max_similarity",
-                   help="Reject a further sentence this similar to one already "
-                        "kept for the pair (default 0.8)")
+                   help="Reject a further sentence whose LEFT CONTEXT is this "
+                        "similar to one already kept for the pair (default 0.8). "
+                        "The prefix is what the model sees; the tail is "
+                        "truncated at the binomial and never reaches it.")
     p.add_argument("--max-articles", type=int, default=None, dest="max_articles",
                    help="Stop after N articles. Use for a coverage projection.")
     p.add_argument("--num-shards", type=int, default=1, dest="num_shards")
@@ -158,12 +167,21 @@ def main():
                     # context, which makes a cross-context measure vacuous for
                     # that pair. Runs at most once per pair reaching its second
                     # sentence, so the cost is negligible.
+                    # Compare PREFIXES, not whole sentences. Extraction
+                    # truncates at the binomial (sent[:s] + w1 + " and " + w2),
+                    # so the model never sees anything after it and only the
+                    # prefix is the context. Comparing full sentences let
+                    # identical contexts through whenever the tails differed:
+                    # "He owned early American and Chippendale furniture..."
+                    # and the same line continuing "...and possessed" scored
+                    # under 0.8 despite a byte-identical prefix.
+                    pfx = sent[:m.start()]
                     prior = found.get(key) or []
-                    if any(difflib.SequenceMatcher(None, sent, q).ratio()
+                    if any(difflib.SequenceMatcher(None, pfx, q[1]).ratio()
                            > args.max_similarity for q in prior):
                         continue
                     bucket.add(sent)
-                    found.setdefault(key, []).append(sent)
+                    found.setdefault(key, []).append((sent, pfx))
 
         if n_art % args.report_every == 0:
             n1 = len(found)
@@ -179,7 +197,7 @@ def main():
         r = {"word1": key[0], "word2": key[1], "set": targets[key],
              "n_found": len(sents)}
         for i in range(args.per_pair):
-            r[f"sent_{i+1}"] = sents[i] if i < len(sents) else None
+            r[f"sent_{i+1}"] = sents[i][0] if i < len(sents) else None
         rows.append(r)
     df = pd.DataFrame(rows)
     df.to_csv(out_path, index=False)
