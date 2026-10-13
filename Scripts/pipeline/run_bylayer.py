@@ -55,7 +55,8 @@ def run_label(label):
 
 
 def extract_sharded(model, cond, data_split, gpu, emb_root, force=False,
-                    checkpoint=None, revision=None, layers_override=None):
+                    checkpoint=None, revision=None, layers_override=None,
+                    carriers=False):
     """Extract embeddings using subprocess sharding to bound memory.
 
     layers_override: list of layer strings (e.g. ["last"]) to extract instead
@@ -132,6 +133,8 @@ def extract_sharded(model, cond, data_split, gpu, emb_root, force=False,
             "--shard-index", str(shard),
             "--num-shards", str(n_shards),
         ]
+        if carriers:
+            cmd += ["--carriers"]
         if revision is not None:
             cmd += ["--revision", revision]
         elif checkpoint is not None:
@@ -245,6 +248,10 @@ def main():
     p.add_argument("--revision", default=None,
                    help="Exact HF Hub revision string (overrides --checkpoint; "
                         "use for Pythia-style 'step1000' tags with no hyphen)")
+    p.add_argument("--carriers", action="store_true",
+                   help="Extract from Data/carrier_sentences.csv: two prefixed "
+                        "occurrences per pair, the second giving the "
+                        "cross-context target.")
     p.add_argument("--slug",       default=None,
                    help="Override output slug (directory name) for the selected model")
     p.add_argument("--extract-batch-size", type=int, default=None, dest="extract_batch_size",
@@ -307,7 +314,8 @@ def main():
                     ok = extract_sharded(model, cond, data_split, args.gpu, emb_root,
                                          args.force, checkpoint=args.checkpoint,
                                          revision=args.revision,
-                                         layers_override=args.layers)
+                                         layers_override=args.layers,
+                                         carriers=args.carriers)
                     _extract_done += 1
                     _pct = round(100 * _extract_done / _n_extract) if _n_extract else 0
                     status = "OK" if ok else "FAILED"

@@ -205,7 +205,8 @@ def model_complete(slug: str) -> bool:
 
 def run_model(model: dict, gpu: int, emb_dir: Path,
               skip_controls: bool, force: bool = False,
-              revision: str = None, slug_override: str = None):
+              revision: str = None, slug_override: str = None,
+              carriers: bool = False, target: str = "same"):
     """Run final-layer extraction + probes for one model (or one checkpoint).
 
     revision: HF Hub revision string (e.g. "step256" for Pythia). When given,
@@ -244,6 +245,8 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                 "--slug",          slug,
                 "--extract-batch-size", str(effective_bs),
             ]
+            if carriers:
+                extract_cmd.append("--carriers")
             if revision is not None:
                 extract_cmd += ["--revision", revision]
             if force:
@@ -269,6 +272,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
                 "--modes",      "mean_pooled", "words_only",
                 "--gpu",        str(gpu),
                 "--embeddings-dir", str(emb_dir),
+                "--target", target,
                 *force_flag, *extra_flags]
 
     # ── 2. MLP CV — both conditions in one process ───────────────────────────

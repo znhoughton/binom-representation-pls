@@ -222,8 +222,14 @@ def main():
                    help="Where to write result CSVs (default: Data/supplementary/<slug>)")
     p.add_argument("--save-directions", action="store_true", dest="save_directions",
                    help="Save the mean linear direction per cell (used by steering.py)")
+    p.add_argument("--target", default="same", choices=["same", "cross"],
+                   help="Which preference to predict. Must match the MLP run "
+                        "this appendix replicates.")
     p.add_argument("--gpu", type=int, default=0)
     args = p.parse_args()
+    import by_layer_mlp as _blm
+    _blm.TARGET = args.target
+    print(f"Target: {args.target}", flush=True)
 
     device = load_device(args.gpu)
     emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"

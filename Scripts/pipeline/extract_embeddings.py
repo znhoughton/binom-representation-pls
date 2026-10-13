@@ -91,6 +91,13 @@ def parse_args():
     p.add_argument("--layer",    default=None, nargs="+",
                    help="Layer(s) to extract: 'last', 'second_to_last', or integer index. "
                         "Multiple values extract all in one forward pass (default: last).")
+    p.add_argument("--carriers", action="store_true",
+                   help="Read carrier sentences from Data/carrier_sentences.csv "
+                        "instead of the example_sentence column. Each pair then "
+                        "has TWO real occurrences with real left context: the "
+                        "first supplies the representations and the same-context "
+                        "preference, the second supplies preference_cross, the "
+                        "cross-context target. See Scripts/PAPER_INVENTORY.md.")
     p.add_argument("--context",  choices=["binomial", "isolated", "attn_zeroed"], default="binomial")
     p.add_argument("--extract",  choices=["word", "last"], default="word",
                    help="word: pool over target token(s);  last: final token of input")
@@ -703,6 +710,7 @@ def main():
     acc = {li: {"a_w1": [], "a_and": [], "a_w2": [],
                 "na_w1": [], "na_and": [], "na_w2": []} for li in layer_indices}
     preferences   = []
+    preferences_x = []          # cross-context target; empty unless --carriers
     word1s        = []
     word2s        = []
     skipped       = 0
@@ -715,10 +723,12 @@ def main():
         if not preferences:
             return
         chunk_dir.mkdir(parents=True, exist_ok=True)
-        np.savez(chunk_dir / f"chunk{chunk_idx}_meta.npz",
-                 word1=np.array(word1s, dtype=object),
-                 word2=np.array(word2s, dtype=object),
-                 preference=np.array(preferences, dtype=np.float32))
+        _meta = dict(word1=np.array(word1s, dtype=object),
+                     word2=np.array(word2s, dtype=object),
+                     preference=np.array(preferences, dtype=np.float32))
+        if preferences_x:
+            _meta["preference_cross"] = np.array(preferences_x, dtype=np.float32)
+        np.savez(chunk_dir / f"chunk{chunk_idx}_meta.npz", **_meta)
         for li in layer_indices:
             np.savez(chunk_dir / f"chunk{chunk_idx}_layer{li}.npz",
                      alpha_w1=np.stack(acc[li]["a_w1"]).astype(np.float32),
@@ -730,6 +740,7 @@ def main():
             for k in acc[li]:
                 acc[li][k].clear()
         preferences.clear()
+        preferences_x.clear()
         word1s.clear()
         word2s.clear()
         chunk_idx += 1
@@ -737,7 +748,27 @@ def main():
 
     # ── Binomial / attention-zeroed extraction ───────────────────────────────
     if args.context in ("binomial", "attn_zeroed"):
-        pairs_df = pd.read_csv(CSV_PATHS[args.data])
+        if args.carriers:
+            # Two prefixed occurrences per pair. The probe's input and the
+            # same-context target come from sent_1; sent_2 exists only to supply
+            # a preference measured somewhere the probe cannot see, which is
+            # what stops the probe recomputing its own target.
+            carrier_path = PROJECT_ROOT / "Data" / "carrier_sentences.csv"
+            if not carrier_path.exists():
+                raise FileNotFoundError(
+                    f"{carrier_path} not found. Run "
+                    "Scripts/corpus/harvest_carrier_sentences.py first.")
+            cs = pd.read_csv(carrier_path)
+            cs = cs[(cs["set"] == args.data)
+                    & cs["sent_1"].notna() & cs["sent_2"].notna()]
+            pairs_df = pd.DataFrame({
+                "word1": cs["word1"].values, "word2": cs["word2"].values,
+                "example_sentence": cs["sent_1"].values,
+                "cross_sentence": cs["sent_2"].values,
+            }).reset_index(drop=True)
+            print(f"Carriers: {len(pairs_df):,} pairs with two prefixed sentences")
+        else:
+            pairs_df = pd.read_csv(CSV_PATHS[args.data])
         if is_sharded:
             n = len(pairs_df)
             shard_size = (n + args.num_shards - 1) // args.num_shards
@@ -753,6 +784,12 @@ def main():
              str(row["example_sentence"]).strip())
             for _, row in pairs_df.iterrows()
         ]
+        all_rows_cross = ([
+            (str(row["word1"]).lower().strip(),
+             str(row["word2"]).lower().strip(),
+             str(row["cross_sentence"]).strip())
+            for _, row in pairs_df.iterrows()
+        ] if args.carriers else None)
 
         batch_fn = extract_attn_zeroed_batch if args.context == "attn_zeroed" else extract_binomial_batch
 
@@ -791,10 +828,28 @@ def main():
                     i += len(batch)
                     pbar.update(len(batch))
                     continue
-                for (w1, w2, _), result in zip(batch, results):
+                results_x = None
+                if all_rows_cross is not None:
+                    try:
+                        results_x = batch_fn(
+                            model, tokenizer, all_rows_cross[i:i + len(batch)],
+                            device, layer_indices, args.extract, args.pool
+                        )
+                    except Exception as exc:                      # noqa: BLE001
+                        skipped += len(batch)
+                        print(f"  WARNING cross batch {i}: {exc}", flush=True)
+                        i += len(batch)
+                        pbar.update(len(batch))
+                        continue
+                for bi, ((w1, w2, _), result) in enumerate(zip(batch, results)):
                     if result is None:
                         skipped += 1
                         continue
+                    if results_x is not None:
+                        if results_x[bi] is None:
+                            skipped += 1
+                            continue
+                        preferences_x.append(results_x[bi][0])
                     pref, a_vecs, na_vecs = result
                     preferences.append(pref)
                     word1s.append(w1)
@@ -924,6 +979,8 @@ def main():
     w1_arr   = np.concatenate([m["word1"] for m in meta_parts])
     w2_arr   = np.concatenate([m["word2"] for m in meta_parts])
     pref_arr = np.concatenate([m["preference"] for m in meta_parts])
+    pref_x_arr = (np.concatenate([m["preference_cross"] for m in meta_parts])
+                  if "preference_cross" in meta_parts[0] else None)
     total = len(pref_arr)
     print(f"Extracted {total:,} pairs  ({skipped} skipped)")
 
@@ -943,6 +1000,7 @@ def main():
             word1      = w1_arr,
             word2      = w2_arr,
             preference = pref_arr,
+            **({"preference_cross": pref_x_arr} if pref_x_arr is not None else {}),
             **merged,
         )
         print(f"Saved -> {out_files[la]}")

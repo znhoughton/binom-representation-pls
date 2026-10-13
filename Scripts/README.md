@@ -1,14 +1,42 @@
 # Scripts
 
-Four stages, run in this order. Everything resolves paths relative to the
-project root, so scripts can be invoked from anywhere.
+**Run `./run_paper_pipeline.sh` from the project root.** It executes every
+analysis the paper reports and nothing else, in dependency order, and is
+resume-safe at every stage. The sections below describe the pieces it calls.
 
 ```
-corpus/     build the binomial sets and count them in each training corpus
+corpus/     build the binomial sets, harvest carrier sentences
 pipeline/   extract hidden states, train probes            (GPU, slow)
 analysis/   fit the regressions the paper reports          (CPU, ~7 h)
-supplementary/  appendix analyses
+supplementary/  the two appendix analyses that are reported
+archive/    everything the paper does not use
 ```
+
+`Scripts/PAPER_INVENTORY.md` is the audit behind that split: it traces every
+file `Writeup/writeup.qmd` reads back to the script that produces it. Anything
+not on that list lives in `archive/`.
+
+## The probe target
+
+Extraction now reads `Data/carrier_sentences.csv`, which gives each binomial
+**two** occurrences with real left context. The first supplies the
+representations and the same-context preference; the second supplies
+`preference_cross`, and `by_layer_mlp.py --target cross` predicts that.
+
+This matters because the old design let the probe recompute its own target:
+input and target came from one forward pass, so the probe recovered the
+network's frozen arithmetic rather than anything learned. A randomly
+initialised BabyLM-125M scored **higher** than any trained checkpoint.
+
+| BabyLM-125M, word_novel, attn_zeroed | step 0 | final | shuffled control |
+|---|---|---|---|
+| old design | 0.822 | 0.143 | 0.003 |
+| filtered items only | 0.004 | 0.105 | 0.003 |
+| filtered + cross-context | 0.003 | 0.039 | 0.004 |
+
+Two things do the work: dropping the 29% of items whose binomial sits at
+sentence start, where every item shares one constant context, and measuring the
+target somewhere the probe cannot see.
 
 The two files the paper renders from are `Data/derived/brms_relfreq_rawscale.rds` and
 `Data/derived/relfreq_slope_curve.csv`. Both are tracked, so `Writeup/writeup.qmd`
@@ -35,16 +63,13 @@ Outputs `Data/corpus_binomials.csv`, `Data/wikipedia_novel_binomials.csv`, and
 
 | script | what it does |
 |---|---|
-| `run_pipeline.py` | Main entry point; runs the phases below |
-| `extract_embeddings.py` | Hidden states for both orderings, under both attention conditions |
-| `by_layer_mlp.py` | Trains the MLP probes and writes the corpus predictions |
-| `run_bylayer.py` | Extraction plus probing for the layer sweep |
-| `run_scale_models.py` | The 13 large-scale models (final layer) |
-| `run_babylm_checkpoints.py` | BabyLM training checkpoints |
-| `run_pythia_checkpoints.py` | Pythia checkpoints, **all layers**. The main paper uses `run_scale_models.py --checkpoints` (final layer only); this one is kept because the supplementary driver below needs every layer |
-| `run_pythia_supplementary_babylm_checkpoints.sh` | Pythia by-layer checkpoints at BabyLM-comparable token counts |
-| `make_random_init.py` | Rebuilds the BabyLM models' untrained initializations (seed 964, config pulled from the published repo) |
-| `run_step0_baseline.py` | Checkpoint-0 floor for Experiment 3: the same final-layer probe on models that have seen zero tokens |
+| `run_paper_cells.py` | **Entry point for stage 1.** Enumerates the 58 reported cells (16 final models + 42 checkpoints including step 0) and runs each |
+| `extract_embeddings.py` | Hidden states for both orderings under both attention conditions; `--carriers` adds the cross-context target |
+| `by_layer_mlp.py` | MLP probes and corpus predictions; `--target {same,cross}` |
+| `run_bylayer.py` | Extraction plus probing for one model |
+| `run_scale_models.py` | `run_model()`, the per-cell worker every driver reuses |
+| `make_random_init.py` | Rebuilds the BabyLM untrained initializations (seed 964, config from the published repo) for the step-0 cells |
+| `pilot_cross_context.py` | The validation behind the design change. Not part of the pipeline; kept as the evidence |
 
 Writes `Results/{slug}/by_layer_mlp.csv`, `by_layer_mlp_control.csv`, and
 `by_layer_corpus_pred.csv.xz`. The `.npz` embeddings and `.xz` predictions are
@@ -52,43 +77,28 @@ gitignored: together they are ~17 GB and regenerable from here.
 
 ### Checkpoint 0
 
-Experiment 3 reads a high probe R² at the earliest saved checkpoint as abstract
-preferences being present early in training. That reading needs a floor: an
-untrained model of the same architecture, probed the same way. `run_step0_baseline.py`
-supplies it.
+Step 0 is an ordinary reported cell now, run by `run_paper_cells.py` alongside
+every other checkpoint, and it is the floor Experiment 3 needs: it says what the
+probe scores before the model has seen a single token.
 
-```bash
-python Scripts/pipeline/run_step0_baseline.py --models babylm-125m --gpu 0   # time one cell
-python Scripts/pipeline/run_step0_baseline.py --gpu 0                        # all six
-python Scripts/pipeline/run_step0_baseline.py --help-agreement               # the follow-up
-```
-
-Pythia publishes its initialization as revision `step0`, so that half needs no
-reconstruction. The BabyLM models were trained from scratch under the HF
-Trainer, which writes nothing before the first `save_steps`, so
-`make_random_init.py` rebuilds their init: `set_seed(964)` then
+Pythia publishes its initialization as revision `step0`. The BabyLM models were
+trained from scratch under the HF Trainer, which writes nothing before the first
+`save_steps`, so `make_random_init.py` rebuilds their init: `set_seed(964)` then
 `AutoModelForCausalLM.from_config(...)`, the same two calls in the same order as
 `train_autoreg.py`, with the config pulled from the published repo rather than
 from `facebook/opt-*` so the init cannot disagree with the trained model about
 architecture. It prints `do_layer_norm_before` and `word_embed_proj_dim`, which
-is where the post-LN bug entered. Exact reproduction of the original draw is
-likely but not guaranteed; `--seeds` puts several independent draws on the plot
-if one looks too convenient.
+is where the post-LN bug entered.
 
-Results land under the existing checkpoint convention
-(`Results/{slug}_step0/`), so adding `0` to the step vectors in
-`Writeup/writeup.qmd` and in `corpus_relfreq_brms_all.R`'s `CKPT_REGISTRY` is
-all that is needed to pull step 0 into the Experiment 3 figures, tables, and
-Eq. 1 fits.
+The reconstruction is an independent draw from the same init distribution, not
+the draw those runs started from: the checksum differs across transformers
+versions, so the same seed on a different machine gives different weights. That
+is sufficient for a floor, and `--seeds` puts several draws on the plot if one
+looks too convenient.
 
-A high step-0 R² would not by itself mean the architecture knows English. The
-probe target is the model's own log-probability difference between the two
-orderings, so at every checkpoint the probe is recovering the model's own
-scoring function from the hidden states that feed it, and for an untrained net
-that function is arbitrary but still smooth and still a function of exactly
-those representations. `cross_model_agreement.py --slug-suffix _step0 --out-tag
-step0` is what separates the two readings: an arbitrary function of one random
-init has no reason to match another random init.
+Results land at `Results/{slug}_step0/`, so adding `0` to the step vectors in
+`Writeup/writeup.qmd` and in `corpus_relfreq_brms_all.R`'s `CKPT_REGISTRY` pulls
+step 0 into the Experiment 3 figures, tables, and Eq. 1 fits.
 
 ## analysis/ — the regressions in the paper
 
@@ -125,19 +135,14 @@ disk. It controls the frequency back-conversion, which differs between the two
 scalings — centred needs an addition, z-scored needs the SD as well — so a
 mismatch silently mislabels every frequency axis.
 
-## supplementary/ — appendix analyses
+## supplementary/ — the reported appendix analyses
 
 | script | what it does |
 |---|---|
-| `supplementary_analyses.sh` | Driver for the appendix probes |
-| `supplementary_jobs.py` | Emits that driver's job list |
-| `supplementary_probes.py` | The probe analyses themselves; standalone |
-| `supplementary_backfill_markers.py` | Writes completion markers so a re-run skips finished cells |
-| `cross_model_agreement.py` | Do independently trained models agree on novel binomials? `--slug-suffix`/`--out-tag` point it at a checkpoint slice instead of the final models |
-| `agreement_by_strength.py` | Is that agreement carried by a few high-magnitude items? |
-| `per_word_preference.py` | Word-level ordering preferences |
-| `probe_convergence.py` | Do probes on different models converge on the same solution? |
-| `steering.py` | Causal test of whether the ordering direction is used, not merely present. Called as step 4 of `supplementary_analyses.sh`; not reported in the paper, but do not delete it without editing that driver |
+| `supplementary_probes.py` | Ridge probe on the same folds as the MLP. Appendix D. Run with `--modes mean_pooled --skip-pls`, which is all the appendix reads |
+| `cross_model_agreement.py` | Do independently trained models agree on novel binomials? Appendix H and the Discussion's r = 0.45. `--slug-suffix`/`--out-tag` point it at a checkpoint slice |
+
+Everything else that used to live here is in `archive/`, with a note on each.
 
 ---
 

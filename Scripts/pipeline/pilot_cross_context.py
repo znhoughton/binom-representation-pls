@@ -134,6 +134,31 @@ def build_rows(n: int, min_prefix: int = 0):
     return recs, own_rows, donor_rows
 
 
+def build_rows_carriers(n: int, which: str = "novel"):
+    """Rows from harvest_carrier_sentences.py: two REAL occurrences per pair.
+
+    Supersedes build_rows() for the real design. Donor splicing was a stopgap
+    from when second occurrences looked unfindable, and it produced
+    ungrammatical contexts; both sentences here are genuine corpus text with at
+    least 10 characters of left context, guaranteed by the harvest.
+    """
+    hv = pd.read_csv(BASE / "Data" / "carrier_sentences.csv")
+    hv = hv[hv["sent_1"].notna() & hv["sent_2"].notna()]
+    if which != "all":
+        hv = hv[hv["set"] == which]
+    log(f"  harvest: {len(hv):,} pairs with two real sentences ({which})")
+    if n and n < len(hv):
+        hv = hv.sample(n=n, random_state=SEED)
+    recs, own_rows, cross_rows = [], [], []
+    for w1, w2, s1, s2 in zip(hv["word1"].astype(str), hv["word2"].astype(str),
+                              hv["sent_1"].astype(str), hv["sent_2"].astype(str)):
+        recs.append((w1, w2, None))
+        own_rows.append((w1, w2, s1))
+        cross_rows.append((w1, w2, s2))
+    log(f"  using {len(recs):,} pairs")
+    return recs, own_rows, cross_rows
+
+
 # ── Extraction ────────────────────────────────────────────────────────────────
 
 def extract(model, tokenizer, rows, device, layer_idx, zero_attn, batch_size):
@@ -292,6 +317,13 @@ def main():
                         "the main pipeline's item set (29%% have no prefix at all).")
     p.add_argument("--gpu", type=int, default=0)
     p.add_argument("--batch-size", type=int, default=256, dest="batch_size")
+    p.add_argument("--contexts", default="donor",
+                   choices=["donor", "carriers"],
+                   help="donor: splice another item's prefix (superseded). "
+                        "carriers: two real occurrences from the harvest.")
+    p.add_argument("--set", default="novel", dest="which",
+                   choices=["novel", "corpus", "all"],
+                   help="Which item set, when --contexts carriers")
     p.add_argument("--control", action="store_true",
                    help="Hewitt & Liang control: globally shuffle the target "
                         "before CV. Near-zero r2 means the probe is recovering "
@@ -310,7 +342,10 @@ def main():
         sys.exit("No CUDA device; refusing to run this on CPU in fp16.")
 
     log("Building items")
-    recs, own_rows, donor_rows = build_rows(args.n, args.min_prefix)
+    if args.contexts == "carriers":
+        recs, own_rows, donor_rows = build_rows_carriers(args.n, args.which)
+    else:
+        recs, own_rows, donor_rows = build_rows(args.n, args.min_prefix)
     w1s_all = np.array([r[0] for r in recs])
     w2s_all = np.array([r[1] for r in recs])
 
@@ -329,7 +364,7 @@ def main():
         for cond in CONDITIONS:
             za = cond == "attn_zeroed"
             cache = (BASE / "Data" / "pilot_cache" /
-                     f"{mkey}_{cond}_n{args.n}_mp{args.min_prefix}.npz")
+                     f"{mkey}_{cond}_n{args.n}_mp{args.min_prefix}_{args.contexts}.npz")
             if cache.exists():
                 log(f"  [{mkey}/{cond}] loading cached extraction")
                 z = np.load(cache)
@@ -379,7 +414,7 @@ def main():
         torch.cuda.empty_cache()
 
     tag = "_control" if args.control else ""
-    out = BASE / "Results" / f"pilot_cross_context_{args.probe}_mp{args.min_prefix}{tag}.csv"
+    out = BASE / "Results" / f"pilot_cross_context_{args.probe}_mp{args.min_prefix}_{args.contexts}{tag}.csv"
     pd.DataFrame(results).to_csv(out, index=False)
     log(f"\nwrote {out}")
 

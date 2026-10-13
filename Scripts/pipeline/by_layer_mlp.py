@@ -72,6 +72,25 @@ BASE = Path(__file__).resolve().parents[2]   # repo root
 
 SEED         = 964
 HIDDEN       = 128
+# Which preference column is the probe's target.
+#   "same"  : the preference measured in the sentence the probe sees (legacy)
+#   "cross" : the preference measured in a SECOND occurrence of the binomial,
+#             which the probe never sees. Requires extraction with --carriers.
+# The cross target is what stops the probe recomputing its own input: at
+# checkpoint 0 the same-context probe reaches 0.82 on word_novel, the
+# cross-context probe 0.003. See Scripts/PAPER_INVENTORY.md.
+TARGET = "same"
+
+
+def _target(npz):
+    """Pull the configured target column, failing loudly if it is absent."""
+    if TARGET == "cross":
+        if "preference_cross" not in npz:
+            raise KeyError(
+                "preference_cross missing from the npz. Re-extract with "
+                "extract_embeddings.py --carriers, or run with --target same.")
+        return npz["preference_cross"]
+    return npz["preference"]
 MAX_EPOCHS   = 500
 PATIENCE     = 5
 VAL_FRAC     = 0.1
@@ -404,7 +423,7 @@ def load_layer(embed_dir, layer_tag, mode="mean_pooled"):
     """
     path = embed_dir / f"{layer_tag}.npz"
     npz = np.load(path, allow_pickle=True)
-    y = torch.from_numpy(npz["preference"].astype(np.float32, copy=False))
+    y = torch.from_numpy(_target(npz).astype(np.float32, copy=False))
     w1 = npz["word1"].astype(str)
     w2 = npz["word2"].astype(str)
 
@@ -456,7 +475,7 @@ def load_raw_layer(embed_dir, layer_tag):
         return None
     npz = np.load(path, allow_pickle=True)
     out = {
-        "y":  torch.from_numpy(npz["preference"].astype(np.float32, copy=False)),
+        "y":  torch.from_numpy(_target(npz).astype(np.float32, copy=False)),
         "w1": npz["word1"].astype(str),
         "w2": npz["word2"].astype(str),
     }
@@ -595,6 +614,10 @@ def main():
                    help="Bootstrap iterations for freq strata (equalizes N across bins; default: 50)")
     p.add_argument("--corpus-freq", action="store_true", dest="corpus_freq",
                    help="Train on all novel pairs, predict on corpus pairs; save per-pair predictions for frequency regression")
+    p.add_argument("--target", default="same", choices=["same", "cross"],
+                   help="Which preference to predict. cross = measured in a "
+                        "second occurrence the probe never sees; requires "
+                        "extraction with --carriers.")
     p.add_argument("--control", action="store_true",
                    help="Shuffle labels before CV (selectivity control); writes to by_layer_mlp_control.csv")
     p.add_argument("--batch", type=int, default=BATCH,
@@ -616,6 +639,8 @@ def main():
     emb_root = Path(args.embeddings_dir) if args.embeddings_dir else BASE / "Data"
 
     BATCH = args.batch
+    globals()['TARGET'] = args.target
+    print(f"Target: {args.target}", flush=True)
 
     device = load_device(args.gpu)
     torch.manual_seed(SEED)
@@ -985,7 +1010,7 @@ def main():
                         else:
                             diff = npz["diff_vecs"]
                         return torch.from_numpy(diff.astype(np.float32)), \
-                               torch.from_numpy(npz["preference"].astype(np.float32))
+                               torch.from_numpy(_target(npz).astype(np.float32))
 
                     X_cor_diff, y_cor = load_diff(corpus_npz)
                     X_nov_diff, y_nov_te = load_diff(novel_npz_path)
