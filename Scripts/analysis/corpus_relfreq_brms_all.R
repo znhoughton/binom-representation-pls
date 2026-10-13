@@ -151,18 +151,21 @@ final_reg <- tribble(
   "meta-llama_Meta-Llama-3-8B",                "Llama-3-8B",  "pile"
 ) |> mutate(step = NA_integer_)
 
+# Step 0 (the untrained initialisation) is a reported cell: it is the floor
+# the repaired probe rests on. Omitting it here would compute those cells in
+# the pipeline and then silently drop them from Eq. 1.
 ckpt_reg <- bind_rows(
-  tibble(label = "BabyLM-125M", step = c(24, 48, 144, 384, 912, 2280), corpus = "babylm",
+  tibble(label = "BabyLM-125M", step = c(0, 24, 48, 144, 384, 912, 2280), corpus = "babylm",
          slug = paste0("znhoughton_opt-babylm-125m-20eps-seed964_step", step)),
-  tibble(label = "BabyLM-350M", step = c(48, 96, 288, 768, 1824, 4560), corpus = "babylm",
+  tibble(label = "BabyLM-350M", step = c(0, 48, 96, 288, 768, 1824, 4560), corpus = "babylm",
          slug = paste0("znhoughton_opt-babylm-350m-20eps-seed964_step", step)),
-  tibble(label = "BabyLM-1.3B", step = c(97, 194, 582, 1455, 3686, 9021), corpus = "babylm",
+  tibble(label = "BabyLM-1.3B", step = c(0, 97, 194, 582, 1455, 3686, 9021), corpus = "babylm",
          slug = paste0("znhoughton_opt-babylm-1.3b-20eps-seed964_step", step)),
-  tibble(label = "Pythia-160M", step = c(16, 32, 64, 256, 512, 1000), corpus = "pile",
+  tibble(label = "Pythia-160M", step = c(0, 16, 32, 64, 256, 512, 1000), corpus = "pile",
          slug = paste0("EleutherAI_pythia-160m_step", step)),
-  tibble(label = "Pythia-410M", step = c(16, 32, 64, 256, 512, 1000), corpus = "pile",
+  tibble(label = "Pythia-410M", step = c(0, 16, 32, 64, 256, 512, 1000), corpus = "pile",
          slug = paste0("EleutherAI_pythia-410m_step", step)),
-  tibble(label = "Pythia-1B",   step = c(16, 32, 64, 256, 512, 1000), corpus = "pile",
+  tibble(label = "Pythia-1B",   step = c(0, 16, 32, 64, 256, 512, 1000), corpus = "pile",
          slug = paste0("EleutherAI_pythia-1b_step", step))
 ) |> select(slug, label, corpus, step)
 
