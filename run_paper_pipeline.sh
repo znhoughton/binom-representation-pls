@@ -212,6 +212,22 @@ if has 4; then
   run "$RSCRIPT" Scripts/analysis/prepare_relfreq_slopes.R
 fi
 
+# ── Verification ─────────────────────────────────────────────────────────────
+# Pythia-2.8B once produced six byte-identical "checkpoints" because the
+# revision never reached extraction, and nothing caught it until the numbers
+# were eyeballed months later. Two models trained to different points cannot
+# give identical predictions, so this fingerprints every cell and fails if any
+# two in a series match.
+if has 1; then
+  say "verifying checkpoints are distinct"
+  if [[ -z "$DRY" ]]; then
+    if ! "$PYTHON" Scripts/pipeline/verify_cells.py $SKIP_LARGE 2>&1 | tee -a "$RUN_LOG"; then
+      note "verification failed; see above. Do not render the paper from this."
+      exit 1
+    fi
+  fi
+fi
+
 # ── Completion check ─────────────────────────────────────────────────────────
 say "verifying the outputs the writeup reads"
 missing=0
