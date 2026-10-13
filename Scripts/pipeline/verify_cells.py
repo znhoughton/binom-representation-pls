@@ -69,6 +69,38 @@ def fingerprint(slug):
     return hashlib.sha256(y.tobytes()).hexdigest()[:16] if y.size else None
 
 
+def condition_parity(slug):
+    """Do both attention conditions cover the same items?
+
+    The paper compares default against attn_zeroed directly, and Appendix E
+    states the folds are shared across conditions, so the two must be built
+    from the same binomials. A condition-specific extraction failure breaks
+    that silently: both cells complete, both look plausible, and the contrast
+    between them is confounded. This happened once, when an OOM in the
+    cross-context pass dropped 2,248 pairs from one attn_zeroed run.
+
+    Returns (n_default, n_attn, n_shared) or None if either is unreadable.
+    """
+    d = RES / slug / "cv_preds"
+    if not d.is_dir():
+        return None
+    keys = {}
+    for cond in ("default", "attn_zeroed"):
+        pat = re.compile(rf"^{cond}_layer(\d+)_mean_pooled_pair_novel\.npz$")
+        best, path = -1, None
+        for f in d.iterdir():
+            m = pat.match(f.name)
+            if m and int(m.group(1)) > best:
+                best, path = int(m.group(1)), f
+        if path is None:
+            return None
+        z = np.load(path, allow_pickle=True)
+        keys[cond] = set(np.char.add(np.char.add(
+            z["word1"].astype(str), "|"), z["word2"].astype(str)))
+    a, b = keys["default"], keys["attn_zeroed"]
+    return len(a), len(b), len(a & b)
+
+
 def series_of(slug):
     """Group checkpoints of one model together; '' for final checkpoints."""
     m = re.match(r"^(.*)_step\d+$", slug)
@@ -105,6 +137,23 @@ def main():
         for s in missing:
             print(f"    {s}")
         print()
+
+    # Both attention conditions must cover the same binomials.
+    parity_bad = []
+    for s_ in sorted(prints):
+        pr = condition_parity(s_)
+        if pr is None:
+            continue
+        nd, na, ns = pr
+        if not (nd == na == ns):
+            parity_bad.append((s_, nd, na, ns))
+    if parity_bad:
+        bad = True
+        print("CONDITION MISMATCH (default vs attn_zeroed cover different items):")
+        for s_, nd, na, ns in parity_bad:
+            print(f"    {s_}")
+            print(f"        default {nd:,}   attn_zeroed {na:,}   shared {ns:,}")
+        print("    The attention contrast is confounded. Re-extract with --force.\n")
 
     # Identical fingerprints within one model's checkpoint series mean the same
     # weights were loaded twice. This is the Pythia-2.8B failure.

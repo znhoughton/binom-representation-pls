@@ -812,11 +812,26 @@ def main():
                 batch = all_rows[i:i + effective_bs]
                 _oom = False
                 _exc = None
+                results_x = None
                 try:
                     results = batch_fn(
                         model, tokenizer, batch, device,
                         layer_indices, args.extract, args.pool
                     )
+                    # The cross pass runs inside the SAME try, so an OOM here
+                    # halves the batch and retries like any other. It used to
+                    # have its own handler that skipped the batch, which lost
+                    # 2,248 pairs from one attn_zeroed run and, worse, left the
+                    # two attention conditions on different item sets. The
+                    # paper compares those conditions directly and Appendix E
+                    # states the folds are shared across them, so a
+                    # condition-specific loss is a correctness bug, not just
+                    # missing data.
+                    if all_rows_cross is not None:
+                        results_x = batch_fn(
+                            model, tokenizer, all_rows_cross[i:i + len(batch)],
+                            device, layer_indices, args.extract, args.pool
+                        )
                 except torch.cuda.OutOfMemoryError:
                     _oom = True
                 except Exception as exc:
@@ -839,19 +854,6 @@ def main():
                     i += len(batch)
                     pbar.update(len(batch))
                     continue
-                results_x = None
-                if all_rows_cross is not None:
-                    try:
-                        results_x = batch_fn(
-                            model, tokenizer, all_rows_cross[i:i + len(batch)],
-                            device, layer_indices, args.extract, args.pool
-                        )
-                    except Exception as exc:                      # noqa: BLE001
-                        skipped += len(batch)
-                        print(f"  WARNING cross batch {i}: {exc}", flush=True)
-                        i += len(batch)
-                        pbar.update(len(batch))
-                        continue
                 for bi, ((w1, w2, _), result) in enumerate(zip(batch, results)):
                     if result is None:
                         skipped += 1
