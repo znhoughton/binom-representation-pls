@@ -27,7 +27,12 @@ suppressPackageStartupMessages({
 })
 
 RESULTS <- "Results"
-MODE    <- "mean_pooled"
+# Where to look for by_layer_corpus_pred.csv.xz. Overridable so the same
+# estimator can be run against an archived set, which is the only way to
+# compare coefficients before and after an item-set change without confounding
+# the comparison with brms-versus-lm differences.
+PRED_DIR <- Sys.getenv("PRED_DIR", unset = RESULTS)
+MODE     <- "mean_pooled"
 
 counts <- list(
   babylm = read_csv("Data/corpus_binomials.csv", show_col_types = FALSE) |>
@@ -42,7 +47,7 @@ counts <- list(
 # at +0.5), rel_freq as the alphabetical share centred at zero, log_freq
 # centred but not scaled, y_true and y_pred z-scored within the cell.
 load_cell <- function(slug, corpus, cond) {
-  xz <- file.path(RESULTS, slug, "by_layer_corpus_pred.csv.xz")
+  xz <- file.path(PRED_DIR, slug, "by_layer_corpus_pred.csv.xz")
   if (!file.exists(xz)) return(NULL)
   con <- xzfile(xz, "rb"); pred <- read_csv(con, show_col_types = FALSE); close(con)
   fl <- max(suppressWarnings(as.integer(unique(pred$layer))), na.rm = TRUE)
@@ -61,9 +66,9 @@ load_cell <- function(slug, corpus, cond) {
 
 args  <- commandArgs(trailingOnly = TRUE)
 slugs <- if (length(args)) args else {
-  list.dirs(RESULTS, recursive = FALSE, full.names = FALSE) |>
+  list.dirs(PRED_DIR, recursive = FALSE, full.names = FALSE) |>
     setdiff(c("logs", "_pre_carriers")) |>
-    keep(~ file.exists(file.path(RESULTS, .x, "by_layer_corpus_pred.csv.xz")))
+    keep(~ file.exists(file.path(PRED_DIR, .x, "by_layer_corpus_pred.csv.xz")))
 }
 
 rows <- list()
@@ -94,7 +99,7 @@ for (slug in slugs) {
 
 out <- bind_rows(rows)
 if (nrow(out)) {
-  write_csv(out, file.path(RESULTS, "quick_lm_relfreq.csv"))
+  write_csv(out, file.path(RESULTS, Sys.getenv("OUT_NAME", "quick_lm_relfreq.csv")))
   cat("\n")
   print(as.data.frame(out |> mutate(across(where(is.numeric), ~ round(.x, 4)))))
   cat(sprintf("\nwrote %s\n", file.path(RESULTS, "quick_lm_relfreq.csv")))
