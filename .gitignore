@@ -90,6 +90,15 @@ Writeup/writeup_files/figure-latex/
 *.npz
 *.csv.xz
 *.xz
+# TEMPORARY, so the corpus predictions can be moved from the server to a laptop
+# that has no direct transfer set up. These are an input to the brms fits, not
+# something the writeup reads: it reads Data/derived/brms_relfreq_rawscale.rds,
+# which is small and tracked.
+#
+# Re-ignore this once the files are across. All 58 cells come to roughly 1.2 GB
+# with individual files at 34 MB, and git keeps every blob, so a plain
+# re-ignore later does not shrink the repo; it needs a history rewrite.
+!Results/*/by_layer_corpus_pred.csv.xz
 
 # Draft kept outside the paper build
 Writeup/_experiment4_saved.qmd
