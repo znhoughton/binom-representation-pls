@@ -135,6 +135,20 @@ if has 1 || has 2; then
           mv "$d" "$ROOT/Data/supplementary/_pre_carriers/"
         done
       fi
+      # Embeddings from the previous pipeline are the same hazard in another
+      # directory. run_model deletes them per cell, so they are normally
+      # transient, but an interrupted run leaves them behind, and an npz
+      # without preference_cross is useless under --target cross. OLMo-7B and
+      # OLMo-2-7B each burned ~35 minutes of corpus extraction before dying on
+      # that. run_bylayer now detects it and re-extracts, so this is belt and
+      # braces; clearing up front just avoids reading large files to find out.
+      for sub in embeddings novel_embeddings \
+                 embeddings_attn_zeroed novel_embeddings_attn_zeroed; do
+        if compgen -G "$ROOT/Data/$sub/*/" >/dev/null 2>&1; then
+          note "clearing stale Data/$sub"
+          rm -rf "${ROOT:?}/Data/$sub"
+        fi
+      done
       # The brms cache is keyed by model label and condition, not by item set,
       # so a stale fit would be reused verbatim. Same hazard, same fix.
       [[ -d "$ROOT/Data/brms_models" ]] && \
