@@ -99,7 +99,29 @@ def extract_sharded(model, cond, data_split, gpu, emb_root, force=False,
                     return c
             return cands[0]
         existing = [_layer_file(l) for l in layers]
-        if all(f.exists() and f.stat().st_size > 1000 for f in existing):
+        complete = all(f.exists() and f.stat().st_size > 1000 for f in existing)
+
+        # Existence is not enough once --carriers is in play. An npz written by
+        # the pre-carriers pipeline has `preference` but no `preference_cross`,
+        # and skipping on that basis hands by_layer_mlp a file it cannot use:
+        # OLMo-7B and OLMo-2-7B both burned ~35 minutes of corpus extraction
+        # before dying on a KeyError at the probe. Treat a stale npz as absent.
+        if complete and carriers:
+            import numpy as _np
+            for f in existing:
+                try:
+                    with _np.load(f, allow_pickle=True) as _z:
+                        if "preference_cross" not in _z:
+                            print(f"  {f.name} predates --carriers (no "
+                                  f"preference_cross); re-extracting.", flush=True)
+                            complete = False
+                            break
+                except Exception as _e:                       # noqa: BLE001
+                    print(f"  {f.name} unreadable ({_e}); re-extracting.", flush=True)
+                    complete = False
+                    break
+
+        if complete:
             print("  All requested layers exist, skipping.", flush=True)
             return True
 
