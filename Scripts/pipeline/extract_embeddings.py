@@ -584,18 +584,36 @@ def extract_isolated_batch(model, tokenizer, rows, device,
 
 # ── Batch-size calibration ────────────────────────────────────────────────────
 
-def probe_safe_batch_size(model, tokenizer, device, data: str, max_bs: int) -> int:
+def probe_safe_batch_size(model, tokenizer, device, data: str, max_bs: int,
+                          carriers: bool = False) -> int:
     """
     Run a small forward pass on real corpus pairs to estimate a safe extraction
     batch_size.  Uses 50% of free VRAM as headroom for variable-length padding
     spikes.  Returns min(estimate, max_bs).
     """
-    csv_path = CSV_PATHS[data]
-    # Skip the first 200 rows to avoid any systematic bias in early pairs
-    # (early pairs tend to have binomials near sentence start → short probe
-    # sentences → underestimated per-sentence memory).  Use 64 pairs for a
-    # stable estimate across the length distribution.
-    pairs_df = pd.read_csv(csv_path, skiprows=range(1, 201), nrows=64)
+    # Measure the sentences extraction will actually feed. Calibrating on
+    # corpus_binomials.example_sentence while extracting carrier sentences
+    # underestimates by ~40%: the old column is 29% sentence-initial and
+    # averages 101 characters, the harvested carriers average 139, and
+    # activation memory scales with sequence length. That mismatch alone
+    # forced a halving on nearly every cell.
+    if carriers:
+        cs = pd.read_csv(PROJECT_ROOT / "Data" / "carrier_sentences.csv")
+        cs = cs[(cs["set"] == data) & cs["sent_1"].notna() & cs["sent_2"].notna()]
+        # Sample across the length distribution rather than off the top, and
+        # take sent_2, the longer of the two.
+        cs = cs.sort_values("sent_2", key=lambda c: c.str.len())
+        idx = np.linspace(0, len(cs) - 1, min(64, len(cs))).astype(int)
+        pairs_df = pd.DataFrame({
+            "word1": cs["word1"].values[idx], "word2": cs["word2"].values[idx],
+            "example_sentence": cs["sent_2"].values[idx]})
+    else:
+        csv_path = CSV_PATHS[data]
+        # Skip the first 200 rows to avoid any systematic bias in early pairs
+        # (early pairs tend to have binomials near sentence start → short probe
+        # sentences → underestimated per-sentence memory).  Use 64 pairs for a
+        # stable estimate across the length distribution.
+        pairs_df = pd.read_csv(csv_path, skiprows=range(1, 201), nrows=64)
 
     sents = []
     for _, row in pairs_df.iterrows():
@@ -641,6 +659,12 @@ def probe_safe_batch_size(model, tokenizer, device, data: str, max_bs: int) -> i
     per_sent = activation_mem / n_sents
     # Each pair = 2 sentences in the forward pass
     per_pair = per_sent * 2
+    if carriers:
+        # Extraction runs the batch twice under --carriers, once for the
+        # probe's sentence and once for the sentence the target is read from.
+        # Memory is freed between them, so the peak is not doubled, but the
+        # two allocations fragment the cache. Budget 1.3x rather than 2x.
+        per_pair *= 1.3
 
     free = torch.cuda.mem_get_info(device)[0]
     # 50% safety factor: variable-length padding can double peak mem vs short probe sentences
@@ -699,7 +723,8 @@ def main():
     print(f"Model dtype: {next(model.parameters()).dtype}")
 
     if args.calibrate:
-        safe_bs = probe_safe_batch_size(model, tokenizer, device, args.data, args.batch_size)
+        safe_bs = probe_safe_batch_size(model, tokenizer, device, args.data,
+                                        args.batch_size, carriers=args.carriers)
         print(f"SAFE_BATCH_SIZE={safe_bs}", flush=True)
         return
 

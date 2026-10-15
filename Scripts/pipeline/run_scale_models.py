@@ -128,7 +128,7 @@ def delete_dir(path, label=""):
 
 
 def calibrate_batch_size(model_id: str, max_bs: int, gpu: int,
-                         revision: str = None) -> int:
+                         revision: str = None, carriers: bool = False) -> int:
     """
     Run extract_embeddings.py --calibrate as a subprocess to probe GPU memory
     and determine a safe starting batch_size for this model.  The subprocess
@@ -141,6 +141,8 @@ def calibrate_batch_size(model_id: str, max_bs: int, gpu: int,
            "--batch-size", str(max_bs),
            "--gpu",        str(gpu),
            "--calibrate"]
+    if carriers:
+        cmd.append("--carriers")
     if revision is not None:
         cmd += ["--revision", revision]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -228,7 +230,7 @@ def run_model(model: dict, gpu: int, emb_dir: Path,
     # ── 0. Calibrate batch_size (subprocess exits after probe — clean slate) ──
     banner(f"CALIBRATE  {model['id']}  {revision or ''}")
     effective_bs = calibrate_batch_size(model["id"], model["batch_size"], gpu,
-                                        revision=revision)
+                                        revision=revision, carriers=carriers)
 
     # ── 1. Extract sequentially (GPU-heavy; one condition at a time) ───────────
     for cond in CONDITIONS:
