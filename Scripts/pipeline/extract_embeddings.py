@@ -667,12 +667,20 @@ def probe_safe_batch_size(model, tokenizer, device, data: str, max_bs: int,
         per_pair *= 1.3
 
     free = torch.cuda.mem_get_info(device)[0]
-    # 50% safety factor: variable-length padding can double peak mem vs short probe sentences
-    safe_pairs = max(1, int(free * 0.5 / per_pair))
+    # The headroom exists because variable-length padding can double peak memory
+    # relative to short probe sentences. Under --carriers the probe no longer
+    # has that blind spot: it sorts by length and samples across the whole
+    # distribution including the longest sentence, so it pads to the global
+    # max, and a real batch of several thousand sentences does the same. The
+    # spike is measured rather than guessed, so the allowance can shrink.
+    # Overshoot is caught by the halving retry in the extraction loop.
+    frac = 0.80 if carriers else 0.5
+    safe_pairs = max(1, int(free * frac / per_pair))
     result = min(safe_pairs, max_bs)
 
     print(f"  Probe ({n_sents} sents): activation={activation_mem/1e9:.2f} GB  "
-          f"free={free/1e9:.2f} GB  → safe_bs={result} (cap={max_bs})", flush=True)
+          f"free={free/1e9:.2f} GB  frac={frac}  → safe_bs={result} (cap={max_bs})",
+          flush=True)
     return result
 
 
