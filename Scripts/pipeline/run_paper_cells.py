@@ -157,6 +157,16 @@ def main():
     p.add_argument("--skip-large", action="store_true", dest="skip_large",
                    help="Skip the 7B/8B models, which need an A100")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--num-shards", type=int, default=1, dest="num_shards",
+                   help="Split the cell list across this many processes, for "
+                        "running on several GPUs at once. Cells are "
+                        "independent: each writes its own Results/<slug> and "
+                        "Data/embeddings/<slug>, so there is nothing to race "
+                        "on. Build the step-0 weights once beforehand with "
+                        "make_random_init.py, since every shard would "
+                        "otherwise try to write them.")
+    p.add_argument("--shard-index", type=int, default=0, dest="shard_index",
+                   help="Which shard this process handles, 0-based.")
     p.add_argument("--list", action="store_true", dest="just_list")
     p.add_argument("--list-slugs", action="store_true", dest="list_slugs",
                    help="Print one result slug per line and exit. The driver "
@@ -172,6 +182,13 @@ def main():
                  "or pass --no-carriers.")
 
     cells = enumerate_cells(args.stage, args.skip_large)
+
+    # Interleave rather than taking contiguous blocks. The list is ordered by
+    # model, so a block split would hand one process every BabyLM-1.3B
+    # checkpoint while another got only 125M cells.
+    if args.num_shards > 1:
+        cells = [c for i, c in enumerate(cells)
+                 if i % args.num_shards == args.shard_index]
 
     if args.list_slugs:
         for _, model, rev, slug in cells:
