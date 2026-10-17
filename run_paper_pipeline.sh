@@ -88,11 +88,31 @@ has()  { [[ " $STAGES " == *" $1 "* ]]; }
 run() {
   note "\$ $*"
   [[ -n "$DRY" ]] && return 0
-  if ! "$@" 2>&1 | tee -a "$RUN_LOG"; then
-    echo "FAILED: $*" | tee -a "$RUN_LOG"
-    exit 1
-  fi
-  return "${PIPESTATUS[0]}"
+  # set -o pipefail is on, so ${PIPESTATUS[0]} is the command's own status
+  # rather than tee's.
+  "$@" 2>&1 | tee -a "$RUN_LOG"
+  local rc="${PIPESTATUS[0]}"
+  [[ "$rc" -eq 0 ]] && return 0
+
+  # Repeating the command told you nothing you could act on. Say what exited
+  # non-zero, with what code, and where the detail is. run_paper_cells.py
+  # records per-cell failures in pipeline_errors.log and keeps going, so a
+  # non-zero exit there usually means some cells failed rather than the whole
+  # stage dying.
+  {
+    echo
+    echo "FAILED (exit $rc): $1"
+    echo "  full args : $*"
+    local errlog="$ROOT/Results/pipeline_errors.log"
+    if [[ -s "$errlog" ]]; then
+      echo "  per-cell failures, most recent run ($errlog):"
+      awk '/^\[/{buf=""} {buf = buf $0 "\n"} END{printf "%s", buf}' "$errlog" \
+        | sed 's/^/    /'
+    fi
+    echo "  last 25 lines of output are above; the traceback, if any, is there."
+    echo "  to resume: rerun the same command, completed cells are skipped."
+  } | tee -a "$RUN_LOG"
+  exit "$rc"
 }
 
 EMB_ARG=(); [[ -n "$EMB_DIR" ]] && EMB_ARG=(--embeddings-dir "$EMB_DIR")
