@@ -283,7 +283,11 @@ dummy <- tibble(y_true_z = rnorm(60), y_pred_z = rnorm(60),
 t0 <- Sys.time()
 template <- brm(FORMULA, data = dummy, family = gaussian(), chains = 1,
                 iter = 200, warmup = 100, refresh = 0, silent = 2, seed = SEED,
-                backend = "cmdstanr", threads = threading(THREADS))
+                backend = "cmdstanr",
+                # threading(1) still routes through reduce_sum, which costs
+                # more than it saves. With one cell per core there is nothing
+                # for within-chain threading to use, so skip it entirely.
+                threads = if (THREADS > 1) threading(THREADS) else NULL)
 log_msg(sprintf("Template compiled in %.1f min.",
                 as.numeric(difftime(Sys.time(), t0, units = "mins"))))
 
