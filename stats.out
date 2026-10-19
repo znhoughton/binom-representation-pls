@@ -1,0 +1,129 @@
+nohup: ignoring input
+
+== binom-corpus-pls statistics  (11:54:19)
+   stages: 3 4   workers: 6 x 4 chains x 1 threads = 24 cores
+   scale: raw   log: /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/stats_20261019_115419.log
+   machine reports 32 cores
+
+== preflight  (11:54:19)
+   cells with corpus predictions : 58  (expect 58)
+   cells with cv_preds           : 58
+
+== STAGE 3  cross-model agreement  (11:54:19)
+model dirs found: 16/16
+
+=== attested / default: 16 models, 27835 aligned pairs ===
+    mean r = 0.691  (within-family 0.809, between 0.669)  residualised 0.677  shuffled null +0.0040
+    BabyLM only: r = 0.578  residualised 0.550
+
+=== attested / attn_zeroed: 16 models, 27835 aligned pairs ===
+    mean r = 0.640  (within-family 0.767, between 0.616)  residualised 0.642  shuffled null -0.0093
+    BabyLM only: r = 0.520  residualised 0.506
+
+=== novel / default: 16 models, 216523 aligned pairs ===
+    mean r = 0.658  (within-family 0.787, between 0.634)  residualised 0.655  shuffled null -0.0003
+    BabyLM only: r = 0.496  residualised 0.488
+
+=== novel / attn_zeroed: 16 models, 216523 aligned pairs ===
+    mean r = 0.647  (within-family 0.778, between 0.623)  residualised 0.649  shuffled null -0.0022
+    BabyLM only: r = 0.486  residualised 0.480
+
+==============================================================================
+CROSS-MODEL AGREEMENT ON y_true
+  high agreement on NOVEL pairs = the preference is not arbitrary
+  absolute level inflated by the shared sentence frame; read CONTRASTS
+==============================================================================
+item_set   condition               scope  n_model_pairs  n_pairs  mean_r  median_r  min_r  max_r  mean_r_resid  shuffled_null_r
+attested     default all pairs of models            120    27835   0.691     0.766  0.375  0.903         0.677            0.004
+attested     default       within family             19    27835   0.809     0.855  0.503  0.903         0.799            0.004
+attested     default      between family            101    27835   0.669     0.744  0.375  0.886         0.654            0.004
+attested     default       within BabyLM              3    27835   0.578     0.540  0.503  0.690         0.550            0.004
+attested     default        within GPT-2              6    27835   0.859     0.865  0.800  0.903         0.853            0.004
+attested     default        within Llama              1    27835   0.842     0.842  0.842  0.842         0.835            0.004
+attested     default         within OLMo              6    27835   0.865     0.872  0.834  0.880         0.860            0.004
+attested     default       within Pythia              3    27835   0.815     0.798  0.776  0.872         0.809            0.004
+attested attn_zeroed all pairs of models            120    27835   0.640     0.717  0.312  0.862         0.642           -0.009
+attested attn_zeroed       within family             19    27835   0.767     0.815  0.451  0.862         0.765           -0.009
+attested attn_zeroed      between family            101    27835   0.616     0.693  0.312  0.859         0.618           -0.009
+attested attn_zeroed       within BabyLM              3    27835   0.520     0.467  0.451  0.642         0.506           -0.009
+attested attn_zeroed        within GPT-2              6    27835   0.821     0.825  0.766  0.862         0.820           -0.009
+attested attn_zeroed        within Llama              1    27835   0.832     0.832  0.832  0.832         0.831           -0.009
+attested attn_zeroed         within OLMo              6    27835   0.829     0.836  0.790  0.852         0.829           -0.009
+attested attn_zeroed       within Pythia              3    27835   0.763     0.762  0.718  0.810         0.765           -0.009
+   novel     default all pairs of models            120   216523   0.658     0.756  0.296  0.889         0.655           -0.000
+   novel     default       within family             19   216523   0.787     0.840  0.425  0.889         0.785           -0.000
+   novel     default      between family            101   216523   0.634     0.731  0.296  0.881         0.630           -0.000
+   novel     default       within BabyLM              3   216523   0.496     0.445  0.425  0.618         0.488           -0.000
+   novel     default        within GPT-2              6   216523   0.846     0.851  0.788  0.889         0.844           -0.000
+   novel     default        within Llama              1   216523   0.836     0.836  0.836  0.836         0.834           -0.000
+   novel     default         within OLMo              6   216523   0.859     0.859  0.832  0.874         0.857           -0.000
+   novel     default       within Pythia              3   216523   0.803     0.786  0.764  0.860         0.801           -0.000
+   novel attn_zeroed all pairs of models            120   216523   0.647     0.740  0.298  0.874         0.649           -0.002
+   novel attn_zeroed       within family             19   216523   0.778     0.832  0.421  0.874         0.777           -0.002
+   novel attn_zeroed      between family            101   216523   0.623     0.723  0.298  0.870         0.625           -0.002
+   novel attn_zeroed       within BabyLM              3   216523   0.486     0.431  0.421  0.607         0.480           -0.002
+   novel attn_zeroed        within GPT-2              6   216523   0.838     0.841  0.789  0.874         0.837           -0.002
+   novel attn_zeroed        within Llama              1   216523   0.850     0.850  0.850  0.850         0.849           -0.002
+   novel attn_zeroed         within OLMo              6   216523   0.848     0.852  0.818  0.869         0.847           -0.002
+   novel attn_zeroed       within Pythia              3   216523   0.786     0.782  0.747  0.828         0.788           -0.002
+
+wrote /opt/modeling/zhoughton/misc/binom-representation-pls/Results/cross_model_agreement.csv
+wrote /opt/modeling/zhoughton/misc/binom-representation-pls/Results/cross_model_agreement_summary.csv
+
+== STAGE 4  brms Eq. 1, 6 workers  (11:55:45)
+   shard 0 -> /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/brms_shard00.out
+   shard 1 -> /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/brms_shard01.out
+   shard 2 -> /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/brms_shard02.out
+   shard 3 -> /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/brms_shard03.out
+   shard 4 -> /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/brms_shard04.out
+   shard 5 -> /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/brms_shard05.out
+   shard 0 done
+   shard 1 done
+   shard 2 done
+   shard 3 done
+   shard 4 done
+   shard 5 done
+
+== merging shard summaries  (13:14:53)
+CmdStan path set to: /opt/modeling/zhoughton/.cmdstan/cmdstan-2.40.0
+brms parallelism: 4 chains x 2 threads = 8 cores
+merged 6 shard files -> Data/derived/brms_relfreq_rawscale.rds (116 cells)
+
+== simple slopes  (13:15:09)
+CmdStan path set to: /opt/modeling/zhoughton/.cmdstan/cmdstan-2.40.0
+32 final-checkpoint fits found
+  babylm  n=27,835  mean log freq=0.4397  sd=0.7228
+  pile    n=27,708  mean log freq=7.1803  sd=1.8490
+Loading required namespace: rstan
+wrote Data/derived/relfreq_slope_curve.csv: 3200 rows, 16 models
+       label y_pred_1 rel_freq_1 y_pred_10 rel_freq_10
+ BabyLM-125M    0.393      0.183     0.309       1.079
+ BabyLM-1.3B    0.304      0.257     0.230       1.073
+ BabyLM-350M    0.352      0.249     0.291       1.316
+     GPT-2-L    0.224      1.141     0.219       2.320
+     GPT-2-M    0.219      1.044     0.243       2.280
+    GPT-2-XL    0.218      1.205     0.219       2.253
+       GPT-2    0.220      0.929     0.253       2.269
+  Llama-1.3B    0.239      1.325     0.235       2.009
+  Llama-3-8B    0.271      1.306     0.232       1.836
+     OLMo-1B    0.227      1.340     0.235       2.092
+   OLMo-2-1B    0.230      1.365     0.217       2.022
+   OLMo-2-7B    0.270      1.353     0.226       1.838
+     OLMo-7B    0.246      1.390     0.244       1.989
+ Pythia-160M    0.226      0.981     0.164       2.402
+   Pythia-1B    0.232      1.276     0.218       2.204
+ Pythia-410M    0.230      1.233     0.212       2.260
+
+== outputs the writeup reads  (13:15:37)
+   ok      Data/derived/brms_relfreq_rawscale.rds  (20K)
+   ok      Data/derived/relfreq_slope_curve.csv  (468K)
+   ok      Results/cross_model_agreement_summary.csv  (8.0K)
+
+== done  (13:15:37)
+   log: /opt/modeling/zhoughton/misc/binom-representation-pls/Results/logs/stats_20261019_115419.log
+   to send these back:
+     git add Data/derived/brms_relfreq_rawscale.rds \
+             Data/derived/relfreq_slope_curve.csv \
+             Results/cross_model_agreement_summary.csv
+     git commit -m 'stats' && git push
+   Data/brms_models/ stays local: a few hundred MB, gitignored, regenerable.
