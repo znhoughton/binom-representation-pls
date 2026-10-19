@@ -1,0 +1,9 @@
+condition,layer,mode,split,mean_r2,sd_r2,n_folds,mean_best_epoch,mean_n_epochs
+default,24,mean_pooled,pair_novel,6e-05,0.000117,10,18.2,24.2
+default,24,mean_pooled,word_novel,0.000328,0.000369,10,23.3,29.3
+default,24,words_only,pair_novel,5.4e-05,9.3e-05,10,11.2,17.2
+default,24,words_only,word_novel,0.000649,0.000878,10,12.1,18.1
+attn_zeroed,24,mean_pooled,pair_novel,5e-05,5.5e-05,10,24.2,30.2
+attn_zeroed,24,mean_pooled,word_novel,0.000451,0.000487,10,28.5,34.5
+attn_zeroed,24,words_only,pair_novel,5.1e-05,9e-05,10,10.4,16.4
+attn_zeroed,24,words_only,word_novel,0.000501,0.000846,10,12.2,18.2
