@@ -122,8 +122,31 @@ SEED    <- 964
 
 RESULTS   <- "Results"
 MODEL_DIR <- file.path("Data", "brms_models")
-OUT_RDS   <- file.path("Data", "derived", paste0("brms_", SUFFIX, ".rds"))
-LOG       <- file.path(RESULTS, paste0("brms_", SUFFIX, "_progress.log"))
+# Cells are independent fits and shard cleanly across processes. What does NOT
+# shard is the summary: the loop rewrites it after every cell, so concurrent
+# workers would clobber each other. Each shard writes its own, and MERGE=1
+# combines them into the canonical filename the writeup reads.
+SHARDS    <- as.integer(Sys.getenv("BRMS_SHARDS", "1"))
+SHARD     <- as.integer(Sys.getenv("BRMS_SHARD",  "0"))
+FINAL_RDS <- file.path("Data", "derived", paste0("brms_", SUFFIX, ".rds"))
+OUT_RDS   <- if (SHARDS > 1) {
+  file.path("Data", "derived",
+            sprintf("brms_%s_shard%02dof%02d.rds", SUFFIX, SHARD, SHARDS))
+} else FINAL_RDS
+LOG       <- file.path(RESULTS, sprintf("brms_%s%s_progress.log", SUFFIX,
+                       if (SHARDS > 1) sprintf("_shard%02d", SHARD) else ""))
+
+if (Sys.getenv("MERGE", "") != "") {
+  pat <- sprintf("^brms_%s_shard[0-9]+of[0-9]+\\.rds$", SUFFIX)
+  fs  <- list.files(file.path("Data", "derived"), pattern = pat, full.names = TRUE)
+  if (!length(fs)) stop("MERGE=1 but no shard summaries found")
+  all <- dplyr::bind_rows(lapply(fs, readRDS))
+  all <- dplyr::distinct(all, label, step, condition, design, .keep_all = TRUE)
+  saveRDS(all, FINAL_RDS)
+  cat(sprintf("merged %d shard files -> %s (%d cells)\n",
+              length(fs), FINAL_RDS, nrow(all)))
+  quit(save = "no")
+}
 dir.create(MODEL_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(dirname(OUT_RDS), showWarnings = FALSE, recursive = TRUE)
 
@@ -276,6 +299,12 @@ check_convergence <- function(fit) {
 
 jobs <- tidyr::expand_grid(i = seq_len(nrow(REGISTRY)), cond = CONDITIONS) |>
   arrange(i)
+# Interleave rather than taking a contiguous block, so the slow large-n cells
+# spread across workers instead of landing on one.
+if (SHARDS > 1) {
+  jobs <- jobs[(seq_len(nrow(jobs)) - 1L) %% SHARDS == SHARD, ]
+  log_msg(sprintf("shard %d of %d: %d cells", SHARD, SHARDS, nrow(jobs)))
+}
 log_msg(sprintf("%d cells to fit (%d final, %d checkpoint)",
                 nrow(jobs), 2 * nrow(final_reg), 2 * nrow(ckpt_reg)))
 
