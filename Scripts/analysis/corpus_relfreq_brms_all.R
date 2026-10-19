@@ -100,6 +100,16 @@ SCALE <- tolower(Sys.getenv("SCALE", "z"))
 stopifnot(SCALE %in% c("z", "raw"))
 SUFFIX <- if (SCALE == "z") "relfreq_prop" else "relfreq_rawscale"
 
+# DESIGN tags the item set and probe target a fit was built from. It exists
+# because the per-cell cache key is <label>_<step>_<condition>_<mode>_<scale>,
+# which says nothing about either: a fit from the pre-carrier design has
+# exactly the filename this run looks for, and brm(file=) would load it
+# instead of sampling. No error, just a paper quietly mixing two designs.
+# "cross" is the current design (two carrier sentences, target measured in
+# the second). Anything fitted before that is "samectx" and will not be
+# reused, because the filenames no longer collide.
+DESIGN <- Sys.getenv("DESIGN", unset = "cross")
+
 # Chains x threads = total cores. Defaults preserve the old 4x2=8 behaviour;
 # set BRMS_CHAINS / BRMS_THREADS to use a bigger machine (e.g. 4 x 6 = 24).
 CHAINS  <- as.integer(Sys.getenv("BRMS_CHAINS",  "4"))
@@ -126,6 +136,16 @@ log_msg <- function(...) {
 # replace a file holding every model with one holding only that model. Anything already on disk
 # is kept, except the cells this run refits, which supersede their previous values.
 PRIOR <- if (file.exists(OUT_RDS)) readRDS(OUT_RDS) else NULL
+# Same hazard as the per-cell cache. Rows predating the design column, or
+# carrying a different one, are dropped rather than skipped over.
+if (!is.null(PRIOR)) {
+  if (!"design" %in% names(PRIOR)) PRIOR <- NULL
+  else PRIOR <- dplyr::filter(PRIOR, design == DESIGN)
+  if (is.null(PRIOR) || nrow(PRIOR) == 0) {
+    PRIOR <- NULL
+    message("Existing summary is from another design; refitting every cell.")
+  }
+}
 if (!is.null(PRIOR))
   log_msg(sprintf("Found %d existing cells in %s; refitted cells will replace their rows.",
                   nrow(PRIOR), OUT_RDS))
@@ -184,7 +204,7 @@ counts <- list(
 make_fname <- function(label, step, cond) {
   tag  <- if (is.na(step)) "final" else as.character(step)
   base <- gsub("[^A-Za-z0-9]", "_", paste(label, tag, cond, MODE, sep = "_"))
-  file.path(MODEL_DIR, paste0(base, "_", SUFFIX))
+  file.path(MODEL_DIR, paste0(base, "_", SUFFIX, "_", DESIGN))
 }
 
 
@@ -291,7 +311,8 @@ for (k in seq_len(nrow(jobs))) {
   vals <- map(tm, grab)
 
   rows[[length(rows) + 1]] <- tibble(
-    label = reg$label, step = reg$step, condition = cond, n = nrow(d),
+    label = reg$label, step = reg$step, condition = cond,
+    design = DESIGN, n = nrow(d),
     !!!set_names(map_dbl(vals, 1), paste0(names(tm), "_mean")),
     !!!set_names(map_dbl(vals, 2), paste0(names(tm), "_lo")),
     !!!set_names(map_dbl(vals, 3), paste0(names(tm), "_hi")),
@@ -303,7 +324,7 @@ for (k in seq_len(nrow(jobs))) {
   # write incrementally so a long run is inspectable and survives interruption
   .new  <- bind_rows(rows)
   .keep <- if (is.null(PRIOR)) NULL
-           else anti_join(PRIOR, .new, by = c("label", "step", "condition"))
+           else anti_join(PRIOR, .new, by = c("label", "step", "condition", "design"))
   saveRDS(bind_rows(.keep, .new), OUT_RDS)
   rm(fit, dr); gc(verbose = FALSE)
 }

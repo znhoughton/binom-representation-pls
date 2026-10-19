@@ -56,7 +56,17 @@ MODE      <- "mean_pooled"
 # between the two, so this must match the fits actually on disk.
 SUFFIX <- "relfreq_rawscale"
 RAW    <- SUFFIX == "relfreq_rawscale"
-fits <- Sys.glob(file.path(MODEL_DIR, paste0("*_final_*_", SUFFIX, ".rds")))
+# Must match DESIGN in corpus_relfreq_brms_all.R. Without it this globbed
+# *_relfreq_rawscale.rds, which matches pre-carrier fits and NOT the new
+# *_relfreq_rawscale_cross.rds sitting beside them, so the slope figures would
+# have been drawn from the old design while the coefficient tables used the new
+# one, with nothing to flag the mismatch.
+DESIGN <- Sys.getenv("DESIGN", unset = "cross")
+TAG    <- paste0(SUFFIX, "_", DESIGN)
+fits <- Sys.glob(file.path(MODEL_DIR, paste0("*_final_*_", TAG, ".rds")))
+if (!length(fits))
+  stop("No fits matching *_final_*_", TAG, ".rds in ", MODEL_DIR,
+       ". Run corpus_relfreq_brms_all.R first, or set DESIGN to match.")
 cat(length(fits), "final-checkpoint fits found\n")
 
 # ── Recovering raw frequencies ───────────────────────────────────────────────
@@ -98,7 +108,7 @@ names(freq_scale) <- names(ref_slug)
 corpus_of <- function(label) if (grepl("^BabyLM", label)) "babylm" else "pile"
 
 parse_name <- function(f) {
-  b <- sub(paste0("_", SUFFIX, "\\.rds$"), "", basename(f))
+  b <- sub(paste0("_", TAG, "\\.rds$"), "", basename(f))
   b <- sub("_mean_pooled$", "", b)
   cond <- if (grepl("_attn_zeroed$", b)) "attn_zeroed" else "default"
   lab  <- sub("_(attn_zeroed|default)$", "", b)
