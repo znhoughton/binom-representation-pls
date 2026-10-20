@@ -109,8 +109,12 @@ Writeup/_experiment4_saved.qmd
 # `git add -f` once the paper is accepted.
 Writeup/writeup.qmd
 # Carrier-sentence harvest (Scripts/corpus/harvest_carrier_sentences.py).
-# ~92 MB and regenerable in ~40 min from a streaming Wikipedia pass.
-Data/carrier_sentences.csv
+# carrier_sentences.csv is tracked despite its size. It is nominally regenerable
+# in ~40 min from a streaming Wikipedia pass, but the harvest shuffles a stream
+# with a buffer, so a re-run is not guaranteed to yield the same items, and the
+# cross-validation folds are assigned from the item list. Every probe result in
+# the paper is tied to this exact file, so it is versioned rather than rebuilt.
+# The intermediate shards stay ignored.
 Data/carrier_sentences_shard*.csv
 
 # Reconstructed checkpoint-0 weights (Scripts/pipeline/make_random_init.py).
