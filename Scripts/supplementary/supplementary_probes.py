@@ -49,7 +49,10 @@ from sklearn.model_selection import KFold
 # parents[1] is Scripts/, not the repo root, since the Scripts/supplementary move;
 # BASE/"Results" and BASE/"Data" resolved one level too deep.
 BASE = Path(__file__).resolve().parents[2]   # repo root
-sys.path.insert(0, str(BASE / "Scripts"))
+# by_layer_mlp lives in Scripts/pipeline, not Scripts, so the path has to reach
+# one level further in. Adding Scripts alone makes the import below fail at
+# startup, after the embeddings for that cell have already been extracted.
+sys.path.insert(0, str(BASE / "Scripts" / "pipeline"))
 
 # Reuse the main pipeline's loaders and constants so the splits, seeds and
 # feature construction are identical rather than re-implemented.

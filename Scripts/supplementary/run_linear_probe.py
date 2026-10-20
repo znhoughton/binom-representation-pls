@@ -125,13 +125,24 @@ def main():
                  "--target", "cross", "--modes", "mean_pooled", "--skip-pls",
                  "--gpu", str(args.gpu), "--embeddings-dir", str(emb)])
             ok = rc == 0
-        if not ok:
-            failed.append(slug)
-        if not args.keep_embeddings:
+        # Clear the embeddings only when the cell actually produced its probe
+        # output. They are the expensive half to recompute, and
+        # extract_embeddings skips an npz that already exists, so keeping them
+        # on a failure makes the retry nearly free.
+        if ok and not args.keep_embeddings:
             for _, subdir, _ in CONDS:
                 d = emb / subdir / slug
                 if d.exists():
                     shutil.rmtree(d)
+
+        if not ok:
+            # Stop here rather than working through the rest. A failure in the
+            # probe step is a property of the code, not of the cell, so every
+            # remaining model would pay its full extraction cost and then hit
+            # the same error. Failing fast keeps that from burning a night.
+            failed.append(slug)
+            banner(f"ABORTING at {slug}; {len(pending) - i} cells not attempted")
+            break
 
     el = (time.perf_counter() - t0) / 3600
     banner(f"DONE  {len(pending) - len(failed)}/{len(pending)} cells in {el:.1f}h")
