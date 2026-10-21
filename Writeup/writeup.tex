@@ -13,6 +13,15 @@
 % Set any of these in the document YAML:
 %   code-url / anon-code-url          written in the text as \codefootnote
 %   weights-url / anon-weights-url    written in the text as \weightsfootnote
+%
+% In the qmd, call them as raw inline LaTeX WITH braces, immediately after the
+% punctuation and with no space before:
+%     ...activation function.`\codefootnote{}`{=latex} The model takes...
+% The {} matters. TeX consumes whitespace after a control word as the terminator
+% of the macro NAME, before expansion, so a bare `\codefootnote`{=latex} followed
+% by text loses the space and the marker collides with the next word. The braces
+% end the name so the following space survives. A bare call is only safe at the
+% end of a paragraph or list item, where nothing follows it.
 % acl-mode decides which URL of each pair appears, so the anonymous and the
 % camera-ready builds come from one source and the URLs live in the header
 % rather than being typed into the prose. With no anon-* URL set, the review
@@ -141,7 +150,10 @@ Representations of Binomials in Language Models}
   Zachary Nicholas Houghton \\
       University of Oregon \\ Vail Systems, Inc. \\
         \texttt{znh@uoregon.edu}
-    }
+     \And
+  Emily Morgan \\
+      University of California, Davis \\
+      }
 
 \begin{document}
 \maketitle
@@ -162,10 +174,9 @@ intervention mitigates but does not remove the idiosyncrasy of
 high-frequency binomials, indicating that the lexical representations
 themselves come to represent some amount of the phrase-level
 representation as well. Examining the developmental trajectory across
-checkpoints further shows that abstract preferences are present early
-while the frequency-dependent storage is not observable until later,
-with the point of detection governed by training tokens rather than
-model scale.
+checkpoints further shows that abstract preferences become measurable
+earlier in training than the frequency-dependent storage does, at a
+point governed by training tokens rather than model scale.
 \end{abstract}
 
 \section{Introduction}\label{introduction}
@@ -363,12 +374,13 @@ ordering preference for the binomial, which is operationalized as the
 model's own log-probability ratio:
 \(y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)\).
 
-For the developmental analysis in Experiment 3, we probe six checkpoints
-from the BabyLM and Pythia models. BabyLM checkpoints were sampled at
+For the developmental analysis in Experiment 3, we probe seven
+checkpoints from the BabyLM and Pythia models, the first being the
+untrained initialization. BabyLM checkpoints were sampled at
 approximately even intervals across training; Pythia checkpoints were
 instead chosen so that each model had seen roughly the same number of
-tokens as the corresponding BabyLM checkpoints. These span roughly 20M
-to 2B effective training tokens.
+tokens as the corresponding BabyLM checkpoints. The trained checkpoints
+span roughly 20M to 2B effective training tokens.
 
 \subsection{Representation Extraction}\label{representation-extraction}
 
@@ -421,14 +433,14 @@ preference it would hold given only word-level information.
 
 \subsection{Probes}\label{probes}
 
-For each representation type, we train a two-layer MLP classifier
-(hidden dimension 128, ReLU activation) to predict binomial ordering
-preferences from the binomial representations. The probe takes the
-concatenated representations for a binomial and outputs a single
-continuous value \(\hat{y}\), trained under mean-squared-error loss
-against \(y_{\text{true}}\), with antisymmetric augmentation so that a
-swapped ordering carries the negated label. Optimizer settings, early
-stopping, and the augmentation rate are given in
+For each representation type, we train a two-layer MLP regressor (hidden
+dimension 128, ReLU activation) to predict binomial ordering preferences
+from the binomial representations. The probe takes the concatenated
+representations for a binomial and outputs a single continuous value
+\(\hat{y}\), trained under mean-squared-error loss against
+\(y_{\text{true}}\), with antisymmetric augmentation so that a swapped
+ordering carries the negated label. Optimizer settings, early stopping,
+and the augmentation rate are given in
 Appendix~\ref{sec-appendix-implementation}. We report cross-validated R²
 (the squared Pearson correlation between \(\hat{y}\) and
 \(y_{\text{true}}\) on held-out folds), averaged across 10
@@ -457,8 +469,15 @@ conditions:
 
 Both splits are applied to the novel set; the attested set is not
 cross-validated, and is instead used to evaluate the effects of binomial
-frequency on the probe's predictions. We report fold standard deviations
-throughout (Appendix~\ref{sec-appendix-cv}).
+frequency on the probe's predictions. Two senses of novelty are in play
+here, and they are nested. The novel set is novel with respect to the
+\emph{language model's} training corpus, in that the pairing does not
+occur there; the two splits then control what the \emph{probe} has seen
+within that set. An item in the word-held-out test set is thus new to
+the probe in both its pairing and its two words, while those same words
+are ordinary vocabulary that the language model encountered many times.
+We report fold standard deviations throughout
+(Appendix~\ref{sec-appendix-cv}).
 
 Finally, following \citet{hewitt-liang-2019-designing}, we train a
 matched control probe on randomly permuted labels; near-zero control R²
@@ -548,14 +567,14 @@ condition. Bars = ±1 SD across 10 folds.}
 
 \end{figure}%
 
-For the binomial-level conditions, binomial-held-out R² ranges from 0.24
-to 0.33; word-held-out R² is consistently lower, ranging from 0.12 to
-0.21. The drop reflects a lexical generalization cost: some of the
+For the binomial-level conditions, binomial-held-out R² ranges from 0.04
+to 0.13; word-held-out R² is consistently lower, ranging from 0.04 to
+0.10. The drop reflects a lexical generalization cost: some of the
 preference signal is tied to word identity rather than being fully
-abstract. Probe accuracy is non-monotonic with model size, and the
-full-context condition yields higher binomial-held-out R² than
-attention-zeroed in the 125M and 1.3B models though not in the 350M, a
-difference we report but do not build on.
+abstract. Probe accuracy falls monotonically with model size under both
+attention conditions, from 0.13 at 125M to 0.07 at 1.3B under full
+context, and the full-context condition yields higher binomial-held-out
+R² than attention-zeroed in all three models.
 
 \subsubsection{Abstract and Stored
 Contributions}\label{abstract-and-stored-contributions}
@@ -585,8 +604,9 @@ binomials when attention is zeroed.
 
 \caption{\label{fig-relfreq-babylm}How strongly each source contributes
 to the BabyLM models' ordering preference, by binomial frequency. Values
-are slopes from the fitted posteriors of Equation~\ref{eq-relfreq}.
-Bands are 95\% credible intervals.}
+are slopes from the fitted posteriors of Equation~\ref{eq-relfreq}. Rows
+are the two sources, each on its own scale. Bands are 95\% credible
+intervals.}
 
 \end{figure}%
 
@@ -607,15 +627,17 @@ results carried over for comparison
 
 Figure~\ref{fig-r2} shows both cross-validation splits for all 16
 models; full numbers, control probes, and the word-level replication are
-in Appendix~\ref{sec-appendix-exp2}. Control R² was near zero
-throughout. All large-scale models substantially outperform BabyLM:
-full-context binomial-held-out R² spans 0.43 to 0.65 against 0.29--0.34,
-and word-held-out R² is lower than binomial-held-out for every model and
-condition. Attention-zeroing raises binomial-held-out R² in every
-large-scale family, most sharply in GPT-2, where it reaches 0.79 at 117M
-against 0.65 under full context; Llama-3-8B is the sole exception. Scale
-effects within families are non-monotonic as a function of number of
-parameters.
+in Appendix \ref{sec-appendix-exp2}. Control R² was near zero
+throughout, never exceeding 0.001. All large-scale models substantially
+outperform BabyLM: full-context binomial-held-out R² spans 0.16 to 0.21
+against 0.07--0.13, and word-held-out R² is lower than binomial-held-out
+in every one of the 32 model-by-condition cells. Attention-zeroing
+lowers binomial-held-out R² in all 16 models, by between 0.03 and 0.10,
+with the largest reductions in the 7B and 8B models and in Pythia-1B,
+and the smallest in the BabyLMs. Scale effects within families differ in
+direction rather than being uniformly non-monotonic: R² rises with
+parameters in Pythia (0.16 to 0.20) and OLMo (0.19 to 0.21), is flat
+across GPT-2 (0.18 at every size), and falls in BabyLM (0.13 to 0.07).
 
 \begin{figure*}[t]
 
@@ -648,20 +670,24 @@ binomial's frequency and the less by abstract preferences.
 Zeroing out attention mitigates the effect of relative frequency
 substantially for both the main-effect and the interaction with overall
 frequency, however both remain credible. Further, the effect of abstract
-preferences \emph{increases} in every one of the large-scale models,
-while the interaction effect grows more negative in all but one. In
+preferences \emph{increases} in nine of the thirteen large-scale models;
+of the four exceptions, all of them among the largest, only Llama-3-8B
+decreases credibly, the other three falling within their credible
+intervals. The interaction effect grows more negative in all but one. In
 other words, the effect of abstract preferences is generally stronger
 with attention zeroed out, but this increase is weaker for
 high-frequency binomials.
 
-Notably, the effect of zeroing out attention differs between the BabyLMs
-and the other models. For the BabyLMs, zeroing out attention weakens the
-effect of both abstract preferences and relative frequency; for the
-large-scale models, it weakens the effect of relative frequency but
-\emph{strengthens} the effect of abstract preferences. Further, the
-reduction in the effect of relative frequency is smaller for the BabyLMs
-than for the other models. We return to possible explanations for this
-contrast in the Discussion and Conclusion section.
+Notably, the effect of zeroing out attention on abstract preferences
+differs between the BabyLMs and most of the other models. For the
+BabyLMs, zeroing out attention weakens the effect of both abstract
+preferences and relative frequency; for most of the large-scale models,
+it weakens the effect of relative frequency but \emph{strengthens} the
+effect of abstract preferences. The reduction in the effect of relative
+frequency, by contrast, is of a similar size in the two groups, ranging
+from 33\% to 42\% in the BabyLMs against 30\% to 47\% in the others. We
+return to possible explanations for this contrast in the Discussion and
+Conclusion section.
 
 \begin{figure}[t]
 
@@ -674,8 +700,9 @@ contrast in the Discussion and Conclusion section.
 \caption{\label{fig-relfreq-pile}How strongly each source contributes to
 the ordering preference, by binomial frequency, for the 13 large-scale
 models. Values are simple slopes from the fitted posteriors of
-Equation~\ref{eq-relfreq}. Faint lines are individual models with their
-95\% credible intervals, bold lines their mean.}
+Equation~\ref{eq-relfreq}. Rows are the two sources, each on its own
+scale. Faint lines are individual models with their 95\% credible
+intervals, bold lines the mean within each family.}
 
 \end{figure}%
 
@@ -696,26 +723,39 @@ in both attention conditions.
 
 Probe trajectories are shown in Figure~\ref{fig-checkpoints} and the two
 sources' contributions in Figure~\ref{fig-ckpt-sources}. Full numerical
-and word-level results are in Appendix~\ref{sec-appendix-exp3}. BabyLM
-binomial-held-out R² is already high at the earliest checkpoint
-(\textasciitilde20M tokens: 0.65--0.72) and broadly declines to
-0.31--0.34 by the end of training. At the earliest checkpoint, the
-attention-zeroed condition outperforms full context (0.79--0.80
-vs.~0.65--0.72); this ordering reverses between \textasciitilde120M and
-\textasciitilde750M tokens, so that full context exceeds
-attention-zeroed at the final checkpoint for all three model sizes.
-Pythia shows an inverted-U trajectory instead: R² rises from 0.68--0.74
-at 33.6M tokens to a peak of 0.80--0.86 at 537M tokens, then declines to
-0.71--0.76 at 1074M--2097M tokens. The attention condition flip for
-Pythia follows the same qualitative pattern as BabyLM.
+and word-level results are in Appendix~\ref{sec-appendix-exp3}.
+Binomial-held-out R² begins at essentially zero in every model and rises
+with training. For the BabyLMs it is 0.00 at the earliest checkpoint
+(\textasciitilde20M tokens), climbs to 0.13--0.14 by mid-training, and
+stands at 0.10--0.14 at the end. Pythia follows the same course, rising
+from 0.00--0.01 at 33.6M tokens to 0.15--0.19 at 2097M tokens. Full
+context exceeds attention-zeroing at the final checkpoint in all three
+BabyLMs, while in Pythia the two conditions end close together.
 
 The effect of relative frequency is small across the first three
-checkpoints of every model, never exceeding 0.10 (compared to a maximum
-value of 0.80) across training. From the fourth checkpoint it is
-credibly positive in every model and climbs thereafter to 0.463, 0.585
-and 0.802 in the three BabyLM models, and to 0.488, 0.488 and 0.530 in
+checkpoints of every model, never exceeding 0.29 (compared to a maximum
+value of 1.03) across training. From the fourth checkpoint it is
+credibly positive in every model and climbs thereafter to 0.353, 0.447
+and 0.512 in the three BabyLM models, and to 0.995, 0.914 and 1.031 in
 the three Pythia models. This holds in both attention conditions, so
-what grows is not solely the binomial-specific representation.
+what grows is not solely the binomial-specific representation. At step
+0, before the models have seen any data, the effect is indistinguishable
+from zero in the three BabyLM models, but credibly positive in the three
+Pythia models (0.11--0.15); this Pythia floor is an artifact of subword
+tokenization rather than any ordering preference in the untrained
+networks.\footnote{This is a tokenization artifact: for some binomials
+  the two orderings segment into different numbers of tokens, and at
+  initialization each token costs roughly the log of the vocabulary
+  size, so the difference between them is large for reasons that have
+  nothing to do with ordering preferences. Where the preceding context
+  ends in a quotation mark rather than a space, for instance, the first
+  word loses its leading space, and \emph{``bread and butter''} is three
+  tokens (\texttt{bread}, \texttt{and}, \texttt{butter}) while
+  \emph{``butter and bread''} is four (\texttt{but}, \texttt{ter},
+  \texttt{and}, \texttt{bread}). Roughly 2\% of items are affected.
+  Excluding them eliminates the effect of relative frequency at the step
+  0 checkpoint but leaves it unchanged in the fully trained models;
+  Appendix \ref{sec-appendix-tokenization} gives the full comparison.}
 
 At the fourth checkpoint, the first at which relative frequency is
 credibly positive in every model, attention-zeroing removes none of the
@@ -726,19 +766,56 @@ phrasal representations shift afterwards. This is demonstrated from the
 amount of the relative-frequency effect that is removed from zeroing out
 cross attention. After the fourth checkpoint, the amount that the the
 relative-frequency effect removed by zeroing out attention rises from
-nothing at the fourth checkpoint to 20--23\% by the last in the three
-Pythia models and 15--24\% in the three BabyLM models, and reaches
-40--70\% in the fully trained large-scale models. The interaction effect
+nothing at the fourth checkpoint to 13--21\% by the last in the three
+Pythia models and 27--42\% in the three BabyLM models, and reaches
+30--47\% in the fully trained large-scale models. The interaction effect
 between relative frequency and overall frequency follows the same
-course, reaching 0.142, 0.249 and 0.291 in the BabyLMs and 0.052, 0.042
-and 0.054 in the Pythia models.
+course, reaching 0.191, 0.288 and 0.351 in the BabyLMs and 0.121, 0.104
+and 0.130 in the Pythia models.
 
-The effect of abstract preferences moves independently of all this. It
-declines steadily across BabyLM training in both conditions. For Pythia
-it rises over the early window, then falls below its starting value by
-the final model. Its interaction with overall frequency is credibly
-negative under attention-zeroing in 26 of the 36 model-checkpoint fits
-(six checkpoints for each of the six models).
+The effect of abstract preferences follows its own course. It rises
+across training in both families and in both conditions, from near zero
+at the earliest checkpoints to 0.374, 0.364 and 0.324 in the three
+BabyLM models and 0.310, 0.326 and 0.327 in the three Pythia models,
+with most cells reaching their maximum a checkpoint or two before the
+end. A small effect is nonetheless present at step 0 under full context,
+before the models have seen any data, though not under
+attention-zeroing.\footnote{Novel binomials are novel as pairings, not
+  as words: 97\% of attested binomials have both of their words
+  somewhere in the probe's training set. A randomly initialized network
+  already assigns each word an arbitrary but consistent bias, so the
+  probe can learn those biases and carry them over to attested pairs
+  built from the same words, and the effect scales with that overlap,
+  from \(+0.12\) where the probe had seen both words to a non-credible
+  estimate where it had seen neither. It accounts for roughly 1\% of the
+  variance at step 0 against 17\% in the trained model.} Its interaction
+with overall frequency is credibly negative under attention-zeroing in
+17 of the 36 model-checkpoint fits (six checkpoints for each of the six
+models).
+
+Both sources are coefficients in the same regression, fit to the same
+items, so we can ask when each becomes measurable on a single scale. We
+use two criteria. The first is detectability: the earliest checkpoint
+whose posterior sits credibly above the same coefficient's value at step
+0, in the same model and condition, and stays there. Taking step 0
+rather than zero as the baseline keeps an untrained network from
+registering, which matters here because both coefficients are already
+non-zero before training for reasons that have nothing to do with
+learning. The second is trajectory: the earliest checkpoint at which a
+coefficient has covered three quarters of its own change from step 0 to
+its final value. The two fail in opposite directions, the first favoring
+whichever measure is more sensitive and the second ignoring sensitivity
+altogether.
+
+Abstract preferences come first on both counts. They are detectable from
+20 to 134M tokens against 118 to 315M for relative frequency, and cover
+three quarters of their change by 118 to 1074M against 1074 to 2097M.
+The interaction between relative frequency and overall frequency is last
+on both, detectable from 298 to 1074M tokens. Per-model values are in
+Appendix \ref{sec-appendix-timing}. We read this as soft evidence about
+ordering rather than as an estimate of when either source becomes
+available; the two measures are not on equal footing, for reasons we
+return to in the Limitations.
 
 \begin{figure}[t]
 
@@ -776,35 +853,42 @@ preferences are driven by abstract structure, and if so, how that
 structure emerges throughout training. Across 16 models from five
 families, we found evidence for ordering preferences being driven by
 both abstract and item-specific knowledge. Preferences generalize to
-binomials composed entirely of words absent from training, demonstrating
-abstract structure that is shared across independently trained models.
-At the same time, a binomial's relative frequency contributes over and
-above abstract preferences, and contributes more as the binomial becomes
-more frequent. These two sources also behave differently over training:
-abstract preferences are present early, whereas the item-specific
-contribution only becomes measurable later (though note that only being
-able to measure it later does not mean that information wasn't present
-earlier). Finally, zeroing out cross-word attention removes only part of
-the relative-frequency contribution, suggesting that storage shifts the
+binomials that are absent from the language model's training corpus, and
+continue to do so when the probe is additionally denied both of a
+binomial's words during its own training, demonstrating abstract
+structure that is shared across independently trained models. At the
+same time, a binomial's relative frequency contributes over and above
+abstract preferences, and contributes more as the binomial becomes more
+frequent. These two sources also behave differently over training:
+abstract preferences become measurable earlier than the item-specific
+contribution does (though note that only being able to measure something
+later does not mean the information wasn't present earlier). Finally,
+zeroing out cross-word attention removes only part of the
+relative-frequency contribution, suggesting that storage shifts the
 lexical representations in addition the phrasal one.
 
 The evidence for abstract preferences is particularly strong because it
 does not depend on generalization across familiar words alone. The probe
-recovers a model's preference for binomials built entirely from words it
-was never trained on. A ridge probe with a single tuned hyperparameter
-recovers the same pattern, showing that the result does not depend on
-the MLP's capacity (Appendix~\ref{sec-appendix-linear}). The answer to
-the question left open by \citet{houghton2025role} is therefore that
-models do have abstract preferences, but ones that seem modeling using
-human constraints failed to find. Further evidence that these
-preferences are systematic comes without the probe at all: independently
-trained models converge on the same preferences for the same novel
-binomials (\(r = 0.45\), against a shuffled baseline of
-\(r \approx 0.00\)). This agreement holds even among the three BabyLM
-models, which share a training corpus but differ in capacity, and is
-stronger within model families than between families. Because all
-sixteen models received the same sentence frame, the latter pattern
-cannot be attributed to the frame itself.
+recovers a model's preference for binomials that are absent from the
+language model's own training corpus, and it does so even when both of
+the binomial's words are additionally withheld from the probe's training
+folds. The two exclusions operate at different levels: the pairing is
+new to the language model, and the words are new to the probe. The
+language model has of course seen those words many times. A ridge probe
+with a single tuned hyperparameter recovers the same pattern, showing
+that the result does not depend on the MLP's capacity
+(Appendix~\ref{sec-appendix-linear}). The answer to the question left
+open by \citet{houghton2025role} is therefore that models do have
+abstract preferences, but ones that modeling with human constraints
+seems to have failed to find. Further evidence that these preferences
+are systematic comes without the probe at all: independently trained
+models converge on the same preferences for the same novel binomials
+(\(r = 0.50\), against a shuffled baseline of \(r \approx 0.00\)). This
+agreement holds even among the three BabyLM models, which share a
+training corpus but differ in capacity, and is stronger within model
+families than between families, though it remains high between families
+as well. Because all sixteen models received the same sentence frame,
+the latter pattern cannot be attributed to the frame itself.
 
 Abstract structure, however, does not fully determine a model's
 preference for a particular binomial. A binomial's relative frequency
@@ -817,13 +901,10 @@ experience with individual items, closely paralleling the trade-off
 between abstract preferences and item-specific experience observed by
 \citet{morgan2016} in humans.
 
-Abstract preferences are present from early on. Probe R² is already high
-at the earliest BabyLM checkpoint, at roughly 20M tokens, and the effect
-of abstract preferences in Equation~\ref{eq-relfreq} is large from the
-first checkpoint in every model. In the BabyLMs it then declines as the
-item-specific effect grows, potentially due to the lack of diversity in
-the training data adding item-specific knowledge without containing
-additional information about abstract preferences. The item-specific
+Abstract preferences come first. Probe R² begins at essentially zero and
+rises over training, and in Equation~\ref{eq-relfreq} the abstract
+component becomes measurable earlier than the item-specific one in every
+model, on both of the criteria we apply to them. The item-specific
 contribution follows a different trajectory: it is negligible through
 the first three checkpoints of every model, becomes credibly positive
 everywhere from the fourth, and then climbs monotonically under full
@@ -879,6 +960,23 @@ ones. This is why Experiment 1 anchors the interpretation. Corpus
 frequency is likewise an exact measure of what the model saw only for
 BabyLM and Pythia; for GPT-2, OLMo, and Llama, Pile counts stand in as a
 proxy for web-scale exposure.
+
+The two sources in Equation~\ref{eq-relfreq} are also not measured on
+equal footing, which is why we treat the ordering in Experiment 3 as
+soft evidence. \(\hat{y}\) is a fitted readout of the model at that
+checkpoint, so it tracks whatever the model currently encodes. Relative
+frequency is a fixed corpus statistic measured with error, and
+measurement error in a predictor pulls its coefficient toward zero. It
+is also computed over the whole training corpus rather than over what
+the model has seen by that checkpoint, so early on it describes text the
+model has not encountered yet. Both asymmetries push storage later and
+abstract preferences earlier, which is the direction our ordering runs.
+The BabyLM checkpoints make the problem concrete: they sit at fixed
+epoch fractions, and relative frequency becomes detectable at the first
+checkpoint past one complete pass over the corpus in all three models.
+That is what we would expect if storage requires repeated exposure, and
+equally what we would expect if the predictor only starts describing the
+model's experience after one pass. Our data cannot separate the two.
 
 Additionally, the results are limited to English and to a single
 construction.
@@ -1022,13 +1120,28 @@ than ADJ in ``disgusted and mortified.'' Requiring POS-tag agreement
 would therefore risk excluding valid binomials because of POS-tagging
 errors.
 
+Two further restrictions apply to the items we probe. First, each
+binomial must occur at least twice in Wikitext with at least ten
+characters of preceding text, since we measure the representations in
+one occurrence and the ordering preference in the other, and a binomial
+at the start of a sentence has no left context to distinguish it from
+any other such item. Second, reduplicatives (``again and again'') are
+excluded throughout: their two orderings are the same string, so the
+ordering preference is identically zero and carries no information. Of
+the 340,042 novel binomials the extraction yields, 216,523 satisfy both
+conditions, and it is these that the probes and the frequency regression
+use. Retention is higher for frequent binomials than for rare ones, but
+it is unrelated to which ordering a binomial prefers: among items
+attested once in the training corpus, the mean relative frequency of
+those retained is \(-0.004\) against \(-0.000\) for those dropped.
+
 \newpage
 
 \section{Implementation Details}\label{sec-appendix-implementation}
 
 \textbf{Probe training.} The probe is optimized with Adam (learning rate
 \(10^{-3}\), weight decay \(10^{-4}\)) under mean-squared-error loss,
-with early stopping (patience 20) against a 10\% held-out validation
+with early stopping (patience 5) against a 10\% held-out validation
 split. Antisymmetric augmentation is applied with probability 0.5: for
 each binomial the flipped version, with swapped ordering and negated
 label, is added to the training batch. The input dimensionality follows
@@ -1063,10 +1176,10 @@ split of that fold's training data. That inner split is the same size as
 the MLP's early-stopping split, so both probes receive an identical
 budget of held-out data for hyperparameter selection.
 
-Across 52 model-checkpoint cells and 207 comparisons, the two probes
-agree closely (\emph{r} = 0.913 between their R² values). On the
-word-held-out split the linear probe recovers 88\% of the MLP's R² on
-average (0.410 vs.~0.466).
+Across 16 model-checkpoint cells and 64 comparisons, the two probes
+agree closely (\emph{r} = 0.985 between their R² values). On the
+word-held-out split the linear probe recovers 103\% of the MLP's R² on
+average (0.125 vs.~0.122).
 
 \begingroup\fontsize{8}{10}\selectfont
 
@@ -1084,133 +1197,133 @@ Model & Condition & Split & Linear & MLP & Gap\\
 
 \endfoot
 \endlastfoot
- &  & B & 0.169 & 0.244 & +0.075\\
+ &  & B & 0.093 & 0.096 & +0.003\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.103 & 0.143 & +0.040\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.086 & 0.080 & -0.006\\
 \nopagebreak
- &  & B & 0.197 & 0.314 & +0.116\\
+ &  & B & 0.114 & 0.129 & +0.016\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125m} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.147 & 0.207 & +0.060\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.104 & 0.102 & -0.001\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.185 & 0.263 & +0.078\\
+ &  & B & 0.072 & 0.070 & -0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.094 & 0.121 & +0.027\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.069 & 0.065 & -0.004\\
 \nopagebreak
- &  & B & 0.188 & 0.294 & +0.105\\
+ &  & B & 0.102 & 0.110 & +0.008\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1\_3b} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.127 & 0.160 & +0.032\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.099 & 0.093 & -0.006\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.211 & 0.333 & +0.121\\
+ &  & B & 0.055 & 0.042 & -0.013\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 & 0.184 & +0.063\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.050 & 0.038 & -0.011\\
 \nopagebreak
- &  & B & 0.223 & 0.294 & +0.071\\
+ &  & B & 0.081 & 0.068 & -0.013\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350m} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.170 & 0.149 & -0.021\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.078 & 0.058 & -0.020\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.336 & 0.443 & +0.107\\
+ &  & B & 0.109 & 0.115 & +0.007\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.288 & 0.370 & +0.082\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.100 & 0.106 & +0.006\\
 \nopagebreak
- &  & B & 0.357 & 0.433 & +0.076\\
+ &  & B & 0.167 & 0.181 & +0.014\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3.2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.332 & 0.373 & +0.041\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.150 & 0.155 & +0.005\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.465 & 0.521 & +0.057\\
+ &  & B & 0.103 & 0.105 & +0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.420 & 0.470 & +0.050\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.093 & 0.094 & +0.001\\
 \nopagebreak
- &  & B & 0.507 & 0.545 & +0.038\\
+ &  & B & 0.177 & 0.184 & +0.007\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Meta-Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.485 & 0.510 & +0.026\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.163 & 0.166 & +0.003\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.482 & 0.597 & +0.114\\
+ &  & B & 0.098 & 0.103 & +0.004\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.438 & 0.514 & +0.076\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.090 & 0.091 & +0.001\\
 \nopagebreak
- &  & B & 0.466 & 0.575 & +0.108\\
+ &  & B & 0.181 & 0.184 & +0.003\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B-hf} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.439 & 0.505 & +0.066\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.170 & 0.168 & -0.002\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.477 & 0.583 & +0.105\\
+ &  & B & 0.100 & 0.100 & -0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.448 & 0.518 & +0.070\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.091 & 0.091 & -0.000\\
 \nopagebreak
- &  & B & 0.460 & 0.557 & +0.096\\
+ &  & B & 0.186 & 0.184 & -0.001\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-0425-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.438 & 0.488 & +0.051\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.172 & 0.169 & -0.002\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.566 & 0.642 & +0.076\\
+ &  & B & 0.077 & 0.087 & +0.010\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.525 & 0.570 & +0.044\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.066 & 0.072 & +0.006\\
 \nopagebreak
- &  & B & 0.559 & 0.614 & +0.055\\
+ &  & B & 0.141 & 0.156 & +0.015\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1124-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.531 & 0.554 & +0.023\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.135 & 0.140 & +0.005\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.575 & 0.658 & +0.083\\
+ &  & B & 0.090 & 0.097 & +0.006\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.518 & 0.580 & +0.062\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.076 & 0.084 & +0.008\\
 \nopagebreak
- &  & B & 0.553 & 0.621 & +0.067\\
+ &  & B & 0.167 & 0.181 & +0.014\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B-hf} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.518 & 0.561 & +0.043\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.157 & 0.161 & +0.004\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.647 & 0.786 & +0.139\\
+ &  & B & 0.109 & 0.107 & -0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.606 & 0.718 & +0.111\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.095 & 0.096 & +0.000\\
 \nopagebreak
- &  & B & 0.569 & 0.648 & +0.079\\
+ &  & B & 0.200 & 0.200 & +0.000\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash gpt2} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.556 & 0.601 & +0.045\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.187 & 0.186 & -0.000\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.523 & 0.668 & +0.145\\
+ &  & B & 0.106 & 0.108 & +0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.468 & 0.571 & +0.103\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.093 & 0.094 & +0.001\\
 \nopagebreak
- &  & B & 0.414 & 0.519 & +0.105\\
+ &  & B & 0.191 & 0.192 & +0.001\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash gpt2-large} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.392 & 0.449 & +0.057\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.183 & 0.181 & -0.003\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.621 & 0.756 & +0.136\\
+ &  & B & 0.127 & 0.115 & -0.012\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.567 & 0.670 & +0.103\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.112 & 0.102 & -0.010\\
 \nopagebreak
- &  & B & 0.396 & 0.533 & +0.138\\
+ &  & B & 0.219 & 0.206 & -0.013\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash gpt2-medium} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.373 & 0.453 & +0.081\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.209 & 0.191 & -0.018\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.609 & 0.726 & +0.117\\
+ &  & B & 0.097 & 0.096 & -0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.560 & 0.641 & +0.081\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.085 & 0.085 & +0.000\\
 \nopagebreak
- &  & B & 0.394 & 0.487 & +0.092\\
+ &  & B & 0.191 & 0.185 & -0.005\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash gpt2-xl} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.369 & 0.420 & +0.051\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.178 & 0.174 & -0.005\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.481 & 0.604 & +0.122\\
+ &  & B & 0.120 & 0.114 & -0.006\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.456 & 0.527 & +0.071\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.107 & 0.100 & -0.007\\
 \nopagebreak
- &  & B & 0.459 & 0.587 & +0.128\\
+ &  & B & 0.225 & 0.210 & -0.016\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash pythia-160m} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.445 & 0.522 & +0.077\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.214 & 0.197 & -0.016\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.479 & 0.567 & +0.088\\
+ &  & B & 0.106 & 0.108 & +0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.437 & 0.496 & +0.058\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.092 & 0.092 & +0.000\\
 \nopagebreak
- &  & B & 0.471 & 0.554 & +0.083\\
+ &  & B & 0.196 & 0.193 & -0.002\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash pythia-1b} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.440 & 0.488 & +0.048\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.179 & 0.178 & -0.001\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.434 & 0.552 & +0.118\\
+ &  & B & 0.118 & 0.110 & -0.008\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.407 & 0.477 & +0.070\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.107 & 0.098 & -0.010\\
 \nopagebreak
- &  & B & 0.413 & 0.532 & +0.118\\
+ &  & B & 0.214 & 0.201 & -0.013\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash pythia-410m} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.392 & 0.461 & +0.069\\*
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.206 & 0.190 & -0.016\\*
 \bottomrule
 
 
@@ -1224,12 +1337,9 @@ MLP minus linear.}
 
 \endgroup{}
 
-The gap in performance between the MLP probe and ridge regression models
-is consistently larger on the binomial-held-out split than on the
-word-held-out split. This is expected: binomial-held-out performance is
-partly recoverable from word identity alone, which a flexible model can
-exploit more easily than a linear model. Word-held-out performance, on
-which the paper's claims rest, is where the two agree most closely.
+The two probes agree closely, and the generalization pattern is the same
+under both. The reported results therefore do not depend on the MLP's
+extra capacity.
 
 \newpage
 
@@ -1270,13 +1380,13 @@ Split & Train / fold & Test / fold & Discarded / fold\\
 
 \endfoot
 \endlastfoot
-Binomial-held-out & 306,038 & 34,004 & 0\\
-Word-held-out & 271,560--279,306 & 3,086--3,839 & 61,101 (18.0\%)\\*
+Binomial-held-out & 194,870--194,871 & 21,652--21,653 & 0\\
+Word-held-out & 172,411--176,774 & 1,961--2,548 & 37,747--41,564 (18.0\%)\\*
 \bottomrule
 
 
 \caption{\label{tbl-cv-sizes}Cross-validation fold sizes for the novel
-set (340,042 binomials over 50,137 unique words). Ranges are across the
+set (216,523 binomials over 36,209 unique words). Ranges are across the
 10 folds. Discarded items under word-held-out are binomials with exactly
 one word in the held-out vocabulary fold.}
 
@@ -1284,6 +1394,58 @@ one word in the held-out vocabulary fold.}
 \end{longtable}
 
 \endgroup{}
+
+\newpage
+
+\section{Corpus Frequency Distributions}\label{sec-appendix-corpus-freq}
+
+The figure below compares the frequency distributions of the 48,965
+corpus binomials in the BabyLM training corpus (150M tokens, 20 epochs)
+and the Pile, illustrating the difference in lexical coverage between
+the two training regimes. BabyLM's distribution is dominated by
+singleton binomials (71.2\% appear exactly once), while Pile frequencies
+span several orders of magnitude.
+
+\begin{figure}[H]
+
+\centering{
+
+\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-corpus-freq-1.pdf}}
+
+}
+
+\caption{\label{fig-corpus-freq}Frequency distributions for the 48,965
+corpus binomials in the BabyLM training corpus (150M tokens, 20 epochs)
+and the Pile. Left: histogram of log\(_{10}\) raw counts. Right:
+rank-frequency plot treating counts as a probability distribution
+(probability = count / \(\sum\) counts); both axes log-scaled. BabyLM's
+distribution is heavily concentrated at a single occurrence per pair
+(71.2\% of pairs appear exactly once), whereas Pile frequencies span
+several orders of magnitude with a median of 365 occurrences per pair.}
+
+\end{figure}%
+
+The BabyLM training corpus is a 150M-token collection of child-directed
+and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles,
+Wikipedia), trained for 20 epochs. The Pile is a
+\textasciitilde300B-token web-scraped corpus used to train the Pythia
+family. For each of the 48,965 corpus binomials, we extracted 3-gram
+counts (i.e., the frequency of ``word\(_1\) and word\(_2\)'' and its
+reverse) from each corpus via infini-gram \citep{liu2024infinigram}. As
+Figure~\ref{fig-corpus-freq} shows, the BabyLM corpus produces a highly
+skewed frequency distribution: 71.2\% of binomials appear exactly once,
+87.7\% appear at most twice, and 98.2\% appear at most ten times, with a
+maximum of 1,095 occurrences. The Pile distribution is far richer: the
+median binomial appears 365 times, the 25th percentile is 62
+occurrences, and the 99th percentile exceeds 77,000.
+
+In absolute training exposure terms (accounting for BabyLM's 20 epochs),
+the most frequent BabyLM binomial that enters our analyses, \emph{back
+and forth}, is seen \textasciitilde21,600 times total across all
+training steps, while the same binomial is seen over 1.5 million times
+in a single pass of the Pile. Even the median Pile binomial (365
+occurrences per pass) substantially exceeds BabyLM's total exposure for
+a typical singleton binomial (1 × 20 = 20 exposures).
 
 \newpage
 
@@ -1302,10 +1464,11 @@ are log-probability ratios, so a unit is nominally the same everywhere,
 but the spread of that quantity reflects how sharp a given model's
 output distribution is rather than how much it knows about binomials.
 Across the models here the standard deviation of \texttt{y\_true} ranges
-from 2.71 to 4.85, and it runs opposite to probe R², so a raw
-coefficient would partly measure output calibration. We therefore
-z-score both within each fit, which puts every coefficient in units of
-that model's own preference spread.
+from 2.79 to 4.48, and it bears almost no relation to probe R²
+(\(r = 0.15\) across the sixteen models, and it runs in the opposite
+direction within BabyLM), so a raw coefficient would partly measure
+output calibration. We therefore z-score both within each fit, which
+puts every coefficient in units of that model's own preference spread.
 
 \texttt{rel\_freq} and \texttt{log\_freq}, by contrast, are properties
 of the training corpus: a proportion of occurrences and a count of them
@@ -1332,69 +1495,69 @@ Model & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pred} $\t
 
 \endfoot
 \endlastfoot
- & Full context & 0.418 [0.411, 0.426] & 0.535 [0.519, 0.551] & 0.003 [-0.010, 0.015] & 0.393 [0.363, 0.423]\\
+ & Full context & 0.374 [0.363, 0.384] & 0.386 [0.363, 0.409] & -0.043 [-0.058, -0.028] & 0.460 [0.425, 0.495]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} & Attention-zeroed & 0.388 [0.380, 0.396] & 0.419 [0.403, 0.436] & -0.025 [-0.036, -0.013] & 0.187 [0.158, 0.217]\\
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} & Attention-zeroed & 0.318 [0.306, 0.329] & 0.260 [0.237, 0.284] & -0.046 [-0.060, -0.033] & 0.205 [0.172, 0.240]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.365 [0.358, 0.373] & 0.676 [0.660, 0.692] & -0.024 [-0.036, -0.012] & 0.446 [0.416, 0.476]\\
+ & Full context & 0.339 [0.328, 0.350] & 0.490 [0.467, 0.514] & -0.032 [-0.046, -0.016] & 0.548 [0.513, 0.583]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} & Attention-zeroed & 0.332 [0.324, 0.340] & 0.488 [0.471, 0.505] & -0.042 [-0.054, -0.029] & 0.151 [0.121, 0.180]\\
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} & Attention-zeroed & 0.266 [0.255, 0.277] & 0.301 [0.278, 0.325] & -0.032 [-0.045, -0.018] & 0.212 [0.178, 0.247]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.332 [0.325, 0.340] & 0.706 [0.690, 0.722] & 0.002 [-0.010, 0.015] & 0.350 [0.320, 0.379]\\
+ & Full context & 0.287 [0.276, 0.298] & 0.442 [0.418, 0.465] & -0.038 [-0.054, -0.022] & 0.419 [0.385, 0.454]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & Attention-zeroed & 0.275 [0.267, 0.283] & 0.525 [0.509, 0.543] & -0.022 [-0.035, -0.010] & 0.117 [0.087, 0.147]\\
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & Attention-zeroed & 0.205 [0.193, 0.217] & 0.254 [0.230, 0.279] & -0.039 [-0.055, -0.024] & 0.118 [0.083, 0.153]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.489 [0.482, 0.497] & 1.013 [0.988, 1.039] & -0.006 [-0.009, -0.003] & 0.198 [0.189, 0.207]\\
+ & Full context & 0.236 [0.225, 0.247] & 1.585 [1.542, 1.626] & 0.006 [0.000, 0.011] & 0.224 [0.204, 0.243]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2} & Attention-zeroed & 0.683 [0.676, 0.689] & 0.309 [0.286, 0.331] & -0.018 [-0.020, -0.015] & 0.026 [0.018, 0.034]\\
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2} & Attention-zeroed & 0.258 [0.246, 0.269] & 0.880 [0.838, 0.923] & -0.011 [-0.017, -0.005] & 0.046 [0.026, 0.066]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.447 [0.439, 0.454] & 1.145 [1.119, 1.172] & -0.006 [-0.009, -0.003] & 0.204 [0.195, 0.213]\\
+ & Full context & 0.231 [0.219, 0.242] & 1.649 [1.606, 1.691] & 0.004 [-0.001, 0.009] & 0.206 [0.186, 0.226]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} & Attention-zeroed & 0.640 [0.633, 0.646] & 0.428 [0.404, 0.452] & -0.011 [-0.014, -0.009] & 0.035 [0.027, 0.043]\\
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} & Attention-zeroed & 0.238 [0.227, 0.249] & 0.949 [0.905, 0.992] & -0.007 [-0.013, -0.002] & 0.053 [0.033, 0.073]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.454 [0.447, 0.462] & 1.152 [1.125, 1.178] & -0.008 [-0.011, -0.005] & 0.197 [0.187, 0.206]\\
+ & Full context & 0.221 [0.210, 0.233] & 1.718 [1.674, 1.760] & -0.001 [-0.006, 0.005] & 0.197 [0.177, 0.216]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} & Attention-zeroed & 0.566 [0.559, 0.574] & 0.497 [0.472, 0.523] & -0.014 [-0.017, -0.011] & 0.043 [0.034, 0.052]\\
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} & Attention-zeroed & 0.223 [0.212, 0.235] & 1.010 [0.967, 1.053] & -0.004 [-0.009, 0.002] & 0.056 [0.036, 0.075]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.447 [0.439, 0.454] & 1.191 [1.165, 1.218] & -0.009 [-0.012, -0.006] & 0.197 [0.187, 0.206]\\
+ & Full context & 0.219 [0.208, 0.230] & 1.718 [1.676, 1.760] & 0.000 [-0.005, 0.006] & 0.175 [0.155, 0.195]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} & Attention-zeroed & 0.605 [0.598, 0.613] & 0.458 [0.434, 0.482] & -0.014 [-0.017, -0.012] & 0.048 [0.039, 0.057]\\
+\multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} & Attention-zeroed & 0.205 [0.194, 0.217] & 1.028 [0.983, 1.071] & -0.007 [-0.013, -0.001] & 0.065 [0.045, 0.086]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.462 [0.454, 0.469] & 1.060 [1.033, 1.086] & -0.003 [-0.006, -0.000] & 0.183 [0.174, 0.192]\\
+ & Full context & 0.196 [0.185, 0.207] & 1.676 [1.634, 1.718] & -0.010 [-0.016, -0.005] & 0.237 [0.218, 0.256]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} & Attention-zeroed & 0.506 [0.499, 0.514] & 0.557 [0.531, 0.583] & -0.008 [-0.011, -0.005] & 0.033 [0.024, 0.042]\\
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} & Attention-zeroed & 0.216 [0.205, 0.226] & 0.964 [0.920, 1.010] & -0.008 [-0.013, -0.002] & 0.038 [0.017, 0.058]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.453 [0.445, 0.460] & 1.172 [1.145, 1.198] & -0.011 [-0.013, -0.008] & 0.188 [0.180, 0.197]\\
+ & Full context & 0.221 [0.211, 0.232] & 1.736 [1.693, 1.777] & -0.003 [-0.008, 0.003] & 0.171 [0.152, 0.191]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} & Attention-zeroed & 0.517 [0.510, 0.525] & 0.579 [0.553, 0.605] & -0.016 [-0.019, -0.013] & 0.053 [0.043, 0.062]\\
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} & Attention-zeroed & 0.250 [0.239, 0.261] & 0.940 [0.897, 0.983] & -0.008 [-0.013, -0.002] & 0.052 [0.033, 0.072]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.493 [0.486, 0.500] & 1.127 [1.101, 1.153] & -0.011 [-0.014, -0.008] & 0.166 [0.157, 0.174]\\
+ & Full context & 0.225 [0.214, 0.236] & 1.730 [1.689, 1.773] & -0.002 [-0.008, 0.003] & 0.155 [0.135, 0.175]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & Attention-zeroed & 0.575 [0.568, 0.582] & 0.523 [0.498, 0.548] & -0.014 [-0.017, -0.011] & 0.047 [0.038, 0.055]\\
+\multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & Attention-zeroed & 0.256 [0.245, 0.266] & 0.923 [0.879, 0.967] & -0.013 [-0.019, -0.007] & 0.064 [0.045, 0.084]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.534 [0.527, 0.541] & 1.052 [1.027, 1.077] & -0.011 [-0.014, -0.008] & 0.161 [0.152, 0.169]\\
+ & Full context & 0.231 [0.220, 0.242] & 1.708 [1.665, 1.749] & 0.001 [-0.004, 0.007] & 0.125 [0.105, 0.145]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} & Attention-zeroed & 0.592 [0.585, 0.599] & 0.551 [0.526, 0.577] & -0.012 [-0.015, -0.009] & 0.049 [0.040, 0.058]\\
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} & Attention-zeroed & 0.233 [0.222, 0.244] & 1.069 [1.025, 1.111] & -0.005 [-0.011, 0.001] & 0.067 [0.047, 0.087]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.582 [0.575, 0.588] & 0.989 [0.965, 1.012] & -0.009 [-0.011, -0.006] & 0.137 [0.129, 0.146]\\
+ & Full context & 0.245 [0.234, 0.256] & 1.683 [1.641, 1.726] & -0.000 [-0.006, 0.005] & 0.100 [0.080, 0.120]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} & Attention-zeroed & 0.636 [0.630, 0.643] & 0.558 [0.535, 0.581] & -0.011 [-0.014, -0.009] & 0.055 [0.047, 0.063]\\
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} & Attention-zeroed & 0.242 [0.231, 0.254] & 1.082 [1.039, 1.123] & -0.010 [-0.016, -0.004] & 0.069 [0.049, 0.089]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.519 [0.512, 0.526] & 1.058 [1.032, 1.082] & -0.012 [-0.015, -0.009] & 0.140 [0.132, 0.149]\\
+ & Full context & 0.224 [0.213, 0.235] & 1.686 [1.644, 1.729] & -0.002 [-0.008, 0.003] & 0.110 [0.090, 0.130]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} & Attention-zeroed & 0.592 [0.585, 0.599] & 0.544 [0.519, 0.568] & -0.015 [-0.018, -0.012] & 0.043 [0.035, 0.052]\\
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} & Attention-zeroed & 0.237 [0.226, 0.248] & 0.979 [0.935, 1.022] & -0.009 [-0.015, -0.003] & 0.058 [0.038, 0.077]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.628 [0.621, 0.634] & 0.829 [0.806, 0.853] & -0.014 [-0.016, -0.011] & 0.097 [0.090, 0.105]\\
+ & Full context & 0.249 [0.237, 0.260] & 1.591 [1.546, 1.635] & -0.007 [-0.013, -0.001] & 0.081 [0.060, 0.102]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} & Attention-zeroed & 0.669 [0.663, 0.676] & 0.500 [0.478, 0.523] & -0.013 [-0.016, -0.011] & 0.046 [0.038, 0.054]\\
+\multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} & Attention-zeroed & 0.243 [0.232, 0.254] & 1.013 [0.970, 1.055] & -0.001 [-0.007, 0.005] & 0.062 [0.042, 0.082]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.496 [0.489, 0.503] & 1.128 [1.103, 1.153] & -0.010 [-0.013, -0.008] & 0.165 [0.156, 0.174]\\
+ & Full context & 0.237 [0.226, 0.248] & 1.660 [1.617, 1.703] & -0.001 [-0.006, 0.005] & 0.114 [0.094, 0.134]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} & Attention-zeroed & 0.560 [0.553, 0.567] & 0.590 [0.565, 0.616] & -0.017 [-0.020, -0.014] & 0.059 [0.050, 0.068]\\
+\multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} & Attention-zeroed & 0.244 [0.234, 0.255] & 1.055 [1.014, 1.097] & -0.009 [-0.015, -0.003] & 0.060 [0.041, 0.080]\\
 \cmidrule{1-6}\pagebreak[0]
- & Full context & 0.607 [0.601, 0.614] & 0.903 [0.880, 0.925] & -0.015 [-0.018, -0.013] & 0.124 [0.116, 0.132]\\
+ & Full context & 0.252 [0.241, 0.263] & 1.566 [1.522, 1.609] & -0.006 [-0.012, -0.001] & 0.088 [0.068, 0.109]\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} & Attention-zeroed & 0.640 [0.633, 0.647] & 0.499 [0.475, 0.523] & -0.016 [-0.018, -0.013] & 0.052 [0.045, 0.060]\\*
+\multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} & Attention-zeroed & 0.226 [0.215, 0.237] & 1.093 [1.050, 1.136] & -0.009 [-0.015, -0.003] & 0.071 [0.050, 0.091]\\*
 \bottomrule
 
 
@@ -1439,60 +1602,6 @@ attention-zeroing does not remove it.}
 
 \end{figure*}%
 
-\newpage
-
-\section{Corpus Frequency Distributions}\label{sec-appendix-corpus-freq}
-
-The figure below compares the frequency distributions of the
-approximately 47,000 corpus binomials in the BabyLM training corpus
-(150M tokens, 20 epochs) and the Pile, illustrating the difference in
-lexical coverage between the two training regimes. BabyLM's distribution
-is dominated by singleton binomials (70.7\% appear exactly once), while
-Pile frequencies span several orders of magnitude.
-
-\begin{figure}[H]
-
-\centering{
-
-\pandocbounded{\includegraphics[keepaspectratio]{writeup_files/figure-pdf/fig-corpus-freq-1.pdf}}
-
-}
-
-\caption{\label{fig-corpus-freq}Frequency distributions for the
-\textasciitilde47K corpus binomials in the BabyLM training corpus (150M
-tokens, 20 epochs) and the Pile. Left: histogram of log\(_{10}\) raw
-counts. Right: rank-frequency plot treating counts as a probability
-distribution (probability = count / \(\sum\) counts); both axes
-log-scaled. BabyLM's distribution is heavily concentrated at a single
-occurrence per pair (71.2\% of pairs appear exactly once), whereas Pile
-frequencies span several orders of magnitude with a median of 365
-occurrences per pair.}
-
-\end{figure}%
-
-The BabyLM training corpus is a 150M-token collection of child-directed
-and informal text (CHILDES, BNC Spoken, children's books, OpenSubtitles,
-Wikipedia), trained for 20 epochs. The Pile is a
-\textasciitilde300B-token web-scraped corpus used to train the Pythia
-family. For each of the \textasciitilde47K corpus binomials, we
-extracted 3-gram counts (i.e., the frequency of ``word\(_1\) and
-word\(_2\)'' and its reverse) from each corpus via infini-gram
-\citep{liu2024infinigram}. As Figure~\ref{fig-corpus-freq} shows, the
-BabyLM corpus produces a highly skewed frequency distribution: 71.2\% of
-binomials appear exactly once, 87.7\% appear at most twice, and 98.2\%
-appear at most ten times, with a maximum of 1,095 occurrences. The Pile
-distribution is far richer: the median binomial appears 365 times, the
-25th percentile is 62 occurrences, and the 99th percentile exceeds
-77,000.
-
-In absolute training exposure terms (accounting for BabyLM's 20 epochs),
-the most frequent BabyLM binomials are seen at most
-\textasciitilde21,900 times total across all training steps, while the
-equivalent Pile binomials are seen over 1.5 million times in a single
-pass. Even the median Pile binomial (365 occurrences per pass)
-substantially exceeds BabyLM's total exposure for a typical singleton
-binomial (1 × 20 = 20 exposures).
-
 \section{Experiment 1: Supplementary Results}\label{sec-appendix-exp1}
 
 This appendix provides supplementary materials for Experiment 1
@@ -1525,29 +1634,29 @@ Model & Condition & Split & R² & Control R² & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & B & 0.314 (0.010) & 0.0001 (0.0001) & 0.314\\
+ &  & B & 0.129 (0.004) & 0.0001 (0.0001) & 0.129\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.0002 (0.0002) & 0.207\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.102 (0.027) & 0.0003 (0.0006) & 0.102\\
 \nopagebreak
- &  & B & 0.244 (0.025) & 0.0000 (0.0000) & 0.244\\
+ &  & B & 0.096 (0.005) & 0.0000 (0.0000) & 0.096\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.0005 (0.0005) & 0.142\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.080 (0.024) & 0.0003 (0.0003) & 0.080\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.294 (0.005) & 0.0000 (0.0000) & 0.294\\
+ &  & B & 0.110 (0.005) & 0.0000 (0.0001) & 0.110\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.149 (0.017) & 0.0002 (0.0002) & 0.149\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.093 (0.015) & 0.0003 (0.0004) & 0.093\\
 \nopagebreak
- &  & B & 0.333 (0.013) & 0.0000 (0.0000) & 0.333\\
+ &  & B & 0.070 (0.005) & 0.0001 (0.0003) & 0.070\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.184 (0.029) & 0.0001 (0.0001) & 0.183\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.065 (0.015) & 0.0006 (0.0007) & 0.064\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.294 (0.004) & 0.0000 (0.0001) & 0.294\\
+ &  & B & 0.068 (0.004) & 0.0000 (0.0000) & 0.068\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.0002 (0.0002) & 0.159\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.058 (0.011) & 0.0002 (0.0003) & 0.058\\
 \nopagebreak
- &  & B & 0.263 (0.012) & 0.0000 (0.0000) & 0.263\\
+ &  & B & 0.042 (0.005) & 0.0000 (0.0000) & 0.042\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.0001 (0.0001) & 0.121\\*
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.038 (0.016) & 0.0005 (0.0005) & 0.038\\*
 \bottomrule
 
 
@@ -1584,7 +1693,7 @@ The three BabyLM models are the decisive comparison. They share a
 training corpus and its ordering but differ in capacity, and they are
 the only models for which the novel binomials are genuinely absent from
 training (Section~\ref{sec-exp2}, Methods). On novel binomials they
-agree at \(r = 0.45\) under full context and \(r = 0.41\) under
+agree at \(r = 0.50\) under full context and \(r = 0.49\) under
 attention-zeroing, against a shuffled baseline of \(r \approx 0.00\). In
 other words, preferences for binomials the models never encountered are
 reproducible across models of different sizes trained on the same data.
@@ -1594,25 +1703,24 @@ Because a Pearson correlation can in principle be carried by a minority
 of high-magnitude items, we checked whether the agreement is
 concentrated in a handful of binomials with strong preferences. This is
 not the case. Preferences on novel binomials are not weak to begin with:
-median \(|y_{\text{true}}|\) ranges from 1.79 to 3.21 across the three
-models.
+median \(|y_{\text{true}}|\) ranges from 1.65 to 3.21 across the three
+models and both attention conditions.
 
-Rank correlations track the Pearson values closely (0.371--0.406 for
+Rank correlations track the Pearson values closely (0.36--0.55 for
 BabyLM on novel binomials), and the models order the same binomial the
 same way on 60\% to 70\% of items against a chance rate of 50\%, a
 statistic that ignores magnitude and weights every binomial equally.
 
 Two further patterns appear in Table~\ref{tbl-agreement}. Agreement
 within a family is roughly constant across all four cells, between
-\(r = 0.68\) and \(0.72\), whereas agreement between families falls from
-0.56 on attested binomials under full context to 0.28 on novel binomials
-under attention-zeroing. What the models share thus survives novelty
-when the training corpus is shared and degrades when it is not, as
-expected if the preference is driven by distributional structure in the
-training data. This also rules out the shared sentence frame as the
-source of the agreement: the frame is identical for all sixteen models,
-so it cannot produce a gap between within-family and between-family
-agreement.
+\(r = 0.77\) and \(0.81\), and agreement between families is nearly as
+stable, between \(0.62\) and \(0.67\). Both hold up on novel binomials
+and under attention-zeroing: what the models share is confined neither
+to binomials they were trained on nor to models that share a training
+corpus. The within-family advantage nonetheless appears in every cell,
+which rules out the shared sentence frame as the source of the
+agreement: the frame is identical for all sixteen models, so it cannot
+produce a gap between within-family and between-family agreement.
 
 \begingroup\fontsize{8}{10}\selectfont
 
@@ -1630,37 +1738,37 @@ Set & Condition & Scope & $r$ & Shuffled\\
 
 \endfoot
 \endlastfoot
- &  & All & 0.470 & -0.003\\
+ &  & All & 0.640 & -0.009\\
 \nopagebreak
- &  & Within family & 0.680 & -0.003\\
+ &  & Within family & 0.767 & -0.009\\
 \nopagebreak
- &  & Between family & 0.431 & -0.003\\
+ &  & Between family & 0.616 & -0.009\\
 \nopagebreak
- & \multirow{-4}{*}{\raggedright\arraybackslash Attention-zeroed} & Within BabyLM & 0.508 & -0.003\\
+ & \multirow{-4}{*}{\raggedright\arraybackslash Attention-zeroed} & Within BabyLM & 0.520 & -0.009\\
 \nopagebreak
- &  & All & 0.583 & -0.003\\
+ &  & All & 0.691 & 0.004\\
 \nopagebreak
- &  & Within family & 0.721 & -0.003\\
+ &  & Within family & 0.809 & 0.004\\
 \nopagebreak
- &  & Between family & 0.557 & -0.003\\
+ &  & Between family & 0.669 & 0.004\\
 \nopagebreak
-\multirow{-8}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Attested} & \multirow{-4}{*}{\raggedright\arraybackslash Full context} & Within BabyLM & 0.553 & -0.003\\
+\multirow{-8}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Attested} & \multirow{-4}{*}{\raggedright\arraybackslash Full context} & Within BabyLM & 0.578 & 0.004\\
 \cmidrule{1-5}\pagebreak[0]
- &  & All & 0.346 & 0.000\\
+ &  & All & 0.647 & -0.002\\
 \nopagebreak
- &  & Within family & 0.683 & 0.000\\
+ &  & Within family & 0.778 & -0.002\\
 \nopagebreak
- &  & Between family & 0.283 & 0.000\\
+ &  & Between family & 0.623 & -0.002\\
 \nopagebreak
- & \multirow{-4}{*}{\raggedright\arraybackslash Attention-zeroed} & Within BabyLM & 0.408 & 0.000\\
+ & \multirow{-4}{*}{\raggedright\arraybackslash Attention-zeroed} & Within BabyLM & 0.486 & -0.002\\
 \nopagebreak
- &  & All & 0.447 & -0.002\\
+ &  & All & 0.658 & -0.000\\
 \nopagebreak
- &  & Within family & 0.679 & -0.002\\
+ &  & Within family & 0.787 & -0.000\\
 \nopagebreak
- &  & Between family & 0.403 & -0.002\\
+ &  & Between family & 0.634 & -0.000\\
 \nopagebreak
-\multirow{-8}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Novel} & \multirow{-4}{*}{\raggedright\arraybackslash Full context} & Within BabyLM & 0.452 & -0.002\\*
+\multirow{-8}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Novel} & \multirow{-4}{*}{\raggedright\arraybackslash Full context} & Within BabyLM & 0.496 & -0.000\\*
 \bottomrule
 
 
@@ -1668,7 +1776,8 @@ Set & Condition & Scope & $r$ & Shuffled\\
 \(y_{   ext{true}}\)) for identical binomials, by item set and attention
 condition. Shuffled = one model's values permuted. Within-family
 averages over model pairs from the same family; BabyLM is broken out
-because its novel binomials are genuinely unseen.}
+because its novel binomials are genuinely absent from those models'
+training corpus.}
 
 \tabularnewline
 \end{longtable}
@@ -1685,16 +1794,16 @@ isolated sentence contexts (``\emph{the bread}'', ``\emph{the
 butter}''), so it cannot rely on any co-occurrence signal from the two
 words' shared sentence context.
 
-Binomial-held-out R² ranges from 0.28 to 0.31, within a few percentage
-points of the corresponding binomial-level values (0.29--0.31). The
-generalization pattern is preserved: word-held-out R² is consistently
-lower than binomial-held-out R² for all three models (word-held-out
-0.15--0.18; binomial-minus-word gap 0.128--0.133), confirming that the
-lexical generalization cost seen at the binomial level is a property of
-the lexical representation itself rather than an artifact of the
-mean-pooled representation. The frequency-dependent preference
-regression was fit at the binomial level only, so it has no word-level
-counterpart. Full results are in Table~\ref{tbl-r2-babylm-words-only}.
+Binomial-held-out R² ranges from 0.07 to 0.13, matching the
+corresponding binomial-level values (0.07--0.13). The generalization
+pattern is preserved: word-held-out R² is consistently lower than
+binomial-held-out R² for all three models (word-held-out 0.06--0.09;
+binomial-minus-word gap 0.018--0.041), confirming that the lexical
+generalization cost seen at the binomial level is a property of the
+lexical representation itself rather than an artifact of the mean-pooled
+representation. The frequency-dependent preference regression was fit at
+the binomial level only, so it has no word-level counterpart. Full
+results are in Table~\ref{tbl-r2-babylm-words-only}.
 
 \begingroup\fontsize{8}{10}\selectfont
 
@@ -1712,15 +1821,15 @@ Model & Mode & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & B & 0.312 (0.012) & 0.000 (0.000) & 0.312\\
+ &  & B & 0.134 (0.005) & 0.000 (0.000) & 0.134\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} &  & W & 0.185 (0.015) & 0.000 (0.000) & 0.184\\
- &  & B & 0.283 (0.005) & 0.000 (0.000) & 0.283\\
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} &  & W & 0.093 (0.025) & 0.000 (0.000) & 0.093\\
+ &  & B & 0.111 (0.004) & 0.000 (0.000) & 0.111\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} &  & W & 0.150 (0.015) & 0.000 (0.000) & 0.150\\
- &  & B & 0.306 (0.003) & 0.000 (0.000) & 0.306\\
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} &  & W & 0.086 (0.014) & 0.000 (0.000) & 0.086\\
+ &  & B & 0.073 (0.004) & 0.000 (0.000) & 0.073\\
 \nopagebreak
-\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-6}{*}{\raggedright\arraybackslash Word-level} & W & 0.177 (0.023) & 0.000 (0.000) & 0.177\\*
+\multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-6}{*}{\raggedright\arraybackslash Word-level} & W & 0.055 (0.012) & 0.000 (0.000) & 0.055\\*
 \bottomrule
 
 
@@ -1769,133 +1878,133 @@ Model & Condition & Split & R² & Control R² & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & B & 0.314 (0.010) & 0.0001 (0.0001) & 0.314\\
+ &  & B & 0.129 (0.004) & 0.0001 (0.0001) & 0.129\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.207 (0.023) & 0.0002 (0.0002) & 0.207\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.102 (0.027) & 0.0003 (0.0006) & 0.102\\
 \nopagebreak
- &  & B & 0.244 (0.025) & 0.0000 (0.0000) & 0.244\\
+ &  & B & 0.096 (0.005) & 0.0000 (0.0000) & 0.096\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.143 (0.027) & 0.0005 (0.0005) & 0.142\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.080 (0.024) & 0.0003 (0.0003) & 0.080\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.294 (0.005) & 0.0000 (0.0000) & 0.294\\
+ &  & B & 0.110 (0.005) & 0.0000 (0.0001) & 0.110\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.149 (0.017) & 0.0002 (0.0002) & 0.149\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.093 (0.015) & 0.0003 (0.0004) & 0.093\\
 \nopagebreak
- &  & B & 0.333 (0.013) & 0.0000 (0.0000) & 0.333\\
+ &  & B & 0.070 (0.005) & 0.0001 (0.0003) & 0.070\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.184 (0.029) & 0.0001 (0.0001) & 0.183\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.065 (0.015) & 0.0006 (0.0007) & 0.064\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.294 (0.004) & 0.0000 (0.0001) & 0.294\\
+ &  & B & 0.068 (0.004) & 0.0000 (0.0000) & 0.068\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.160 (0.022) & 0.0002 (0.0002) & 0.159\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.058 (0.011) & 0.0002 (0.0003) & 0.058\\
 \nopagebreak
- &  & B & 0.263 (0.012) & 0.0000 (0.0000) & 0.263\\
+ &  & B & 0.042 (0.005) & 0.0000 (0.0000) & 0.042\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.121 (0.025) & 0.0001 (0.0001) & 0.121\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.038 (0.016) & 0.0005 (0.0005) & 0.038\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.648 (0.004) & 0.0000 (0.0000) & 0.648\\
+ &  & B & 0.181 (0.011) & 0.0001 (0.0001) & 0.181\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.601 (0.033) & 0.0005 (0.0006) & 0.600\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.155 (0.046) & 0.0005 (0.0006) & 0.155\\
 \nopagebreak
- &  & B & 0.786 (0.006) & 0.0000 (0.0000) & 0.786\\
+ &  & B & 0.115 (0.006) & 0.0000 (0.0000) & 0.115\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.718 (0.024) & 0.0001 (0.0001) & 0.718\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.106 (0.030) & 0.0004 (0.0008) & 0.105\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.533 (0.005) & 0.0000 (0.0000) & 0.533\\
+ &  & B & 0.184 (0.010) & 0.0001 (0.0002) & 0.184\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.453 (0.028) & 0.0002 (0.0002) & 0.453\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.166 (0.044) & 0.0008 (0.0010) & 0.165\\
 \nopagebreak
- &  & B & 0.756 (0.016) & 0.0000 (0.0000) & 0.756\\
+ &  & B & 0.105 (0.006) & 0.0001 (0.0001) & 0.105\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.670 (0.036) & 0.0002 (0.0003) & 0.669\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.094 (0.024) & 0.0004 (0.0006) & 0.093\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.519 (0.006) & 0.0000 (0.0000) & 0.519\\
+ &  & B & 0.184 (0.010) & 0.0000 (0.0000) & 0.184\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.449 (0.036) & 0.0003 (0.0004) & 0.448\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.168 (0.052) & 0.0005 (0.0007) & 0.167\\
 \nopagebreak
- &  & B & 0.668 (0.006) & 0.0000 (0.0000) & 0.668\\
+ &  & B & 0.103 (0.009) & 0.0001 (0.0001) & 0.102\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.571 (0.020) & 0.0004 (0.0005) & 0.571\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-L} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.091 (0.020) & 0.0005 (0.0007) & 0.091\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.487 (0.007) & 0.0000 (0.0000) & 0.487\\
+ &  & B & 0.184 (0.010) & 0.0000 (0.0001) & 0.184\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.420 (0.033) & 0.0002 (0.0003) & 0.420\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.169 (0.044) & 0.0006 (0.0007) & 0.169\\
 \nopagebreak
- &  & B & 0.726 (0.008) & 0.0000 (0.0000) & 0.726\\
+ &  & B & 0.100 (0.008) & 0.0000 (0.0000) & 0.100\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.641 (0.034) & 0.0003 (0.0004) & 0.641\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2-XL} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.091 (0.027) & 0.0004 (0.0007) & 0.090\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.587 (0.005) & 0.0000 (0.0000) & 0.587\\
+ &  & B & 0.156 (0.010) & 0.0001 (0.0001) & 0.156\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.522 (0.021) & 0.0003 (0.0003) & 0.522\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.140 (0.034) & 0.0003 (0.0004) & 0.140\\
 \nopagebreak
- &  & B & 0.604 (0.005) & 0.0001 (0.0000) & 0.603\\
+ &  & B & 0.087 (0.009) & 0.0000 (0.0000) & 0.087\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.527 (0.022) & 0.0007 (0.0005) & 0.526\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.072 (0.022) & 0.0004 (0.0006) & 0.071\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.532 (0.004) & 0.0000 (0.0000) & 0.532\\
+ &  & B & 0.181 (0.008) & 0.0000 (0.0000) & 0.181\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.461 (0.035) & 0.0003 (0.0003) & 0.461\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.161 (0.044) & 0.0005 (0.0007) & 0.161\\
 \nopagebreak
- &  & B & 0.552 (0.006) & 0.0000 (0.0000) & 0.552\\
+ &  & B & 0.097 (0.007) & 0.0000 (0.0000) & 0.097\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.477 (0.019) & 0.0003 (0.0005) & 0.476\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.084 (0.017) & 0.0008 (0.0012) & 0.083\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.554 (0.007) & 0.0000 (0.0000) & 0.554\\
+ &  & B & 0.200 (0.008) & 0.0000 (0.0000) & 0.200\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.029) & 0.0002 (0.0003) & 0.487\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.186 (0.042) & 0.0005 (0.0005) & 0.186\\
 \nopagebreak
- &  & B & 0.567 (0.005) & 0.0000 (0.0000) & 0.566\\
+ &  & B & 0.107 (0.005) & 0.0001 (0.0002) & 0.107\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.496 (0.027) & 0.0001 (0.0001) & 0.495\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.096 (0.020) & 0.0003 (0.0003) & 0.095\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.575 (0.005) & 0.0000 (0.0000) & 0.575\\
+ &  & B & 0.192 (0.008) & 0.0000 (0.0001) & 0.192\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.505 (0.021) & 0.0003 (0.0004) & 0.505\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.181 (0.034) & 0.0002 (0.0003) & 0.180\\
 \nopagebreak
- &  & B & 0.597 (0.008) & 0.0000 (0.0000) & 0.597\\
+ &  & B & 0.108 (0.007) & 0.0000 (0.0000) & 0.108\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.514 (0.021) & 0.0003 (0.0004) & 0.514\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.094 (0.028) & 0.0001 (0.0001) & 0.094\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.621 (0.008) & 0.0000 (0.0001) & 0.621\\
+ &  & B & 0.206 (0.009) & 0.0001 (0.0001) & 0.206\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.561 (0.023) & 0.0004 (0.0005) & 0.561\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.191 (0.034) & 0.0003 (0.0002) & 0.190\\
 \nopagebreak
- &  & B & 0.658 (0.008) & 0.0000 (0.0000) & 0.658\\
+ &  & B & 0.115 (0.007) & 0.0000 (0.0000) & 0.115\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.580 (0.027) & 0.0002 (0.0002) & 0.580\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.102 (0.032) & 0.0003 (0.0005) & 0.101\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.557 (0.007) & 0.0000 (0.0000) & 0.556\\
+ &  & B & 0.185 (0.010) & 0.0000 (0.0000) & 0.185\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.488 (0.017) & 0.0001 (0.0003) & 0.488\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.174 (0.038) & 0.0006 (0.0006) & 0.173\\
 \nopagebreak
- &  & B & 0.583 (0.005) & 0.0000 (0.0000) & 0.583\\
+ &  & B & 0.096 (0.006) & 0.0001 (0.0001) & 0.096\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.518 (0.021) & 0.0004 (0.0003) & 0.518\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-1B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.085 (0.022) & 0.0005 (0.0009) & 0.085\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.614 (0.005) & 0.0000 (0.0000) & 0.614\\
+ &  & B & 0.210 (0.008) & 0.0000 (0.0000) & 0.210\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.554 (0.022) & 0.0004 (0.0004) & 0.554\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.197 (0.046) & 0.0009 (0.0011) & 0.197\\
 \nopagebreak
- &  & B & 0.642 (0.006) & 0.0000 (0.0000) & 0.642\\
+ &  & B & 0.114 (0.007) & 0.0000 (0.0000) & 0.114\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.570 (0.012) & 0.0003 (0.0004) & 0.569\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo-2-7B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.100 (0.025) & 0.0004 (0.0006) & 0.099\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.433 (0.008) & 0.0000 (0.0000) & 0.433\\
+ &  & B & 0.193 (0.010) & 0.0000 (0.0000) & 0.193\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.373 (0.035) & 0.0003 (0.0004) & 0.373\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.178 (0.042) & 0.0004 (0.0008) & 0.178\\
 \nopagebreak
- &  & B & 0.443 (0.011) & 0.0000 (0.0000) & 0.443\\
+ &  & B & 0.108 (0.008) & 0.0001 (0.0001) & 0.108\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.370 (0.040) & 0.0002 (0.0003) & 0.370\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-1.3B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.092 (0.029) & 0.0004 (0.0005) & 0.092\\
 \cmidrule{1-6}\pagebreak[0]
- &  & B & 0.545 (0.008) & 0.0000 (0.0000) & 0.545\\
+ &  & B & 0.201 (0.006) & 0.0001 (0.0001) & 0.201\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.510 (0.035) & 0.0007 (0.0006) & 0.510\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Full context} & W & 0.190 (0.034) & 0.0001 (0.0001) & 0.190\\
 \nopagebreak
- &  & B & 0.521 (0.016) & 0.0000 (0.0000) & 0.521\\
+ &  & B & 0.110 (0.006) & 0.0001 (0.0001) & 0.110\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.470 (0.024) & 0.0002 (0.0002) & 0.470\\*
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama-3-8B} & \multirow{-2}{*}{\raggedright\arraybackslash Attention-zeroed} & W & 0.098 (0.033) & 0.0006 (0.0005) & 0.097\\*
 \bottomrule
 
 
@@ -1914,17 +2023,16 @@ Control values carry an extra decimal place because they sit near zero.}
 
 Across all 16 models, word-level probing reproduces the main findings
 from Experiment 2. Binomial-held-out R² is slightly lower than the
-corresponding binomial-level values (by roughly 5--10 percentage points
-for most large-scale models), but rank order across families and the
-generalization pattern (binomial-held-out \textgreater{} word-held-out)
-are preserved in every case. For GPT-2, binomial-held-out R² under
-word-level probing ranges from 0.46 to 0.62 (vs.~0.49--0.65 at the
-binomial level); for Pythia, 0.51--0.57 (vs.~0.53--0.59); for OLMo,
-0.52--0.57 (vs.~0.56--0.62); for Llama, 0.36--0.45 (vs.~0.43--0.55). The
-generalization gaps (binomial-held-out minus word-held-out) range from
-0.044 to 0.073 across large-scale models, closely matching the
-corresponding binomial-level gaps (0.035--0.080). Full results are in
-Table~\ref{tbl-r2-words-only}.
+corresponding binomial-level values (by one to three percentage points),
+but rank order across families and the generalization pattern
+(binomial-held-out \textgreater{} word-held-out) are preserved in every
+case. For GPT-2, binomial-held-out R² under word-level probing ranges
+from 0.16 to 0.17 (vs.~0.18 at the binomial level); for Pythia,
+0.15--0.18 (vs.~0.16--0.20); for OLMo, 0.17--0.18 (vs.~0.19--0.21); for
+Llama, 0.17--0.18 (vs.~0.19--0.20). The generalization gaps
+(binomial-held-out minus word-held-out) range from 0.019 to 0.030 across
+large-scale models, closely matching the corresponding binomial-level
+gaps (0.011--0.026). Full results are in Table~\ref{tbl-r2-words-only}.
 
 \begingroup\fontsize{8}{10}\selectfont
 
@@ -1942,65 +2050,65 @@ Family & Model & Mode & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  &  & B & 0.312 (0.012) & 0.000 (0.000) & 0.312\\
+ &  &  & B & 0.134 (0.005) & 0.000 (0.000) & 0.134\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} &  & W & 0.185 (0.015) & 0.000 (0.000) & 0.184\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-125M} &  & W & 0.093 (0.025) & 0.000 (0.000) & 0.093\\
 \nopagebreak
- &  &  & B & 0.283 (0.005) & 0.000 (0.000) & 0.283\\
+ &  &  & B & 0.111 (0.004) & 0.000 (0.000) & 0.111\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} &  & W & 0.150 (0.015) & 0.000 (0.000) & 0.150\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-350M} &  & W & 0.086 (0.014) & 0.000 (0.000) & 0.086\\
 \nopagebreak
- &  &  & B & 0.306 (0.003) & 0.000 (0.000) & 0.306\\
+ &  &  & B & 0.073 (0.004) & 0.000 (0.000) & 0.073\\
 \nopagebreak
-\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM} & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} &  & W & 0.177 (0.023) & 0.000 (0.000) & 0.177\\
- &  &  & B & 0.618 (0.003) & 0.000 (0.000) & 0.618\\
+\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM} & \multirow{-2}{*}{\raggedright\arraybackslash BabyLM-1.3B} &  & W & 0.055 (0.012) & 0.000 (0.000) & 0.055\\
+ &  &  & B & 0.172 (0.006) & 0.000 (0.000) & 0.172\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2} &  & W & 0.574 (0.032) & 0.000 (0.000) & 0.573\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2} &  & W & 0.142 (0.041) & 0.001 (0.001) & 0.141\\
 \nopagebreak
- &  &  & B & 0.521 (0.006) & 0.000 (0.000) & 0.521\\
+ &  &  & B & 0.169 (0.007) & 0.000 (0.000) & 0.169\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} &  & W & 0.448 (0.022) & 0.000 (0.000) & 0.447\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-M} &  & W & 0.146 (0.038) & 0.001 (0.001) & 0.145\\
 \nopagebreak
- &  &  & B & 0.487 (0.005) & 0.000 (0.000) & 0.487\\
+ &  &  & B & 0.166 (0.006) & 0.000 (0.000) & 0.166\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} &  & W & 0.425 (0.027) & 0.000 (0.000) & 0.425\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-L} &  & W & 0.145 (0.038) & 0.000 (0.001) & 0.145\\
 \nopagebreak
- &  &  & B & 0.458 (0.005) & 0.000 (0.000) & 0.458\\
+ &  &  & B & 0.164 (0.008) & 0.000 (0.000) & 0.164\\
 \nopagebreak
-\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} &  & W & 0.391 (0.034) & 0.000 (0.000) & 0.390\\
- &  &  & B & 0.357 (0.010) & 0.000 (0.000) & 0.357\\
+\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash GPT-2} & \multirow{-2}{*}{\raggedright\arraybackslash GPT-2-XL} &  & W & 0.138 (0.041) & 0.001 (0.001) & 0.137\\
+ &  &  & B & 0.173 (0.007) & 0.000 (0.000) & 0.173\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} &  & W & 0.293 (0.036) & 0.000 (0.001) & 0.292\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Llama-1.3B} &  & W & 0.147 (0.047) & 0.001 (0.001) & 0.146\\
 \nopagebreak
- &  &  & B & 0.448 (0.010) & 0.000 (0.000) & 0.448\\
+ &  &  & B & 0.175 (0.007) & 0.000 (0.000) & 0.175\\
 \nopagebreak
-\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama} & \multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} &  & W & 0.402 (0.027) & 0.000 (0.001) & 0.401\\
- &  &  & B & 0.537 (0.004) & 0.000 (0.000) & 0.537\\
+\multirow{-4}{*}[0.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Llama} & \multirow{-2}{*}{\raggedright\arraybackslash Llama-3-8B} &  & W & 0.153 (0.036) & 0.000 (0.000) & 0.153\\
+ &  &  & B & 0.173 (0.008) & 0.000 (0.000) & 0.173\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} &  & W & 0.471 (0.021) & 0.000 (0.000) & 0.471\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-1B} &  & W & 0.152 (0.043) & 0.000 (0.000) & 0.151\\
 \nopagebreak
- &  &  & B & 0.566 (0.004) & 0.000 (0.000) & 0.566\\
+ &  &  & B & 0.179 (0.008) & 0.000 (0.000) & 0.179\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} &  & W & 0.503 (0.026) & 0.000 (0.000) & 0.502\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-7B} &  & W & 0.159 (0.033) & 0.000 (0.001) & 0.159\\
 \nopagebreak
- &  &  & B & 0.520 (0.008) & 0.000 (0.000) & 0.520\\
+ &  &  & B & 0.168 (0.006) & 0.000 (0.000) & 0.168\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} &  & W & 0.453 (0.018) & 0.000 (0.000) & 0.453\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-1B} &  & W & 0.141 (0.039) & 0.000 (0.001) & 0.141\\
 \nopagebreak
- &  &  & B & 0.549 (0.008) & 0.000 (0.000) & 0.549\\
+ &  &  & B & 0.181 (0.007) & 0.000 (0.000) & 0.181\\
 \nopagebreak
-\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo} & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} &  & W & 0.478 (0.023) & 0.000 (0.001) & 0.478\\
- &  &  & B & 0.570 (0.006) & 0.000 (0.000) & 0.570\\
+\multirow{-8}{*}[1.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash OLMo} & \multirow{-2}{*}{\raggedright\arraybackslash OLMo-2-7B} &  & W & 0.163 (0.040) & 0.000 (0.001) & 0.162\\
+ &  &  & B & 0.147 (0.007) & 0.000 (0.000) & 0.147\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} &  & W & 0.507 (0.021) & 0.000 (0.001) & 0.507\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} &  & W & 0.127 (0.037) & 0.000 (0.000) & 0.127\\
 \nopagebreak
- &  &  & B & 0.514 (0.005) & 0.000 (0.000) & 0.514\\
+ &  &  & B & 0.166 (0.006) & 0.000 (0.000) & 0.166\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} &  & W & 0.458 (0.025) & 0.000 (0.000) & 0.457\\
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} &  & W & 0.138 (0.042) & 0.000 (0.000) & 0.138\\
 \nopagebreak
- &  &  & B & 0.523 (0.006) & 0.000 (0.000) & 0.523\\
+ &  &  & B & 0.180 (0.006) & 0.000 (0.000) & 0.180\\
 \nopagebreak
-\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia} & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & \multirow{-32}{*}{\raggedright\arraybackslash Word-level} & W & 0.454 (0.024) & 0.000 (0.000) & 0.454\\*
+\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia} & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & \multirow{-32}{*}{\raggedright\arraybackslash Word-level} & W & 0.153 (0.042) & 0.000 (0.000) & 0.153\\*
 \bottomrule
 
 
@@ -2047,77 +2155,89 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & 20 M & B & 0.671 (0.022) & 0.000 (0.000) & 0.671\\
+ &  & 0 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.434 (0.054) & 0.000 (0.000) & 0.434\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 39 M & B & 0.579 (0.041) & 0.000 (0.000) & 0.579\\
+ &  & 20 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.353 (0.045) & 0.000 (0.001) & 0.353\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 118 M & B & 0.620 (0.023) & 0.000 (0.000) & 0.620\\
+ &  & 39 M & B & 0.002 (0.001) & 0.000 (0.000) & 0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.439 (0.035) & 0.000 (0.000) & 0.439\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.002 (0.002) & 0.000 (0.001) & 0.002\\
 \nopagebreak
- &  & 315 M & B & 0.610 (0.016) & 0.000 (0.000) & 0.610\\
+ &  & 118 M & B & 0.041 (0.005) & 0.000 (0.000) & 0.041\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.476 (0.038) & 0.000 (0.000) & 0.476\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.028 (0.004) & 0.001 (0.001) & 0.028\\
 \nopagebreak
- &  & 747 M & B & 0.505 (0.034) & 0.000 (0.000) & 0.505\\
+ &  & 315 M & B & 0.143 (0.009) & 0.000 (0.000) & 0.143\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.346 (0.055) & 0.000 (0.000) & 0.346\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.129 (0.025) & 0.000 (0.000) & 0.129\\
 \nopagebreak
- &  & 1868 M & B & 0.342 (0.013) & 0.000 (0.000) & 0.342\\
+ &  & 747 M & B & 0.111 (0.007) & 0.000 (0.000) & 0.111\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.227 (0.030) & 0.000 (0.000) & 0.227\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.082 (0.017) & 0.001 (0.001) & 0.082\\
+\nopagebreak
+ &  & 1868 M & B & 0.136 (0.006) & 0.000 (0.000) & 0.136\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.110 (0.028) & 0.000 (0.001) & 0.110\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 20 M & B & 0.651 (0.028) & 0.000 (0.000) & 0.651\\
+ &  & 0 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.458 (0.034) & 0.000 (0.001) & 0.458\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.002 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 39 M & B & 0.627 (0.053) & 0.000 (0.000) & 0.627\\
+ &  & 20 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.369 (0.049) & 0.001 (0.001) & 0.369\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.004 (0.003) & 0.000 (0.001) & 0.003\\
 \nopagebreak
- &  & 118 M & B & 0.649 (0.025) & 0.000 (0.000) & 0.649\\
+ &  & 39 M & B & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.542 (0.039) & 0.001 (0.001) & 0.541\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.001 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 315 M & B & 0.578 (0.020) & 0.000 (0.000) & 0.578\\
+ &  & 118 M & B & 0.098 (0.011) & 0.000 (0.000) & 0.098\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.475 (0.042) & 0.000 (0.000) & 0.475\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.089 (0.011) & 0.000 (0.000) & 0.088\\
 \nopagebreak
- &  & 747 M & B & 0.421 (0.014) & 0.000 (0.000) & 0.421\\
+ &  & 315 M & B & 0.139 (0.007) & 0.000 (0.000) & 0.139\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.277 (0.027) & 0.000 (0.000) & 0.276\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.117 (0.021) & 0.000 (0.000) & 0.117\\
 \nopagebreak
- &  & 1868 M & B & 0.317 (0.009) & 0.000 (0.000) & 0.317\\
+ &  & 747 M & B & 0.121 (0.004) & 0.000 (0.000) & 0.121\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.177 (0.021) & 0.001 (0.001) & 0.177\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.098 (0.022) & 0.001 (0.001) & 0.097\\
+\nopagebreak
+ &  & 1868 M & B & 0.128 (0.006) & 0.000 (0.000) & 0.128\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.114 (0.018) & 0.000 (0.000) & 0.114\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 20 M & B & 0.718 (0.020) & 0.000 (0.000) & 0.718\\
+ &  & 0 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.527 (0.045) & 0.001 (0.001) & 0.527\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.000 (0.000) & 0.001 (0.001) & -0.000\\
 \nopagebreak
- &  & 40 M & B & 0.635 (0.029) & 0.000 (0.000) & 0.635\\
+ &  & 20 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.434 (0.064) & 0.001 (0.000) & 0.433\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.001 (0.001) & 0.000 (0.001) & 0.000\\
 \nopagebreak
- &  & 119 M & B & 0.653 (0.017) & 0.000 (0.000) & 0.653\\
+ &  & 40 M & B & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.553 (0.035) & 0.000 (0.000) & 0.553\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.002 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 298 M & B & 0.555 (0.023) & 0.000 (0.000) & 0.555\\
+ &  & 119 M & B & 0.095 (0.004) & 0.000 (0.000) & 0.095\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.426 (0.044) & 0.000 (0.000) & 0.426\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.075 (0.018) & 0.000 (0.001) & 0.074\\
 \nopagebreak
- &  & 755 M & B & 0.394 (0.011) & 0.000 (0.000) & 0.394\\
+ &  & 298 M & B & 0.131 (0.008) & 0.000 (0.000) & 0.131\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.248 (0.020) & 0.000 (0.000) & 0.247\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.101 (0.019) & 0.000 (0.000) & 0.101\\
 \nopagebreak
- &  & 1848 M & B & 0.315 (0.007) & 0.000 (0.000) & 0.315\\
+ &  & 755 M & B & 0.133 (0.004) & 0.000 (0.000) & 0.133\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.180 (0.024) & 0.000 (0.000) & 0.179\\*
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.106 (0.026) & 0.000 (0.000) & 0.105\\
+\nopagebreak
+ &  & 1848 M & B & 0.102 (0.004) & 0.000 (0.000) & 0.102\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.088 (0.023) & 0.000 (0.000) & 0.088\\*
 \bottomrule
 
 
@@ -2146,77 +2266,89 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & 20 M & B & 0.799 (0.019) & 0.000 (0.000) & 0.799\\
+ &  & 0 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.712 (0.041) & 0.000 (0.000) & 0.711\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.000 (0.000) & 0.000 (0.000) & -0.000\\
 \nopagebreak
- &  & 39 M & B & 0.770 (0.012) & 0.000 (0.000) & 0.770\\
+ &  & 20 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.659 (0.041) & 0.001 (0.001) & 0.658\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.000 (0.001) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- &  & 118 M & B & 0.691 (0.017) & 0.000 (0.000) & 0.691\\
+ &  & 39 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.588 (0.041) & 0.000 (0.000) & 0.588\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.001 (0.001) & 0.001 (0.001) & 0.000\\
 \nopagebreak
- &  & 315 M & B & 0.612 (0.013) & 0.000 (0.000) & 0.612\\
+ &  & 118 M & B & 0.008 (0.002) & 0.000 (0.000) & 0.008\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.512 (0.032) & 0.000 (0.000) & 0.511\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.006 (0.003) & 0.000 (0.000) & 0.006\\
 \nopagebreak
- &  & 747 M & B & 0.458 (0.015) & 0.000 (0.000) & 0.458\\
+ &  & 315 M & B & 0.074 (0.008) & 0.000 (0.000) & 0.074\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.320 (0.047) & 0.001 (0.001) & 0.319\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.068 (0.011) & 0.000 (0.000) & 0.068\\
 \nopagebreak
- &  & 1868 M & B & 0.283 (0.019) & 0.000 (0.000) & 0.283\\
+ &  & 747 M & B & 0.090 (0.004) & 0.000 (0.000) & 0.090\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.150 (0.029) & 0.000 (0.001) & 0.150\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.070 (0.012) & 0.000 (0.000) & 0.070\\
+\nopagebreak
+ &  & 1868 M & B & 0.106 (0.006) & 0.000 (0.000) & 0.105\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.092 (0.023) & 0.001 (0.001) & 0.091\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 20 M & B & 0.793 (0.027) & 0.000 (0.000) & 0.793\\
+ &  & 0 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.734 (0.022) & 0.000 (0.000) & 0.734\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.002 (0.003) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 39 M & B & 0.732 (0.037) & 0.000 (0.000) & 0.732\\
+ &  & 20 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.672 (0.040) & 0.001 (0.001) & 0.671\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.000 (0.001) & 0.001 (0.001) & -0.000\\
 \nopagebreak
- &  & 118 M & B & 0.663 (0.017) & 0.000 (0.000) & 0.663\\
+ &  & 39 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.608 (0.046) & 0.000 (0.000) & 0.608\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.001 (0.001) & 0.001 (0.001) & 0.000\\
 \nopagebreak
- &  & 315 M & B & 0.576 (0.017) & 0.000 (0.000) & 0.576\\
+ &  & 118 M & B & 0.048 (0.008) & 0.000 (0.000) & 0.047\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.471 (0.043) & 0.000 (0.000) & 0.471\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.038 (0.011) & 0.000 (0.000) & 0.037\\
 \nopagebreak
- &  & 747 M & B & 0.356 (0.028) & 0.000 (0.000) & 0.356\\
+ &  & 315 M & B & 0.093 (0.008) & 0.000 (0.000) & 0.093\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.241 (0.044) & 0.000 (0.000) & 0.241\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.081 (0.021) & 0.000 (0.000) & 0.080\\
 \nopagebreak
- &  & 1868 M & B & 0.278 (0.021) & 0.000 (0.000) & 0.278\\
+ &  & 747 M & B & 0.110 (0.007) & 0.000 (0.000) & 0.110\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.186 (0.033) & 0.000 (0.000) & 0.186\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.090 (0.023) & 0.000 (0.000) & 0.090\\
+\nopagebreak
+ &  & 1868 M & B & 0.095 (0.005) & 0.000 (0.000) & 0.095\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.082 (0.021) & 0.001 (0.001) & 0.081\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 20 M & B & 0.803 (0.016) & 0.000 (0.000) & 0.803\\
+ &  & 0 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.755 (0.025) & 0.000 (0.001) & 0.755\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.000 (0.000) & 0.001 (0.001) & -0.001\\
 \nopagebreak
- &  & 40 M & B & 0.734 (0.025) & 0.000 (0.000) & 0.734\\
+ &  & 20 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.665 (0.033) & 0.000 (0.001) & 0.665\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.000 (0.000) & 0.000 (0.001) & -0.000\\
 \nopagebreak
- &  & 119 M & B & 0.672 (0.015) & 0.000 (0.000) & 0.672\\
+ &  & 40 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.602 (0.031) & 0.000 (0.000) & 0.601\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.000 (0.001) & 0.000 (0.001) & 0.000\\
 \nopagebreak
- &  & 298 M & B & 0.527 (0.014) & 0.000 (0.000) & 0.527\\
+ &  & 119 M & B & 0.062 (0.005) & 0.000 (0.000) & 0.062\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.410 (0.060) & 0.000 (0.000) & 0.410\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.044 (0.016) & 0.000 (0.000) & 0.043\\
 \nopagebreak
- &  & 755 M & B & 0.347 (0.019) & 0.000 (0.000) & 0.347\\
+ &  & 298 M & B & 0.116 (0.009) & 0.000 (0.000) & 0.116\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.193 (0.020) & 0.000 (0.000) & 0.193\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.101 (0.020) & 0.000 (0.000) & 0.101\\
 \nopagebreak
- &  & 1848 M & B & 0.268 (0.007) & 0.000 (0.000) & 0.268\\
+ &  & 755 M & B & 0.114 (0.007) & 0.000 (0.000) & 0.114\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.131 (0.026) & 0.000 (0.000) & 0.131\\*
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.093 (0.026) & 0.000 (0.001) & 0.093\\
+\nopagebreak
+ &  & 1848 M & B & 0.072 (0.003) & 0.000 (0.000) & 0.071\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.066 (0.025) & 0.001 (0.001) & 0.065\\*
 \bottomrule
 
 
@@ -2244,77 +2376,89 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & 34 M & B & 0.681 (0.005) & 0.000 (0.000) & 0.681\\
+ &  & 0 M & B & 0.013 (0.002) & 0.000 (0.000) & 0.013\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.380 (0.032) & 0.000 (0.000) & 0.380\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.006 (0.004) & 0.000 (0.001) & 0.005\\
 \nopagebreak
- &  & 67 M & B & 0.695 (0.004) & 0.000 (0.000) & 0.695\\
+ &  & 34 M & B & 0.006 (0.002) & 0.000 (0.000) & 0.006\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.398 (0.034) & 0.000 (0.000) & 0.398\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.003 (0.003) & 0.000 (0.000) & 0.002\\
 \nopagebreak
- &  & 134 M & B & 0.670 (0.010) & 0.000 (0.000) & 0.670\\
+ &  & 67 M & B & 0.004 (0.001) & 0.000 (0.000) & 0.004\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.415 (0.034) & 0.000 (0.000) & 0.415\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.002 (0.003) & 0.001 (0.001) & 0.001\\
 \nopagebreak
- &  & 537 M & B & 0.799 (0.008) & 0.000 (0.000) & 0.799\\
+ &  & 134 M & B & 0.037 (0.004) & 0.000 (0.000) & 0.037\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.649 (0.035) & 0.000 (0.000) & 0.648\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.019 (0.006) & 0.000 (0.000) & 0.018\\
 \nopagebreak
- &  & 1074 M & B & 0.770 (0.006) & 0.000 (0.000) & 0.770\\
+ &  & 537 M & B & 0.112 (0.008) & 0.000 (0.000) & 0.112\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.644 (0.019) & 0.000 (0.000) & 0.644\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.085 (0.020) & 0.001 (0.001) & 0.084\\
 \nopagebreak
- &  & 2097 M & B & 0.715 (0.007) & 0.000 (0.000) & 0.715\\
+ &  & 1074 M & B & 0.155 (0.006) & 0.000 (0.000) & 0.155\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.632 (0.019) & 0.000 (0.001) & 0.632\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.121 (0.014) & 0.000 (0.000) & 0.121\\
+\nopagebreak
+ &  & 2097 M & B & 0.153 (0.005) & 0.000 (0.000) & 0.153\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.120 (0.024) & 0.000 (0.000) & 0.120\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 34 M & B & 0.692 (0.007) & 0.000 (0.000) & 0.691\\
+ &  & 0 M & B & 0.011 (0.002) & 0.000 (0.000) & 0.011\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.405 (0.035) & 0.000 (0.000) & 0.405\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.005 (0.003) & 0.001 (0.001) & 0.005\\
 \nopagebreak
- &  & 67 M & B & 0.700 (0.007) & 0.000 (0.000) & 0.700\\
+ &  & 34 M & B & 0.002 (0.001) & 0.000 (0.000) & 0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.426 (0.035) & 0.000 (0.000) & 0.426\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.001 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 134 M & B & 0.687 (0.007) & 0.000 (0.000) & 0.687\\
+ &  & 67 M & B & 0.007 (0.001) & 0.000 (0.000) & 0.007\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.443 (0.039) & 0.000 (0.000) & 0.443\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.005 (0.004) & 0.001 (0.001) & 0.004\\
 \nopagebreak
- &  & 537 M & B & 0.814 (0.008) & 0.000 (0.000) & 0.814\\
+ &  & 134 M & B & 0.065 (0.005) & 0.000 (0.000) & 0.065\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.719 (0.019) & 0.000 (0.000) & 0.719\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.052 (0.008) & 0.000 (0.000) & 0.051\\
 \nopagebreak
- &  & 1074 M & B & 0.801 (0.007) & 0.000 (0.000) & 0.801\\
+ &  & 537 M & B & 0.093 (0.007) & 0.000 (0.000) & 0.093\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.714 (0.018) & 0.000 (0.000) & 0.713\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.071 (0.025) & 0.000 (0.001) & 0.071\\
 \nopagebreak
- &  & 2097 M & B & 0.758 (0.002) & 0.000 (0.000) & 0.757\\
+ &  & 1074 M & B & 0.159 (0.009) & 0.000 (0.000) & 0.159\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.690 (0.011) & 0.000 (0.000) & 0.689\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.132 (0.032) & 0.000 (0.000) & 0.132\\
+\nopagebreak
+ &  & 2097 M & B & 0.174 (0.006) & 0.000 (0.000) & 0.174\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.148 (0.027) & 0.001 (0.002) & 0.147\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 34 M & B & 0.737 (0.004) & 0.000 (0.000) & 0.737\\
+ &  & 0 M & B & 0.012 (0.003) & 0.000 (0.000) & 0.012\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.440 (0.026) & 0.000 (0.000) & 0.440\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.003 (0.002) & 0.001 (0.001) & 0.002\\
 \nopagebreak
- &  & 67 M & B & 0.755 (0.004) & 0.000 (0.000) & 0.755\\
+ &  & 34 M & B & 0.002 (0.001) & 0.000 (0.000) & 0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.470 (0.033) & 0.000 (0.000) & 0.470\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.002 (0.002) & 0.000 (0.001) & 0.002\\
 \nopagebreak
- &  & 134 M & B & 0.747 (0.007) & 0.000 (0.000) & 0.747\\
+ &  & 67 M & B & 0.002 (0.001) & 0.000 (0.000) & 0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.500 (0.018) & 0.000 (0.001) & 0.499\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- &  & 537 M & B & 0.864 (0.006) & 0.000 (0.000) & 0.864\\
+ &  & 134 M & B & 0.031 (0.004) & 0.000 (0.000) & 0.031\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.754 (0.025) & 0.000 (0.000) & 0.754\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.015 (0.005) & 0.001 (0.001) & 0.015\\
 \nopagebreak
- &  & 1074 M & B & 0.781 (0.005) & 0.000 (0.000) & 0.781\\
+ &  & 537 M & B & 0.147 (0.008) & 0.000 (0.000) & 0.147\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.664 (0.028) & 0.000 (0.001) & 0.664\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.106 (0.038) & 0.001 (0.001) & 0.106\\
 \nopagebreak
- &  & 2097 M & B & 0.764 (0.005) & 0.000 (0.000) & 0.764\\
+ &  & 1074 M & B & 0.169 (0.011) & 0.000 (0.000) & 0.168\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.683 (0.016) & 0.000 (0.000) & 0.683\\*
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.121 (0.026) & 0.001 (0.001) & 0.120\\
+\nopagebreak
+ &  & 2097 M & B & 0.191 (0.006) & 0.000 (0.000) & 0.191\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.157 (0.023) & 0.001 (0.001) & 0.156\\*
 \bottomrule
 
 
@@ -2342,77 +2486,89 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & 34 M & B & 0.692 (0.009) & 0.000 (0.000) & 0.692\\
+ &  & 0 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.326 (0.058) & 0.000 (0.000) & 0.326\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.001 (0.001) & 0.000 (0.001) & 0.000\\
 \nopagebreak
- &  & 67 M & B & 0.720 (0.009) & 0.000 (0.000) & 0.720\\
+ &  & 34 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.357 (0.062) & 0.000 (0.000) & 0.357\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.001 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 134 M & B & 0.677 (0.014) & 0.000 (0.000) & 0.677\\
+ &  & 67 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.309 (0.057) & 0.000 (0.000) & 0.309\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.001 (0.002) & 0.001 (0.001) & 0.001\\
 \nopagebreak
- &  & 537 M & B & 0.749 (0.014) & 0.000 (0.000) & 0.749\\
+ &  & 134 M & B & 0.009 (0.002) & 0.000 (0.000) & 0.009\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.503 (0.043) & 0.000 (0.000) & 0.503\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.005 (0.004) & 0.001 (0.001) & 0.004\\
 \nopagebreak
- &  & 1074 M & B & 0.752 (0.008) & 0.000 (0.000) & 0.752\\
+ &  & 537 M & B & 0.071 (0.010) & 0.000 (0.000) & 0.071\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.579 (0.031) & 0.000 (0.000) & 0.578\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.050 (0.018) & 0.000 (0.000) & 0.050\\
 \nopagebreak
- &  & 2097 M & B & 0.716 (0.007) & 0.000 (0.000) & 0.716\\
+ &  & 1074 M & B & 0.135 (0.007) & 0.000 (0.000) & 0.135\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.611 (0.020) & 0.001 (0.001) & 0.611\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.110 (0.023) & 0.001 (0.001) & 0.110\\
+\nopagebreak
+ &  & 2097 M & B & 0.157 (0.005) & 0.000 (0.000) & 0.157\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.130 (0.026) & 0.001 (0.001) & 0.129\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 34 M & B & 0.731 (0.005) & 0.000 (0.000) & 0.731\\
+ &  & 0 M & B & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.378 (0.030) & 0.000 (0.000) & 0.377\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- &  & 67 M & B & 0.711 (0.015) & 0.000 (0.000) & 0.711\\
+ &  & 34 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.352 (0.019) & 0.000 (0.000) & 0.351\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- &  & 134 M & B & 0.676 (0.014) & 0.000 (0.000) & 0.676\\
+ &  & 67 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.334 (0.053) & 0.000 (0.000) & 0.334\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.001 (0.002) & 0.000 (0.001) & 0.001\\
 \nopagebreak
- &  & 537 M & B & 0.745 (0.017) & 0.000 (0.000) & 0.745\\
+ &  & 134 M & B & 0.037 (0.008) & 0.000 (0.000) & 0.037\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.505 (0.036) & 0.000 (0.000) & 0.505\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.021 (0.009) & 0.000 (0.000) & 0.021\\
 \nopagebreak
- &  & 1074 M & B & 0.769 (0.020) & 0.000 (0.000) & 0.769\\
+ &  & 537 M & B & 0.063 (0.011) & 0.000 (0.000) & 0.063\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.618 (0.023) & 0.000 (0.000) & 0.618\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.046 (0.012) & 0.000 (0.001) & 0.046\\
 \nopagebreak
- &  & 2097 M & B & 0.751 (0.009) & 0.000 (0.000) & 0.751\\
+ &  & 1074 M & B & 0.131 (0.007) & 0.000 (0.000) & 0.131\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.659 (0.015) & 0.000 (0.000) & 0.659\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.105 (0.028) & 0.000 (0.000) & 0.105\\
+\nopagebreak
+ &  & 2097 M & B & 0.178 (0.009) & 0.000 (0.000) & 0.177\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.154 (0.028) & 0.000 (0.000) & 0.153\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 34 M & B & 0.797 (0.011) & 0.000 (0.000) & 0.797\\
+ &  & 0 M & B & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.494 (0.033) & 0.000 (0.000) & 0.493\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 67 M & B & 0.804 (0.010) & 0.000 (0.000) & 0.804\\
+ &  & 34 M & B & 0.000 (0.001) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.495 (0.028) & 0.000 (0.000) & 0.494\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.002 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 134 M & B & 0.749 (0.015) & 0.000 (0.000) & 0.749\\
+ &  & 67 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.360 (0.063) & 0.000 (0.000) & 0.360\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.001 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 537 M & B & 0.827 (0.011) & 0.000 (0.000) & 0.827\\
+ &  & 134 M & B & 0.017 (0.005) & 0.000 (0.000) & 0.017\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.622 (0.021) & 0.001 (0.001) & 0.621\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.009 (0.006) & 0.001 (0.003) & 0.008\\
 \nopagebreak
- &  & 1074 M & B & 0.773 (0.010) & 0.000 (0.000) & 0.773\\
+ &  & 537 M & B & 0.102 (0.015) & 0.000 (0.000) & 0.102\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.589 (0.027) & 0.000 (0.000) & 0.588\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.063 (0.026) & 0.000 (0.001) & 0.062\\
 \nopagebreak
- &  & 2097 M & B & 0.760 (0.007) & 0.000 (0.000) & 0.760\\
+ &  & 1074 M & B & 0.150 (0.009) & 0.000 (0.000) & 0.150\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.660 (0.017) & 0.000 (0.000) & 0.660\\*
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.106 (0.020) & 0.001 (0.000) & 0.106\\
+\nopagebreak
+ &  & 2097 M & B & 0.163 (0.008) & 0.000 (0.000) & 0.163\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.136 (0.028) & 0.000 (0.000) & 0.136\\*
 \bottomrule
 
 
@@ -2440,149 +2596,173 @@ Model & Step & Condition & \texttt{y\_pred} & \texttt{rel\_freq} & \texttt{y\_pr
 
 \endfoot
 \endlastfoot
- & 24 & Full context & 0.625 [0.618, 0.632] & -0.020 [-0.035, -0.006] & 0.033 [0.021, 0.045] & 0.003 [-0.026, 0.032]\\
+ & 0 & Full context & 0.019 [0.007, 0.030] & 0.009 [-0.017, 0.035] & -0.006 [-0.024, 0.013] & 0.062 [0.020, 0.104]\\
 \nopagebreak
- & 48 & Full context & 0.613 [0.606, 0.619] & -0.035 [-0.050, -0.020] & 0.017 [0.005, 0.029] & -0.004 [-0.034, 0.026]\\
+ & 24 & Full context & 0.024 [0.012, 0.036] & 0.012 [-0.014, 0.037] & -0.003 [-0.021, 0.016] & 0.060 [0.018, 0.104]\\
 \nopagebreak
- & 144 & Full context & 0.577 [0.570, 0.584] & -0.007 [-0.022, 0.008] & -0.014 [-0.025, -0.003] & 0.014 [-0.015, 0.043]\\
+ & 48 & Full context & 0.052 [0.040, 0.064] & 0.008 [-0.018, 0.033] & -0.010 [-0.028, 0.009] & 0.056 [0.015, 0.098]\\
 \nopagebreak
- & 384 & Full context & 0.502 [0.495, 0.510] & 0.139 [0.123, 0.155] & -0.009 [-0.022, 0.003] & 0.067 [0.038, 0.098]\\
+ & 144 & Full context & 0.198 [0.187, 0.210] & 0.008 [-0.017, 0.033] & 0.004 [-0.013, 0.021] & 0.043 [0.003, 0.084]\\
 \nopagebreak
- & 912 & Full context & 0.472 [0.465, 0.480] & 0.248 [0.231, 0.265] & -0.002 [-0.014, 0.010] & 0.151 [0.121, 0.182]\\
+ & 384 & Full context & 0.361 [0.350, 0.372] & 0.165 [0.142, 0.188] & -0.020 [-0.035, -0.006] & 0.103 [0.069, 0.137]\\
 \nopagebreak
- & 2280 & Full context & 0.428 [0.420, 0.436] & 0.463 [0.447, 0.479] & -0.003 [-0.015, 0.009] & 0.338 [0.307, 0.367]\\
+ & 912 & Full context & 0.331 [0.320, 0.342] & 0.236 [0.212, 0.259] & -0.005 [-0.019, 0.009] & 0.207 [0.172, 0.241]\\
 \nopagebreak
- & 24 & Attention-zeroed & 0.824 [0.819, 0.829] & -0.010 [-0.021, 0.001] & 0.018 [0.009, 0.026] & 0.011 [-0.009, 0.032]\\
+ & 2280 & Full context & 0.374 [0.363, 0.385] & 0.353 [0.330, 0.376] & -0.041 [-0.056, -0.027] & 0.411 [0.376, 0.445]\\
 \nopagebreak
- & 48 & Attention-zeroed & 0.809 [0.803, 0.814] & -0.009 [-0.020, 0.002] & 0.019 [0.011, 0.028] & 0.012 [-0.010, 0.034]\\
+ & 0 & Attention-zeroed & 0.009 [-0.002, 0.021] & 0.004 [-0.021, 0.029] & 0.004 [-0.014, 0.022] & 0.062 [0.020, 0.104]\\
 \nopagebreak
- & 144 & Attention-zeroed & 0.648 [0.641, 0.655] & -0.001 [-0.015, 0.014] & 0.001 [-0.010, 0.013] & 0.017 [-0.011, 0.044]\\
+ & 24 & Attention-zeroed & 0.002 [-0.010, 0.013] & 0.008 [-0.018, 0.033] & -0.000 [-0.018, 0.018] & 0.061 [0.019, 0.103]\\
 \nopagebreak
- & 384 & Attention-zeroed & 0.502 [0.494, 0.510] & 0.157 [0.141, 0.173] & -0.023 [-0.034, -0.012] & 0.074 [0.043, 0.104]\\
+ & 48 & Attention-zeroed & 0.015 [0.003, 0.027] & -0.002 [-0.028, 0.024] & 0.005 [-0.012, 0.023] & 0.058 [0.016, 0.100]\\
 \nopagebreak
- & 912 & Attention-zeroed & 0.417 [0.409, 0.425] & 0.263 [0.246, 0.280] & -0.014 [-0.027, -0.002] & 0.139 [0.109, 0.170]\\
+ & 144 & Attention-zeroed & 0.105 [0.093, 0.117] & -0.009 [-0.034, 0.017] & 0.017 [0.001, 0.034] & 0.044 [0.002, 0.086]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-125M} & 2280 & Attention-zeroed & 0.396 [0.388, 0.404] & 0.395 [0.379, 0.412] & -0.025 [-0.037, -0.014] & 0.196 [0.167, 0.225]\\
+ & 384 & Attention-zeroed & 0.270 [0.258, 0.281] & 0.199 [0.175, 0.223] & -0.017 [-0.031, -0.003] & 0.108 [0.072, 0.144]\\
+\nopagebreak
+ & 912 & Attention-zeroed & 0.292 [0.281, 0.303] & 0.253 [0.229, 0.278] & -0.021 [-0.034, -0.007] & 0.192 [0.159, 0.225]\\
+\nopagebreak
+\multirow{-14}{*}{\raggedright\arraybackslash BabyLM-125M} & 2280 & Attention-zeroed & 0.333 [0.322, 0.344] & 0.258 [0.235, 0.281] & -0.041 [-0.054, -0.027] & 0.219 [0.186, 0.252]\\
 \cmidrule{1-7}\pagebreak[0]
- & 48 & Full context & 0.638 [0.631, 0.645] & -0.016 [-0.031, -0.002] & 0.009 [-0.002, 0.020] & 0.016 [-0.012, 0.044]\\
+ & 0 & Full context & 0.029 [0.017, 0.040] & 0.018 [-0.008, 0.043] & 0.007 [-0.011, 0.025] & 0.053 [0.011, 0.096]\\
 \nopagebreak
- & 96 & Full context & 0.569 [0.562, 0.576] & -0.016 [-0.032, -0.001] & 0.006 [-0.006, 0.018] & 0.014 [-0.016, 0.043]\\
+ & 48 & Full context & 0.039 [0.027, 0.051] & 0.016 [-0.010, 0.042] & 0.002 [-0.017, 0.021] & 0.063 [0.021, 0.106]\\
 \nopagebreak
- & 288 & Full context & 0.571 [0.563, 0.578] & 0.030 [0.015, 0.045] & 0.003 [-0.008, 0.015] & 0.042 [0.013, 0.071]\\
+ & 96 & Full context & 0.038 [0.026, 0.050] & 0.020 [-0.006, 0.046] & -0.001 [-0.019, 0.017] & 0.060 [0.018, 0.102]\\
 \nopagebreak
- & 768 & Full context & 0.516 [0.508, 0.524] & 0.152 [0.136, 0.168] & 0.009 [-0.003, 0.021] & 0.082 [0.053, 0.111]\\
+ & 288 & Full context & 0.293 [0.282, 0.304] & 0.068 [0.044, 0.092] & -0.022 [-0.038, -0.006] & 0.087 [0.049, 0.124]\\
 \nopagebreak
- & 1824 & Full context & 0.439 [0.431, 0.446] & 0.328 [0.312, 0.345] & -0.015 [-0.027, -0.003] & 0.239 [0.208, 0.269]\\
+ & 768 & Full context & 0.371 [0.360, 0.382] & 0.178 [0.155, 0.202] & -0.025 [-0.040, -0.011] & 0.135 [0.101, 0.170]\\
 \nopagebreak
- & 4560 & Full context & 0.383 [0.376, 0.391] & 0.585 [0.569, 0.601] & -0.017 [-0.029, -0.004] & 0.399 [0.369, 0.429]\\
+ & 1824 & Full context & 0.342 [0.331, 0.353] & 0.309 [0.286, 0.333] & -0.034 [-0.049, -0.019] & 0.331 [0.295, 0.366]\\
 \nopagebreak
- & 48 & Attention-zeroed & 0.827 [0.822, 0.832] & -0.000 [-0.011, 0.010] & -0.007 [-0.016, 0.001] & 0.018 [-0.004, 0.040]\\
+ & 4560 & Full context & 0.364 [0.354, 0.375] & 0.447 [0.424, 0.470] & -0.035 [-0.049, -0.020] & 0.510 [0.475, 0.545]\\
 \nopagebreak
- & 96 & Attention-zeroed & 0.786 [0.781, 0.792] & -0.001 [-0.013, 0.011] & -0.000 [-0.010, 0.009] & 0.016 [-0.006, 0.038]\\
+ & 0 & Attention-zeroed & 0.001 [-0.011, 0.013] & 0.013 [-0.012, 0.038] & 0.016 [-0.002, 0.034] & 0.052 [0.010, 0.095]\\
 \nopagebreak
- & 288 & Attention-zeroed & 0.618 [0.611, 0.625] & 0.033 [0.018, 0.047] & -0.022 [-0.033, -0.011] & 0.039 [0.011, 0.068]\\
+ & 48 & Attention-zeroed & 0.014 [0.002, 0.026] & 0.009 [-0.016, 0.035] & 0.021 [0.003, 0.039] & 0.064 [0.021, 0.107]\\
 \nopagebreak
- & 768 & Attention-zeroed & 0.492 [0.485, 0.500] & 0.161 [0.145, 0.177] & -0.016 [-0.028, -0.004] & 0.071 [0.042, 0.101]\\
+ & 96 & Attention-zeroed & 0.000 [-0.011, 0.012] & 0.017 [-0.008, 0.042] & 0.008 [-0.008, 0.026] & 0.059 [0.017, 0.102]\\
 \nopagebreak
- & 1824 & Attention-zeroed & 0.410 [0.402, 0.418] & 0.297 [0.280, 0.313] & -0.025 [-0.037, -0.013] & 0.163 [0.134, 0.192]\\
+ & 288 & Attention-zeroed & 0.218 [0.207, 0.230] & 0.057 [0.032, 0.082] & -0.020 [-0.035, -0.005] & 0.085 [0.047, 0.123]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-350M} & 4560 & Attention-zeroed & 0.362 [0.354, 0.369] & 0.443 [0.427, 0.460] & -0.038 [-0.050, -0.026] & 0.150 [0.122, 0.179]\\
+ & 768 & Attention-zeroed & 0.326 [0.315, 0.337] & 0.188 [0.164, 0.212] & -0.035 [-0.049, -0.020] & 0.136 [0.102, 0.171]\\
+\nopagebreak
+ & 1824 & Attention-zeroed & 0.330 [0.319, 0.341] & 0.256 [0.232, 0.280] & -0.044 [-0.059, -0.031] & 0.216 [0.183, 0.250]\\
+\nopagebreak
+\multirow{-14}{*}{\raggedright\arraybackslash BabyLM-350M} & 4560 & Attention-zeroed & 0.307 [0.296, 0.318] & 0.304 [0.280, 0.328] & -0.038 [-0.052, -0.024] & 0.222 [0.189, 0.256]\\
 \cmidrule{1-7}\pagebreak[0]
- & 97 & Full context & 0.625 [0.618, 0.632] & -0.010 [-0.024, 0.005] & -0.008 [-0.020, 0.003] & 0.029 [0.000, 0.058]\\
+ & 0 & Full context & 0.016 [0.004, 0.028] & 0.016 [-0.010, 0.042] & 0.013 [-0.005, 0.030] & 0.066 [0.022, 0.110]\\
 \nopagebreak
- & 194 & Full context & 0.559 [0.552, 0.567] & -0.008 [-0.023, 0.008] & -0.001 [-0.013, 0.011] & 0.026 [-0.004, 0.056]\\
+ & 97 & Full context & 0.042 [0.030, 0.053] & 0.008 [-0.017, 0.033] & -0.000 [-0.018, 0.017] & 0.065 [0.025, 0.106]\\
 \nopagebreak
- & 582 & Full context & 0.551 [0.543, 0.559] & 0.069 [0.054, 0.084] & -0.009 [-0.020, 0.002] & 0.047 [0.019, 0.076]\\
+ & 194 & Full context & 0.045 [0.034, 0.057] & 0.022 [-0.003, 0.048] & -0.011 [-0.029, 0.006] & 0.059 [0.018, 0.099]\\
 \nopagebreak
- & 1455 & Full context & 0.498 [0.490, 0.505] & 0.216 [0.200, 0.232] & -0.007 [-0.019, 0.005] & 0.109 [0.079, 0.138]\\
+ & 582 & Full context & 0.284 [0.273, 0.295] & 0.109 [0.086, 0.133] & -0.016 [-0.031, -0.001] & 0.076 [0.040, 0.113]\\
 \nopagebreak
- & 3686 & Full context & 0.409 [0.402, 0.417] & 0.477 [0.460, 0.494] & -0.023 [-0.034, -0.011] & 0.340 [0.309, 0.371]\\
+ & 1455 & Full context & 0.353 [0.342, 0.364] & 0.218 [0.195, 0.242] & -0.016 [-0.030, -0.001] & 0.198 [0.164, 0.233]\\
 \nopagebreak
- & 9021 & Full context & 0.323 [0.316, 0.331] & 0.802 [0.786, 0.818] & -0.018 [-0.030, -0.006] & 0.459 [0.430, 0.489]\\
+ & 3686 & Full context & 0.354 [0.344, 0.365] & 0.376 [0.353, 0.399] & -0.042 [-0.056, -0.028] & 0.450 [0.416, 0.486]\\
 \nopagebreak
- & 97 & Attention-zeroed & 0.796 [0.791, 0.801] & -0.003 [-0.014, 0.008] & 0.004 [-0.004, 0.013] & 0.014 [-0.007, 0.036]\\
+ & 9021 & Full context & 0.324 [0.313, 0.335] & 0.512 [0.489, 0.535] & -0.050 [-0.064, -0.035] & 0.532 [0.498, 0.567]\\
 \nopagebreak
- & 194 & Attention-zeroed & 0.726 [0.720, 0.732] & 0.011 [-0.001, 0.024] & -0.006 [-0.016, 0.004] & 0.039 [0.015, 0.064]\\
+ & 0 & Attention-zeroed & -0.001 [-0.014, 0.010] & 0.017 [-0.009, 0.042] & 0.012 [-0.006, 0.030] & 0.062 [0.018, 0.105]\\
 \nopagebreak
- & 582 & Attention-zeroed & 0.588 [0.581, 0.595] & 0.070 [0.055, 0.085] & -0.019 [-0.030, -0.008] & 0.057 [0.030, 0.085]\\
+ & 97 & Attention-zeroed & 0.018 [0.007, 0.030] & 0.003 [-0.021, 0.028] & -0.010 [-0.028, 0.007] & 0.063 [0.022, 0.104]\\
 \nopagebreak
- & 1455 & Attention-zeroed & 0.484 [0.476, 0.492] & 0.227 [0.211, 0.243] & -0.016 [-0.028, -0.005] & 0.097 [0.067, 0.125]\\
+ & 194 & Attention-zeroed & 0.008 [-0.004, 0.020] & 0.019 [-0.006, 0.045] & -0.005 [-0.022, 0.012] & 0.057 [0.016, 0.099]\\
 \nopagebreak
- & 3686 & Attention-zeroed & 0.390 [0.381, 0.397] & 0.393 [0.375, 0.410] & -0.037 [-0.049, -0.025] & 0.154 [0.123, 0.183]\\
+ & 582 & Attention-zeroed & 0.222 [0.211, 0.234] & 0.109 [0.084, 0.133] & -0.017 [-0.032, -0.002] & 0.075 [0.037, 0.111]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash BabyLM-1.3B} & 9021 & Attention-zeroed & 0.298 [0.290, 0.306] & 0.612 [0.595, 0.629] & -0.025 [-0.037, -0.013] & 0.168 [0.139, 0.198]\\
+ & 1455 & Attention-zeroed & 0.329 [0.318, 0.340] & 0.222 [0.199, 0.246] & -0.027 [-0.041, -0.013] & 0.180 [0.147, 0.212]\\
+\nopagebreak
+ & 3686 & Attention-zeroed & 0.333 [0.322, 0.344] & 0.269 [0.245, 0.292] & -0.039 [-0.052, -0.025] & 0.215 [0.182, 0.247]\\
+\nopagebreak
+\multirow{-14}{*}{\raggedright\arraybackslash BabyLM-1.3B} & 9021 & Attention-zeroed & 0.256 [0.245, 0.267] & 0.298 [0.275, 0.322] & -0.050 [-0.065, -0.036] & 0.182 [0.149, 0.215]\\
 \cmidrule{1-7}\pagebreak[0]
- & 16 & Full context & 0.528 [0.521, 0.536] & -0.021 [-0.048, 0.006] & 0.009 [0.006, 0.012] & 0.014 [0.004, 0.023]\\
+ & 0 & Full context & 0.068 [0.056, 0.080] & 0.124 [0.077, 0.171] & -0.007 [-0.013, -0.000] & 0.001 [-0.020, 0.022]\\
 \nopagebreak
- & 32 & Full context & 0.570 [0.562, 0.577] & -0.030 [-0.057, -0.003] & 0.004 [0.001, 0.007] & 0.009 [0.000, 0.018]\\
+ & 16 & Full context & 0.051 [0.039, 0.063] & 0.137 [0.092, 0.182] & -0.005 [-0.012, 0.001] & 0.000 [-0.021, 0.021]\\
 \nopagebreak
- & 64 & Full context & 0.557 [0.550, 0.565] & -0.002 [-0.029, 0.024] & 0.009 [0.006, 0.013] & 0.018 [0.009, 0.027]\\
+ & 32 & Full context & 0.046 [0.034, 0.058] & 0.159 [0.114, 0.204] & -0.002 [-0.009, 0.004] & -0.000 [-0.022, 0.021]\\
 \nopagebreak
- & 256 & Full context & 0.686 [0.679, 0.692] & 0.242 [0.219, 0.266] & -0.003 [-0.005, -0.000] & 0.026 [0.018, 0.034]\\
+ & 64 & Full context & 0.169 [0.157, 0.180] & 0.194 [0.149, 0.239] & 0.010 [0.003, 0.016] & 0.002 [-0.019, 0.023]\\
 \nopagebreak
- & 512 & Full context & 0.669 [0.662, 0.675] & 0.420 [0.397, 0.443] & -0.002 [-0.005, 0.001] & 0.058 [0.049, 0.066]\\
+ & 256 & Full context & 0.276 [0.265, 0.287] & 0.560 [0.518, 0.602] & 0.001 [-0.005, 0.007] & 0.015 [-0.004, 0.035]\\
 \nopagebreak
- & 1000 & Full context & 0.622 [0.615, 0.629] & 0.488 [0.464, 0.512] & 0.003 [-0.000, 0.005] & 0.097 [0.089, 0.105]\\
+ & 512 & Full context & 0.341 [0.330, 0.352] & 0.787 [0.745, 0.829] & -0.003 [-0.009, 0.004] & 0.077 [0.058, 0.096]\\
 \nopagebreak
- & 16 & Attention-zeroed & 0.553 [0.545, 0.560] & 0.027 [0.001, 0.054] & -0.006 [-0.009, -0.003] & 0.014 [0.005, 0.023]\\
+ & 1000 & Full context & 0.310 [0.299, 0.321] & 0.995 [0.953, 1.037] & -0.015 [-0.021, -0.009] & 0.173 [0.154, 0.193]\\
 \nopagebreak
- & 32 & Attention-zeroed & 0.600 [0.593, 0.607] & 0.050 [0.025, 0.076] & -0.007 [-0.010, -0.004] & 0.010 [0.001, 0.019]\\
+ & 0 & Attention-zeroed & 0.020 [0.008, 0.032] & 0.123 [0.078, 0.168] & 0.001 [-0.006, 0.007] & 0.001 [-0.020, 0.023]\\
 \nopagebreak
- & 64 & Attention-zeroed & 0.582 [0.574, 0.589] & 0.058 [0.033, 0.084] & -0.009 [-0.012, -0.006] & 0.015 [0.006, 0.024]\\
+ & 16 & Attention-zeroed & 0.015 [0.003, 0.026] & 0.137 [0.092, 0.182] & -0.001 [-0.007, 0.006] & 0.001 [-0.021, 0.022]\\
 \nopagebreak
- & 256 & Attention-zeroed & 0.651 [0.645, 0.658] & 0.246 [0.222, 0.270] & -0.008 [-0.011, -0.005] & 0.031 [0.022, 0.039]\\
+ & 32 & Attention-zeroed & 0.014 [0.003, 0.026] & 0.164 [0.117, 0.210] & 0.001 [-0.005, 0.007] & -0.001 [-0.022, 0.020]\\
 \nopagebreak
- & 512 & Attention-zeroed & 0.647 [0.641, 0.654] & 0.460 [0.437, 0.484] & -0.004 [-0.007, -0.001] & 0.049 [0.041, 0.057]\\
+ & 64 & Attention-zeroed & 0.108 [0.096, 0.120] & 0.184 [0.138, 0.230] & 0.000 [-0.006, 0.007] & 0.002 [-0.019, 0.023]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash Pythia-160M} & 1000 & Attention-zeroed & 0.617 [0.610, 0.624] & 0.388 [0.362, 0.413] & -0.002 [-0.005, 0.001] & 0.045 [0.036, 0.053]\\
+ & 256 & Attention-zeroed & 0.231 [0.219, 0.242] & 0.551 [0.507, 0.595] & -0.001 [-0.007, 0.006] & 0.019 [-0.001, 0.040]\\
+\nopagebreak
+ & 512 & Attention-zeroed & 0.286 [0.274, 0.297] & 0.859 [0.816, 0.903] & -0.010 [-0.016, -0.004] & 0.052 [0.033, 0.071]\\
+\nopagebreak
+\multirow{-14}{*}{\raggedright\arraybackslash Pythia-160M} & 1000 & Attention-zeroed & 0.332 [0.321, 0.343] & 0.789 [0.748, 0.831] & -0.011 [-0.017, -0.005] & 0.052 [0.033, 0.072]\\
 \cmidrule{1-7}\pagebreak[0]
- & 16 & Full context & 0.552 [0.544, 0.559] & -0.013 [-0.039, 0.014] & 0.010 [0.007, 0.013] & 0.014 [0.005, 0.024]\\
+ & 0 & Full context & 0.088 [0.076, 0.100] & 0.114 [0.068, 0.159] & 0.001 [-0.005, 0.007] & 0.004 [-0.017, 0.025]\\
 \nopagebreak
- & 32 & Full context & 0.575 [0.568, 0.582] & -0.012 [-0.037, 0.014] & 0.008 [0.005, 0.011] & 0.011 [0.002, 0.020]\\
+ & 16 & Full context & 0.046 [0.034, 0.058] & 0.143 [0.098, 0.188] & -0.005 [-0.011, 0.001] & 0.004 [-0.017, 0.025]\\
 \nopagebreak
- & 64 & Full context & 0.581 [0.573, 0.589] & 0.042 [0.016, 0.068] & 0.009 [0.006, 0.012] & 0.021 [0.012, 0.030]\\
+ & 32 & Full context & 0.116 [0.105, 0.128] & 0.157 [0.111, 0.201] & -0.006 [-0.013, 0.000] & 0.004 [-0.017, 0.025]\\
 \nopagebreak
- & 256 & Full context & 0.727 [0.721, 0.733] & 0.174 [0.152, 0.196] & 0.006 [0.003, 0.008] & 0.024 [0.016, 0.031]\\
+ & 64 & Full context & 0.252 [0.241, 0.264] & 0.216 [0.171, 0.260] & 0.008 [0.001, 0.014] & 0.007 [-0.013, 0.028]\\
 \nopagebreak
- & 512 & Full context & 0.682 [0.675, 0.688] & 0.379 [0.356, 0.402] & -0.004 [-0.007, -0.001] & 0.051 [0.043, 0.059]\\
+ & 256 & Full context & 0.251 [0.240, 0.262] & 0.507 [0.463, 0.551] & 0.002 [-0.003, 0.008] & 0.025 [0.004, 0.045]\\
 \nopagebreak
- & 1000 & Full context & 0.638 [0.631, 0.645] & 0.488 [0.465, 0.512] & -0.000 [-0.003, 0.003] & 0.090 [0.082, 0.098]\\
+ & 512 & Full context & 0.343 [0.332, 0.353] & 0.705 [0.663, 0.747] & -0.002 [-0.008, 0.004] & 0.047 [0.028, 0.066]\\
 \nopagebreak
- & 16 & Attention-zeroed & 0.595 [0.588, 0.603] & 0.054 [0.029, 0.080] & -0.004 [-0.007, -0.001] & 0.013 [0.004, 0.021]\\
+ & 1000 & Full context & 0.326 [0.315, 0.337] & 0.914 [0.872, 0.957] & -0.012 [-0.018, -0.006] & 0.156 [0.137, 0.176]\\
 \nopagebreak
- & 32 & Attention-zeroed & 0.581 [0.574, 0.589] & 0.076 [0.050, 0.102] & -0.006 [-0.010, -0.004] & 0.015 [0.006, 0.024]\\
+ & 0 & Attention-zeroed & 0.011 [-0.001, 0.023] & 0.119 [0.073, 0.165] & 0.002 [-0.005, 0.008] & 0.003 [-0.018, 0.024]\\
 \nopagebreak
- & 64 & Attention-zeroed & 0.565 [0.558, 0.573] & 0.098 [0.072, 0.125] & -0.009 [-0.012, -0.006] & 0.022 [0.014, 0.032]\\
+ & 16 & Attention-zeroed & 0.013 [0.002, 0.025] & 0.144 [0.099, 0.189] & -0.003 [-0.010, 0.003] & 0.003 [-0.018, 0.024]\\
 \nopagebreak
- & 256 & Attention-zeroed & 0.666 [0.659, 0.673] & 0.218 [0.194, 0.242] & -0.005 [-0.008, -0.002] & 0.024 [0.016, 0.032]\\
+ & 32 & Attention-zeroed & 0.034 [0.022, 0.046] & 0.161 [0.115, 0.207] & 0.001 [-0.006, 0.007] & 0.003 [-0.017, 0.024]\\
 \nopagebreak
- & 512 & Attention-zeroed & 0.655 [0.649, 0.662] & 0.409 [0.385, 0.433] & -0.003 [-0.006, -0.000] & 0.051 [0.043, 0.059]\\
+ & 64 & Attention-zeroed & 0.204 [0.193, 0.216] & 0.189 [0.144, 0.234] & 0.002 [-0.005, 0.008] & 0.015 [-0.006, 0.036]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash Pythia-410M} & 1000 & Attention-zeroed & 0.644 [0.637, 0.651] & 0.392 [0.367, 0.415] & -0.002 [-0.004, 0.001] & 0.048 [0.040, 0.057]\\
+ & 256 & Attention-zeroed & 0.207 [0.196, 0.219] & 0.492 [0.449, 0.535] & -0.004 [-0.011, 0.002] & 0.025 [0.005, 0.045]\\
+\nopagebreak
+ & 512 & Attention-zeroed & 0.293 [0.282, 0.304] & 0.776 [0.735, 0.817] & -0.004 [-0.010, 0.002] & 0.036 [0.017, 0.056]\\
+\nopagebreak
+\multirow{-14}{*}{\raggedright\arraybackslash Pythia-410M} & 1000 & Attention-zeroed & 0.337 [0.326, 0.348] & 0.797 [0.755, 0.839] & -0.010 [-0.016, -0.005] & 0.052 [0.032, 0.071]\\
 \cmidrule{1-7}\pagebreak[0]
- & 16 & Full context & 0.614 [0.606, 0.621] & -0.018 [-0.044, 0.007] & 0.008 [0.005, 0.010] & 0.017 [0.009, 0.026]\\
+ & 0 & Full context & 0.106 [0.095, 0.118] & 0.146 [0.101, 0.191] & 0.001 [-0.005, 0.007] & -0.007 [-0.028, 0.014]\\
 \nopagebreak
- & 32 & Full context & 0.627 [0.619, 0.634] & -0.002 [-0.026, 0.023] & 0.009 [0.006, 0.012] & 0.021 [0.013, 0.030]\\
+ & 16 & Full context & 0.011 [-0.001, 0.023] & 0.161 [0.114, 0.207] & -0.003 [-0.009, 0.003] & -0.001 [-0.022, 0.020]\\
 \nopagebreak
- & 64 & Full context & 0.621 [0.614, 0.628] & 0.026 [0.001, 0.050] & 0.009 [0.006, 0.012] & 0.029 [0.020, 0.038]\\
+ & 32 & Full context & 0.031 [0.019, 0.042] & 0.181 [0.135, 0.226] & -0.005 [-0.011, 0.002] & 0.003 [-0.018, 0.024]\\
 \nopagebreak
- & 256 & Full context & 0.775 [0.769, 0.781] & 0.264 [0.244, 0.284] & -0.002 [-0.004, 0.001] & 0.037 [0.030, 0.044]\\
+ & 64 & Full context & 0.153 [0.141, 0.164] & 0.294 [0.249, 0.338] & -0.003 [-0.009, 0.003] & 0.020 [-0.000, 0.040]\\
 \nopagebreak
- & 512 & Full context & 0.674 [0.668, 0.681] & 0.409 [0.387, 0.432] & -0.003 [-0.006, -0.000] & 0.070 [0.062, 0.078]\\
+ & 256 & Full context & 0.328 [0.318, 0.339] & 0.610 [0.568, 0.652] & 0.005 [-0.001, 0.011] & 0.033 [0.013, 0.053]\\
 \nopagebreak
- & 1000 & Full context & 0.654 [0.647, 0.660] & 0.530 [0.507, 0.554] & 0.005 [0.002, 0.007] & 0.114 [0.106, 0.121]\\
+ & 512 & Full context & 0.355 [0.345, 0.366] & 0.751 [0.708, 0.794] & -0.007 [-0.013, -0.001] & 0.092 [0.072, 0.111]\\
 \nopagebreak
- & 16 & Attention-zeroed & 0.696 [0.690, 0.703] & 0.052 [0.028, 0.075] & -0.009 [-0.012, -0.007] & 0.009 [0.001, 0.017]\\
+ & 1000 & Full context & 0.327 [0.315, 0.338] & 1.031 [0.989, 1.073] & -0.009 [-0.015, -0.003] & 0.180 [0.161, 0.199]\\
 \nopagebreak
- & 32 & Attention-zeroed & 0.710 [0.704, 0.717] & 0.057 [0.034, 0.078] & -0.010 [-0.013, -0.008] & 0.011 [0.003, 0.019]\\
+ & 0 & Attention-zeroed & 0.009 [-0.004, 0.020] & 0.153 [0.107, 0.198] & -0.007 [-0.013, -0.000] & -0.008 [-0.029, 0.012]\\
 \nopagebreak
- & 64 & Attention-zeroed & 0.628 [0.621, 0.635] & 0.100 [0.076, 0.125] & -0.005 [-0.008, -0.002] & 0.028 [0.020, 0.037]\\
+ & 16 & Attention-zeroed & 0.007 [-0.005, 0.019] & 0.162 [0.116, 0.207] & -0.007 [-0.013, -0.001] & -0.001 [-0.023, 0.020]\\
 \nopagebreak
- & 256 & Attention-zeroed & 0.728 [0.722, 0.734] & 0.278 [0.257, 0.299] & -0.008 [-0.011, -0.006] & 0.037 [0.029, 0.044]\\
+ & 32 & Attention-zeroed & 0.015 [0.003, 0.027] & 0.181 [0.135, 0.228] & -0.001 [-0.008, 0.005] & 0.003 [-0.018, 0.024]\\
 \nopagebreak
- & 512 & Attention-zeroed & 0.643 [0.636, 0.650] & 0.446 [0.422, 0.469] & -0.002 [-0.005, 0.001] & 0.064 [0.056, 0.073]\\
+ & 64 & Attention-zeroed & 0.109 [0.097, 0.121] & 0.283 [0.238, 0.329] & -0.006 [-0.012, 0.001] & 0.024 [0.003, 0.045]\\
 \nopagebreak
-\multirow{-12}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & Attention-zeroed & 0.652 [0.645, 0.659] & 0.410 [0.387, 0.434] & -0.003 [-0.006, -0.001] & 0.060 [0.052, 0.068]\\*
+ & 256 & Attention-zeroed & 0.271 [0.260, 0.282] & 0.648 [0.605, 0.692] & 0.001 [-0.005, 0.007] & 0.036 [0.017, 0.056]\\
+\nopagebreak
+ & 512 & Attention-zeroed & 0.287 [0.276, 0.298] & 0.849 [0.808, 0.892] & -0.009 [-0.015, -0.003] & 0.062 [0.043, 0.082]\\
+\nopagebreak
+\multirow{-14}{*}{\raggedright\arraybackslash Pythia-1B} & 1000 & Attention-zeroed & 0.318 [0.307, 0.329] & 0.863 [0.820, 0.905] & -0.010 [-0.016, -0.004] & 0.050 [0.031, 0.070]\\*
 \bottomrule
 
 
@@ -2603,11 +2783,12 @@ brackets.}
 
 Word-level probe results across BabyLM and Pythia checkpoints replicate
 the key patterns from the binomial-level analysis. The generalization
-gap (binomial-held-out minus word-held-out) is largest at the earliest
-checkpoints and shrinks over the course of training. For BabyLM, the gap
-at the first checkpoint ranges from 0.15 to 0.36 across model sizes,
-narrowing to 0.13--0.14 by the final checkpoint, the same qualitative
-trajectory observed at the binomial level. Full R² results are in
+gap (binomial-held-out minus word-held-out) is absent at the earliest
+checkpoints, where neither split is distinguishable from zero, and
+widens over the course of training. For BabyLM, the gap is within
+rounding of zero at the first checkpoint and reaches 0.026--0.042 by the
+final one, the same qualitative trajectory observed at the binomial
+level. Full R² results are in
 Table~\ref{tbl-r2-checkpoints-babylm-default-words} and
 Table~\ref{tbl-r2-checkpoints-pythia-default-words}. The
 frequency-dependent preference regression was fit at the binomial level
@@ -2630,77 +2811,89 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & 20 M & B & 0.450 (0.056) & 0.000 (0.000) & 0.450\\
+ &  & 0 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.205 (0.041) & 0.000 (0.001) & 0.205\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 39 M & B & 0.384 (0.055) & 0.000 (0.000) & 0.384\\
+ &  & 20 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.158 (0.031) & 0.001 (0.001) & 0.158\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 24} & 20 M & W & 0.001 (0.002) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- &  & 118 M & B & 0.355 (0.072) & 0.000 (0.000) & 0.355\\
+ &  & 39 M & B & 0.002 (0.001) & 0.000 (0.000) & 0.002\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.129 (0.035) & 0.000 (0.000) & 0.129\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 39 M & W & 0.003 (0.003) & 0.000 (0.000) & 0.003\\
 \nopagebreak
- &  & 315 M & B & 0.403 (0.052) & 0.000 (0.000) & 0.403\\
+ &  & 118 M & B & 0.088 (0.008) & 0.000 (0.000) & 0.088\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.213 (0.024) & 0.000 (0.000) & 0.212\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 144} & 118 M & W & 0.077 (0.017) & 0.001 (0.001) & 0.076\\
 \nopagebreak
- &  & 747 M & B & 0.400 (0.034) & 0.000 (0.000) & 0.400\\
+ &  & 315 M & B & 0.206 (0.009) & 0.000 (0.000) & 0.206\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.231 (0.027) & 0.001 (0.001) & 0.231\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 384} & 315 M & W & 0.184 (0.019) & 0.001 (0.001) & 0.183\\
 \nopagebreak
- &  & 1868 M & B & 0.335 (0.020) & 0.000 (0.000) & 0.335\\
+ &  & 747 M & B & 0.140 (0.005) & 0.000 (0.000) & 0.140\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.208 (0.017) & 0.000 (0.000) & 0.208\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 912} & 747 M & W & 0.101 (0.028) & 0.000 (0.000) & 0.100\\
+\nopagebreak
+ &  & 1868 M & B & 0.143 (0.005) & 0.000 (0.000) & 0.143\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-125M} & \multirow{-2}{*}{\raggedleft\arraybackslash 2280} & 1868 M & W & 0.105 (0.027) & 0.001 (0.001) & 0.104\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 20 M & B & 0.477 (0.042) & 0.000 (0.000) & 0.477\\
+ &  & 0 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.193 (0.053) & 0.000 (0.000) & 0.193\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.000 (0.000) & 0.001 (0.001) & -0.000\\
 \nopagebreak
- &  & 39 M & B & 0.396 (0.042) & 0.000 (0.000) & 0.396\\
+ &  & 20 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.151 (0.049) & 0.000 (0.000) & 0.150\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 48} & 20 M & W & 0.001 (0.001) & 0.000 (0.001) & 0.001\\
 \nopagebreak
- &  & 118 M & B & 0.350 (0.029) & 0.000 (0.000) & 0.350\\
+ &  & 39 M & B & 0.001 (0.000) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.159 (0.016) & 0.000 (0.000) & 0.159\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 96} & 39 M & W & 0.002 (0.001) & 0.000 (0.001) & 0.002\\
 \nopagebreak
- &  & 315 M & B & 0.438 (0.043) & 0.000 (0.000) & 0.438\\
+ &  & 118 M & B & 0.154 (0.009) & 0.000 (0.000) & 0.154\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.254 (0.037) & 0.000 (0.000) & 0.254\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 288} & 118 M & W & 0.143 (0.018) & 0.000 (0.001) & 0.143\\
 \nopagebreak
- &  & 747 M & B & 0.376 (0.020) & 0.000 (0.000) & 0.376\\
+ &  & 315 M & B & 0.181 (0.007) & 0.000 (0.000) & 0.181\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.230 (0.017) & 0.000 (0.000) & 0.229\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 768} & 315 M & W & 0.149 (0.025) & 0.001 (0.001) & 0.148\\
 \nopagebreak
- &  & 1868 M & B & 0.302 (0.010) & 0.000 (0.000) & 0.302\\
+ &  & 747 M & B & 0.131 (0.006) & 0.000 (0.000) & 0.131\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.170 (0.022) & 0.000 (0.000) & 0.170\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1824} & 747 M & W & 0.091 (0.020) & 0.001 (0.001) & 0.090\\
+\nopagebreak
+ &  & 1868 M & B & 0.131 (0.006) & 0.000 (0.000) & 0.131\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-350M} & \multirow{-2}{*}{\raggedleft\arraybackslash 4560} & 1868 M & W & 0.105 (0.015) & 0.001 (0.001) & 0.104\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 20 M & B & 0.570 (0.032) & 0.000 (0.000) & 0.570\\
+ &  & 0 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.215 (0.052) & 0.000 (0.000) & 0.214\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.001 (0.001) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- &  & 40 M & B & 0.444 (0.037) & 0.000 (0.000) & 0.444\\
+ &  & 20 M & B & 0.000 (0.000) & 0.000 (0.000) & 0.000\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.127 (0.047) & 0.000 (0.000) & 0.127\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 97} & 20 M & W & 0.000 (0.000) & 0.001 (0.000) & -0.000\\
 \nopagebreak
- &  & 119 M & B & 0.421 (0.032) & 0.000 (0.000) & 0.421\\
+ &  & 40 M & B & 0.002 (0.001) & 0.000 (0.000) & 0.001\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.187 (0.024) & 0.000 (0.000) & 0.186\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 194} & 40 M & W & 0.002 (0.002) & 0.000 (0.001) & 0.001\\
 \nopagebreak
- &  & 298 M & B & 0.462 (0.026) & 0.000 (0.000) & 0.462\\
+ &  & 119 M & B & 0.138 (0.007) & 0.000 (0.000) & 0.138\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.283 (0.052) & 0.000 (0.000) & 0.283\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 582} & 119 M & W & 0.117 (0.024) & 0.000 (0.001) & 0.117\\
 \nopagebreak
- &  & 755 M & B & 0.394 (0.009) & 0.000 (0.000) & 0.394\\
+ &  & 298 M & B & 0.155 (0.006) & 0.000 (0.000) & 0.155\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.236 (0.019) & 0.000 (0.000) & 0.235\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 1455} & 298 M & W & 0.123 (0.021) & 0.001 (0.001) & 0.122\\
 \nopagebreak
- &  & 1848 M & B & 0.320 (0.004) & 0.000 (0.000) & 0.320\\
+ &  & 755 M & B & 0.138 (0.006) & 0.000 (0.000) & 0.138\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.185 (0.022) & 0.000 (0.000) & 0.184\\*
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 3686} & 755 M & W & 0.097 (0.022) & 0.001 (0.001) & 0.096\\
+\nopagebreak
+ &  & 1848 M & B & 0.106 (0.005) & 0.000 (0.000) & 0.106\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash BabyLM-1.3B} & \multirow{-2}{*}{\raggedleft\arraybackslash 9021} & 1848 M & W & 0.080 (0.012) & 0.000 (0.000) & 0.080\\*
 \bottomrule
 
 
@@ -2729,77 +2922,89 @@ Model & Step & Tokens & Split & R² & Ctrl & ΔR²\\
 
 \endfoot
 \endlastfoot
- &  & 34 M & B & 0.563 (0.009) & 0.000 (0.000) & 0.562\\
+ &  & 0 M & B & 0.055 (0.004) & 0.000 (0.000) & 0.055\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.226 (0.033) & 0.000 (0.000) & 0.226\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.024 (0.009) & 0.000 (0.001) & 0.023\\
 \nopagebreak
- &  & 67 M & B & 0.577 (0.007) & 0.000 (0.000) & 0.577\\
+ &  & 34 M & B & 0.027 (0.003) & 0.000 (0.000) & 0.027\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.238 (0.026) & 0.000 (0.000) & 0.238\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.009 (0.004) & 0.001 (0.001) & 0.008\\
 \nopagebreak
- &  & 134 M & B & 0.565 (0.006) & 0.000 (0.000) & 0.565\\
+ &  & 67 M & B & 0.013 (0.003) & 0.000 (0.000) & 0.013\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.239 (0.033) & 0.000 (0.000) & 0.239\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.004 (0.002) & 0.001 (0.001) & 0.003\\
 \nopagebreak
- &  & 537 M & B & 0.615 (0.013) & 0.000 (0.000) & 0.615\\
+ &  & 134 M & B & 0.088 (0.008) & 0.000 (0.000) & 0.088\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.332 (0.034) & 0.000 (0.000) & 0.332\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.056 (0.018) & 0.000 (0.001) & 0.056\\
 \nopagebreak
- &  & 1074 M & B & 0.689 (0.004) & 0.000 (0.000) & 0.689\\
+ &  & 537 M & B & 0.172 (0.010) & 0.000 (0.000) & 0.172\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.527 (0.016) & 0.000 (0.000) & 0.527\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.123 (0.032) & 0.000 (0.000) & 0.123\\
 \nopagebreak
- &  & 2097 M & B & 0.667 (0.006) & 0.000 (0.000) & 0.667\\
+ &  & 1074 M & B & 0.188 (0.006) & 0.000 (0.000) & 0.188\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.562 (0.020) & 0.000 (0.001) & 0.561\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.133 (0.021) & 0.000 (0.000) & 0.132\\
+\nopagebreak
+ &  & 2097 M & B & 0.159 (0.004) & 0.000 (0.000) & 0.159\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-160M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.117 (0.024) & 0.000 (0.001) & 0.117\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 34 M & B & 0.576 (0.006) & 0.000 (0.000) & 0.576\\
+ &  & 0 M & B & 0.054 (0.005) & 0.000 (0.000) & 0.053\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.235 (0.021) & 0.000 (0.000) & 0.235\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.024 (0.009) & 0.000 (0.000) & 0.024\\
 \nopagebreak
- &  & 67 M & B & 0.574 (0.009) & 0.000 (0.000) & 0.574\\
+ &  & 34 M & B & 0.014 (0.002) & 0.000 (0.000) & 0.014\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.241 (0.030) & 0.000 (0.000) & 0.241\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.004 (0.003) & 0.001 (0.001) & 0.003\\
 \nopagebreak
- &  & 134 M & B & 0.577 (0.008) & 0.000 (0.000) & 0.577\\
+ &  & 67 M & B & 0.034 (0.004) & 0.000 (0.000) & 0.034\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.251 (0.027) & 0.000 (0.000) & 0.251\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.018 (0.011) & 0.000 (0.001) & 0.018\\
 \nopagebreak
- &  & 537 M & B & 0.589 (0.016) & 0.000 (0.000) & 0.589\\
+ &  & 134 M & B & 0.127 (0.007) & 0.000 (0.000) & 0.127\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.323 (0.026) & 0.000 (0.000) & 0.323\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.101 (0.016) & 0.000 (0.000) & 0.101\\
 \nopagebreak
- &  & 1074 M & B & 0.668 (0.012) & 0.000 (0.000) & 0.668\\
+ &  & 537 M & B & 0.134 (0.009) & 0.000 (0.000) & 0.134\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.482 (0.027) & 0.000 (0.000) & 0.482\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.102 (0.022) & 0.001 (0.001) & 0.101\\
 \nopagebreak
- &  & 2097 M & B & 0.697 (0.005) & 0.000 (0.000) & 0.697\\
+ &  & 1074 M & B & 0.199 (0.007) & 0.000 (0.000) & 0.199\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.602 (0.014) & 0.000 (0.000) & 0.601\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.151 (0.033) & 0.000 (0.001) & 0.151\\
+\nopagebreak
+ &  & 2097 M & B & 0.179 (0.007) & 0.000 (0.000) & 0.179\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-410M} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.137 (0.031) & 0.000 (0.000) & 0.137\\
 \cmidrule{1-7}\pagebreak[0]
- &  & 34 M & B & 0.602 (0.005) & 0.000 (0.000) & 0.602\\
+ &  & 0 M & B & 0.061 (0.005) & 0.000 (0.000) & 0.061\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.263 (0.030) & 0.000 (0.000) & 0.262\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 0} & 0 M & W & 0.018 (0.005) & 0.000 (0.000) & 0.018\\
 \nopagebreak
- &  & 67 M & B & 0.612 (0.006) & 0.000 (0.000) & 0.612\\
+ &  & 34 M & B & 0.016 (0.003) & 0.000 (0.000) & 0.016\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.268 (0.031) & 0.000 (0.000) & 0.268\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 16} & 34 M & W & 0.005 (0.003) & 0.000 (0.001) & 0.004\\
 \nopagebreak
- &  & 134 M & B & 0.595 (0.014) & 0.000 (0.000) & 0.595\\
+ &  & 67 M & B & 0.013 (0.002) & 0.000 (0.000) & 0.013\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.232 (0.039) & 0.000 (0.000) & 0.232\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 32} & 67 M & W & 0.004 (0.002) & 0.000 (0.000) & 0.003\\
 \nopagebreak
- &  & 537 M & B & 0.711 (0.014) & 0.000 (0.000) & 0.711\\
+ &  & 134 M & B & 0.075 (0.005) & 0.000 (0.000) & 0.075\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.473 (0.051) & 0.000 (0.000) & 0.473\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 64} & 134 M & W & 0.042 (0.015) & 0.001 (0.001) & 0.042\\
 \nopagebreak
- &  & 1074 M & B & 0.695 (0.007) & 0.000 (0.000) & 0.695\\
+ &  & 537 M & B & 0.205 (0.010) & 0.000 (0.000) & 0.205\\
 \nopagebreak
- & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.509 (0.029) & 0.000 (0.000) & 0.509\\
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 256} & 537 M & W & 0.137 (0.037) & 0.001 (0.001) & 0.137\\
 \nopagebreak
- &  & 2097 M & B & 0.723 (0.004) & 0.000 (0.000) & 0.723\\
+ &  & 1074 M & B & 0.211 (0.005) & 0.000 (0.000) & 0.211\\
 \nopagebreak
-\multirow{-12}{*}[2.5\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.619 (0.019) & 0.001 (0.000) & 0.618\\*
+ & \multirow{-2}{*}{\raggedleft\arraybackslash 512} & 1074 M & W & 0.147 (0.030) & 0.000 (0.000) & 0.147\\
+\nopagebreak
+ &  & 2097 M & B & 0.197 (0.005) & 0.000 (0.000) & 0.197\\
+\nopagebreak
+\multirow{-14}{*}[3\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pythia-1B} & \multirow{-2}{*}{\raggedleft\arraybackslash 1000} & 2097 M & W & 0.143 (0.024) & 0.001 (0.000) & 0.142\\*
 \bottomrule
 
 
@@ -2813,5 +3018,173 @@ word-held-out. SD in parentheses.}
 \endgroup{}
 
 \newpage
+
+\section{Tokenization Artifact at
+Initialization}\label{sec-appendix-tokenization}
+
+At step 0 the untrained Pythia models show a small but credible effect
+of relative frequency (Table~\ref{tbl-tokenization}). This appendix
+shows that the effect is an artifact of subword tokenization rather than
+any ordering preference in the untrained networks, and that removing it
+leaves the trained models unchanged.
+
+Where a binomial's left context ends in a quotation mark, parenthesis,
+or hyphen rather than whitespace, whichever word comes first loses its
+leading space, and byte-pair encoding segments many words differently
+without one. The two orderings then sum different numbers of span
+tokens. At initialization every token costs roughly the log of the
+vocabulary size, so a one-token difference is worth about 11 nats for
+Pythia, swamping a typical ordering preference of well under one. This
+affects 571 of the 27,835 corpus binomials (2.1\%): 53\% of those whose
+context ends in a quotation mark against 0.1\% of those ending in
+whitespace.
+
+We refit Equation~\ref{eq-relfreq} for the three Pythia models at step 0
+and at their final checkpoint, excluding those 571 items. Everything
+else is held fixed, and the scaling is recomputed on the retained rows.
+Table~\ref{tbl-tokenization} gives the relative-frequency coefficient
+before and after. At step 0 the effect is credible in all six cells as
+reported and in none of them once the items are dropped. At the final
+checkpoint the coefficient moves by at most 0.007, which is well inside
+its credible interval. The artifact dominates at step 0 only because
+there is no real signal competing with it: those 571 items carry roughly
+80\% of the variance in an untrained model's preferences and about 3\%
+in a trained one.
+
+\begingroup\fontsize{8}{10}\selectfont
+
+\begin{longtable}[t]{lllll}
+
+\toprule
+Checkpoint & Model & Condition & As reported & Excluded\\
+\midrule
+\endfirsthead
+\multicolumn{5}{@{}l}{\textit{(continued)}}\\
+\toprule
+Checkpoint & Model & Condition & As reported & Excluded\\
+\midrule
+\endhead
+
+\endfoot
+\endlastfoot
+ &  & Attention-zeroed & +0.123 [+0.078, +0.168] & -0.032 [-0.078, +0.012]\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} & Full context & +0.124 [+0.077, +0.171] & -0.027 [-0.072, +0.017]\\
+\nopagebreak
+ &  & Attention-zeroed & +0.119 [+0.073, +0.165] & -0.047 [-0.093, -0.002]\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} & Full context & +0.114 [+0.068, +0.159] & -0.052 [-0.097, -0.008]\\
+\nopagebreak
+ &  & Attention-zeroed & +0.153 [+0.107, +0.198] & +0.022 [-0.024, +0.067]\\
+\nopagebreak
+\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Step 0} & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & Full context & +0.146 [+0.101, +0.191] & +0.009 [-0.037, +0.054]\\
+\cmidrule{1-5}\pagebreak[0]
+ &  & Attention-zeroed & +0.964 [+0.920, +1.010] & +0.957 [+0.914, +1.000]\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-160M} & Full context & +1.676 [+1.634, +1.718] & +1.683 [+1.641, +1.725]\\
+\nopagebreak
+ &  & Attention-zeroed & +0.940 [+0.897, +0.983] & +0.936 [+0.894, +0.980]\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-410M} & Full context & +1.736 [+1.693, +1.777] & +1.734 [+1.691, +1.776]\\
+\nopagebreak
+ &  & Attention-zeroed & +0.923 [+0.879, +0.967] & +0.919 [+0.876, +0.962]\\
+\nopagebreak
+\multirow{-6}{*}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Final} & \multirow{-2}{*}{\raggedright\arraybackslash Pythia-1B} & Full context & +1.730 [+1.689, +1.773] & +1.725 [+1.681, +1.768]\\*
+\bottomrule
+
+
+\caption{\label{tbl-tokenization}Relative-frequency coefficient of
+Equation~\ref{eq-relfreq} for the Pythia models, as reported and with
+the 571 asymmetrically tokenized binomials excluded. Posterior mean with
+95\% credible interval. The step-0 effect disappears; the
+final-checkpoint effect is unchanged.}
+
+\tabularnewline
+\end{longtable}
+
+\endgroup{}
+
+\newpage
+
+\section{Source Timing by Model}\label{sec-appendix-timing}
+
+Per-model values behind the timing comparison in Experiment 3, for the
+full-context condition. Both criteria are defined over the checkpoint
+fits of Equation~\ref{eq-relfreq}, so the two sources are measured on
+the same scale: \emph{detectable} is the first checkpoint whose
+posterior sits credibly above that coefficient's own step-0 value and
+stays there, and \emph{three quarters} is the first checkpoint at which
+the coefficient has covered three quarters of its movement from step 0
+to its final value. Both are reported as cumulative training tokens. The
+checkpoint grid is coarse and log-spaced, so equal entries mean the
+ordering is unresolved at this spacing rather than simultaneous.
+Appendix \ref{sec-appendix-tokenization} covers why step 0 rather than
+zero is the baseline, and the Limitations section covers why the two
+sources are not on equal footing.
+
+\begingroup\fontsize{8}{10}\selectfont
+
+\begin{longtable}[t]{llll}
+
+\toprule
+Source & Model & Detectable & Three quarters\\
+\midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\textit{(continued)}}\\
+\toprule
+Source & Model & Detectable & Three quarters\\
+\midrule
+\endhead
+
+\endfoot
+\endlastfoot
+ & BabyLM-125M & 39 & 315\\
+\nopagebreak
+ & BabyLM-350M & 118 & 118\\
+\nopagebreak
+ & BabyLM-1.3B & 20 & 119\\
+\nopagebreak
+ & Pythia-160M & 134 & 537\\
+\nopagebreak
+ & Pythia-410M & 67 & 1074\\
+\nopagebreak
+\multirow{-6}{*}{\raggedright\arraybackslash Abstract preferences} & Pythia-1B & 134 & 537\\
+\cmidrule{1-4}\pagebreak[0]
+ & BabyLM-125M & 315 & 1868\\
+\nopagebreak
+ & BabyLM-350M & 118 & 1868\\
+\nopagebreak
+ & BabyLM-1.3B & 119 & 1848\\
+\nopagebreak
+ & Pythia-160M & 134 & 1074\\
+\nopagebreak
+ & Pythia-410M & 134 & 2097\\
+\nopagebreak
+\multirow{-6}{*}{\raggedright\arraybackslash Relative frequency} & Pythia-1B & 134 & 2097\\
+\cmidrule{1-4}\pagebreak[0]
+ & BabyLM-125M & 747 & 1868\\
+\nopagebreak
+ & BabyLM-350M & 315 & 1868\\
+\nopagebreak
+ & BabyLM-1.3B & 298 & 755\\
+\nopagebreak
+ & Pythia-160M & 1074 & 2097\\
+\nopagebreak
+ & Pythia-410M & 1074 & 2097\\
+\nopagebreak
+\multirow{-6}{*}{\raggedright\arraybackslash Rel. freq. $   imes$ frequency} & Pythia-1B & 537 & 2097\\*
+\bottomrule
+
+
+\caption{\label{tbl-timing}When each source of Equation~\ref{eq-relfreq}
+becomes measurable, in millions of cumulative training tokens, full
+context. Detectable = credibly above the same coefficient's step-0 value
+and staying there. Three quarters = first checkpoint covering three
+quarters of that coefficient's change from step 0 to final.}
+
+\tabularnewline
+\end{longtable}
+
+\endgroup{}
 
 \end{document}
