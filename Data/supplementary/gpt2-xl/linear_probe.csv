@@ -1,0 +1,5 @@
+condition,layer,mode,split,mean_r2,sd_r2,n_folds,alpha_median,alpha_min,alpha_max,alpha_at_grid_max
+default,48,mean_pooled,pair_novel,0.185587,0.009454,10,10000.0,10000.0,10000.0,0.0
+default,48,mean_pooled,word_novel,0.171517,0.047183,10,10000.0,10000.0,10000.0,0.0
+attn_zeroed,48,mean_pooled,pair_novel,0.100496,0.005404,10,100000.0,10000.0,100000.0,0.6
+attn_zeroed,48,mean_pooled,word_novel,0.091238,0.022814,10,55000.0,10000.0,100000.0,0.5
