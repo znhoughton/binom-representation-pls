@@ -373,6 +373,12 @@ For each binomial and each model, we also calculate that model's
 ordering preference for the binomial, which is operationalized as the
 model's own log-probability ratio:
 \(y_{\text{true}} = \log P(W_1\text{ and }W_2) - \log P(W_2\text{ and }W_1)\).
+Every binomial we probe occurs at least twice in Wikitext, and the two
+occurrences are used for different purposes: the probe's input
+representation is taken from one, and \(y_{\text{true}}\) is measured in
+the other. Measuring the preference in a sentence the probe never sees
+keeps it from recovering its own target (Appendix
+\ref{sec-appendix-extraction}).
 
 For the developmental analysis in Experiment 3, we probe seven
 checkpoints from the BabyLM and Pythia models, the first being the
