@@ -439,9 +439,9 @@ preference it would hold given only word-level information.
 
 \subsection{Probes}\label{probes}
 
-For each representation type, we train a two-layer MLP regressor (hidden
-dimension 128, ReLU activation) to predict binomial ordering preferences
-from the binomial representations. The probe takes the concatenated
+For each representation type, we train a two-layer MLP (hidden dimension
+128, ReLU activation) to predict binomial ordering preferences from the
+binomial representations. The probe takes the concatenated
 representations for a binomial and outputs a single continuous value
 \(\hat{y}\), trained under mean-squared-error loss against
 \(y_{\text{true}}\), with antisymmetric augmentation so that a swapped
@@ -475,14 +475,8 @@ conditions:
 
 Both splits are applied to the novel set; the attested set is not
 cross-validated, and is instead used to evaluate the effects of binomial
-frequency on the probe's predictions. Two senses of novelty are in play
-here, and they are nested. The novel set is novel with respect to the
-\emph{language model's} training corpus, in that the pairing does not
-occur there; the two splits then control what the \emph{probe} has seen
-within that set. An item in the word-held-out test set is thus new to
-the probe in both its pairing and its two words, while those same words
-are ordinary vocabulary that the language model encountered many times.
-We report fold standard deviations throughout
+frequency on the probe's predictions. We report full details of the
+cross-validation split sizes in the Appendix
 (Appendix~\ref{sec-appendix-cv}).
 
 Finally, following \citet{hewitt-liang-2019-designing}, we train a
@@ -493,9 +487,9 @@ overfitting to noise.
 \subsection{Analyses}\label{sec-methods-analyses}
 
 We report two measurements. The first is the probe's cross-validated
-\(R^2\) under the two splits described prevously, of which word-held-out
-is the stricter (since binomial-held-out \(R^2\) may be inflated by
-general lexical preferences).
+\(R^2\) under the two splits described previously, of which
+word-held-out is the stricter (since binomial-held-out \(R^2\) may be
+inflated by general lexical preferences).
 
 The second measurement evaluates the probe on the attested set. Since
 the probe has seen only binomials the model has not encountered (or
@@ -587,11 +581,11 @@ Contributions}\label{abstract-and-stored-contributions}
 
 Results are shown in Figure~\ref{fig-relfreq-babylm}. Both abstract
 preferences and relative corpus frequency predict the model's ordering
-preference, and both do so credibly in all three models
-(Appendix~\ref{sec-appendix-relfreq}). The effect of relative frequency
-is stronger for high-frequency binomials, while the effect of abstract
-preferences is largely flat across frequencies, declining credibly only
-in the 350M.
+preference, and both do so credibly in all three models (Full results
+can be found in Appendix~\ref{sec-appendix-relfreq}). The effect of
+relative frequency is stronger for high-frequency binomials, while the
+effect of abstract preferences is largely flat across frequencies,
+declining credibly only in the 350M.
 
 Zeroing out attention reduces both the effects of abstract preferences
 and relative frequency for the BabyLMs, and makes the interaction
@@ -636,14 +630,14 @@ models; full numbers, control probes, and the word-level replication are
 in Appendix \ref{sec-appendix-exp2}. Control R² was near zero
 throughout, never exceeding 0.001. All large-scale models substantially
 outperform BabyLM: full-context binomial-held-out R² spans 0.16 to 0.21
-against 0.07--0.13, and word-held-out R² is lower than binomial-held-out
-in every one of the 32 model-by-condition cells. Attention-zeroing
-lowers binomial-held-out R² in all 16 models, by between 0.03 and 0.10,
-with the largest reductions in the 7B and 8B models and in Pythia-1B,
-and the smallest in the BabyLMs. Scale effects within families differ in
-direction rather than being uniformly non-monotonic: R² rises with
-parameters in Pythia (0.16 to 0.20) and OLMo (0.19 to 0.21), is flat
-across GPT-2 (0.18 at every size), and falls in BabyLM (0.13 to 0.07).
+against 0.07 to 0.13, and word-held-out R² is consistently lower than
+binomial-held-out. Attention-zeroing lowers binomial-held-out R² in all
+16 models, by between 0.03 and 0.10, with the largest reductions in the
+7B and 8B models and in Pythia-1B, and the smallest in the BabyLMs.
+Scale effects within families differ in direction rather than being
+uniformly non-monotonic: R² rises with parameters in Pythia (0.16 to
+0.20) and OLMo (0.19 to 0.21), is flat across GPT-2 (0.18 at every
+size), and falls in BabyLM (0.13 to 0.07).
 
 \begin{figure*}[t]
 
@@ -689,11 +683,8 @@ differs between the BabyLMs and most of the other models. For the
 BabyLMs, zeroing out attention weakens the effect of both abstract
 preferences and relative frequency; for most of the large-scale models,
 it weakens the effect of relative frequency but \emph{strengthens} the
-effect of abstract preferences. The reduction in the effect of relative
-frequency, by contrast, is of a similar size in the two groups, ranging
-from 33\% to 42\% in the BabyLMs against 30\% to 47\% in the others. We
-return to possible explanations for this contrast in the Discussion and
-Conclusion section.
+effect of abstract preferences. We return to possible explanations for
+this contrast in the Discussion and Conclusion section.
 
 \begin{figure}[t]
 
@@ -714,11 +705,11 @@ intervals, bold lines the mean within each family.}
 
 \section{Experiment 3: Developmental Trajectories}\label{sec-exp3}
 
-Experiments 1 and 2 establish that language models encode binomial
-preferences at the end of training, but leave open when those
-representations emerge, and whether the trade-off between abstract
-preferences and holistic storage is present early or accumulates with
-exposure.
+Experiments 1 and 2 establish that language models learn abstract
+ordering preferences for binomials, but does not answer the question of
+\emph{when} those preferences emerge during learning, or how model
+training and model parameters affect the learning of those preferences.
+We turn to these questions in Experiment 3.
 
 The probe, inputs, attention conditions, and cross-validation splits are
 as described previously. We refit Equation~\ref{eq-relfreq} at each
@@ -732,11 +723,11 @@ sources' contributions in Figure~\ref{fig-ckpt-sources}. Full numerical
 and word-level results are in Appendix~\ref{sec-appendix-exp3}.
 Binomial-held-out R² begins at essentially zero in every model and rises
 with training. For the BabyLMs it is 0.00 at the earliest checkpoint
-(\textasciitilde20M tokens), climbs to 0.13--0.14 by mid-training, and
-stands at 0.10--0.14 at the end. Pythia follows the same course, rising
-from 0.00--0.01 at 33.6M tokens to 0.15--0.19 at 2097M tokens. Full
-context exceeds attention-zeroing at the final checkpoint in all three
-BabyLMs, while in Pythia the two conditions end close together.
+(\textasciitilde20M tokens), climbs to 0.13--0.14 by mid-training and
+stays at around that value. Pythia follows the same course, rising from
+0.00--0.01 at 33.6M tokens to 0.15--0.19 at 2097M tokens. Full context
+exceeds attention-zeroing at the final checkpoint in all three BabyLMs,
+while in Pythia the two conditions end close together.
 
 The effect of relative frequency is small across the first three
 checkpoints of every model, never exceeding 0.29 (compared to a maximum
@@ -750,24 +741,17 @@ from zero in the three BabyLM models, but credibly positive in the three
 Pythia models (0.11--0.15); this Pythia floor is an artifact of subword
 tokenization rather than any ordering preference in the untrained
 networks.\footnote{This is a tokenization artifact: for some binomials
-  the two orderings segment into different numbers of tokens, and at
-  initialization each token costs roughly the log of the vocabulary
-  size, so the difference between them is large for reasons that have
-  nothing to do with ordering preferences. Where the preceding context
-  ends in a quotation mark rather than a space, for instance, the first
-  word loses its leading space, and \emph{``bread and butter''} is three
-  tokens (\texttt{bread}, \texttt{and}, \texttt{butter}) while
-  \emph{``butter and bread''} is four (\texttt{but}, \texttt{ter},
-  \texttt{and}, \texttt{bread}). Roughly 2\% of items are affected.
-  Excluding them eliminates the effect of relative frequency at the step
-  0 checkpoint but leaves it unchanged in the fully trained models;
-  Appendix \ref{sec-appendix-tokenization} gives the full comparison.}
+  the two orderings segment into different numbers of tokens. Roughly
+  2\% of items are affected. Excluding them eliminates the effect of
+  relative frequency at the step 0 checkpoint but leaves it unchanged in
+  the fully trained models; Appendix \ref{sec-appendix-tokenization}
+  gives the full comparison.}
 
 At the fourth checkpoint, the first at which relative frequency is
 credibly positive in every model, attention-zeroing removes none of the
 effect. In other words, at the point where storage is first measurable,
 it survives an intervention that removes the phrasal representation, so
-what has shifted at that point is the lexical representations. The
+what has been stored at that point is the lexical representations. The
 phrasal representations shift afterwards. This is demonstrated from the
 amount of the relative-frequency effect that is removed from zeroing out
 cross attention. After the fourth checkpoint, the amount that the the
@@ -786,42 +770,14 @@ BabyLM models and 0.310, 0.326 and 0.327 in the three Pythia models,
 with most cells reaching their maximum a checkpoint or two before the
 end. A small effect is nonetheless present at step 0 under full context,
 before the models have seen any data, though not under
-attention-zeroing.\footnote{Novel binomials are novel as pairings, not
-  as words: 97\% of attested binomials have both of their words
-  somewhere in the probe's training set. A randomly initialized network
-  already assigns each word an arbitrary but consistent bias, so the
-  probe can learn those biases and carry them over to attested pairs
-  built from the same words, and the effect scales with that overlap,
-  from \(+0.12\) where the probe had seen both words to a non-credible
-  estimate where it had seen neither. It accounts for roughly 1\% of the
-  variance at step 0 against 17\% in the trained model.} Its interaction
-with overall frequency is credibly negative under attention-zeroing in
-17 of the 36 model-checkpoint fits (six checkpoints for each of the six
-models).
-
-Both sources are coefficients in the same regression, fit to the same
-items, so we can ask when each becomes measurable on a single scale. We
-use two criteria. The first is detectability: the earliest checkpoint
-whose posterior sits credibly above the same coefficient's value at step
-0, in the same model and condition, and stays there. Taking step 0
-rather than zero as the baseline keeps an untrained network from
-registering, which matters here because both coefficients are already
-non-zero before training for reasons that have nothing to do with
-learning. The second is trajectory: the earliest checkpoint at which a
-coefficient has covered three quarters of its own change from step 0 to
-its final value. The two fail in opposite directions, the first favoring
-whichever measure is more sensitive and the second ignoring sensitivity
-altogether.
-
-Abstract preferences come first on both counts. They are detectable from
-20 to 134M tokens against 118 to 315M for relative frequency, and cover
-three quarters of their change by 118 to 1074M against 1074 to 2097M.
-The interaction between relative frequency and overall frequency is last
-on both, detectable from 298 to 1074M tokens. Per-model values are in
-Appendix \ref{sec-appendix-timing}. We read this as soft evidence about
-ordering rather than as an estimate of when either source becomes
-available; the two measures are not on equal footing, for reasons we
-return to in the Limitations.
+attention-zeroing.\footnote{A randomly initialized network already
+  assigns each word an arbitrary but consistent bias, so the probe can
+  learn those biases and carry them over to attested pairs built from
+  the same words, and the effect scales with that overlap, from
+  \(+0.12\) where the probe had seen both words to a non-credible
+  estimate where it had seen neither.} Its interaction with overall
+frequency is credibly negative under attention-zeroing in 17 of the 36
+model-checkpoint fits (six checkpoints for each of the six models).
 
 \begin{figure}[t]
 
@@ -910,15 +866,14 @@ between abstract preferences and item-specific experience observed by
 Abstract preferences come first. Probe R² begins at essentially zero and
 rises over training, and in Equation~\ref{eq-relfreq} the abstract
 component becomes measurable earlier than the item-specific one in every
-model, on both of the criteria we apply to them. The item-specific
-contribution follows a different trajectory: it is negligible through
-the first three checkpoints of every model, becomes credibly positive
-everywhere from the fourth, and then climbs monotonically under full
-context without leveling off. This is not conclusive evidence against
-item-specific knowledge being learned early, however, since the
-measurement relies on a frequency-difference in representations to
-detect holistic storage. The absence of a frequency difference,
-consequently, does not necessarily indicate lack of storage.
+model. The item-specific contribution follows a different trajectory: it
+is negligible through the first three checkpoints of every model,
+becomes credibly positive everywhere from the fourth, and then climbs
+monotonically under full context without leveling off. This is not
+conclusive evidence against item-specific knowledge being learned early,
+however, since the measurement relies on a frequency-difference in
+representations to detect holistic storage. The absence of a frequency
+difference, consequently, does not necessarily indicate lack of storage.
 
 Finally, the attention intervention provides further insight into how
 this item-specific information is represented. Zeroing out cross-word
@@ -968,10 +923,11 @@ BabyLM and Pythia; for GPT-2, OLMo, and Llama, Pile counts stand in as a
 proxy for web-scale exposure.
 
 The two sources in Equation~\ref{eq-relfreq} are also not measured on
-equal footing, which is why we treat the ordering in Experiment 3 as
-soft evidence. \(\hat{y}\) is a fitted readout of the model at that
-checkpoint, so it tracks whatever the model currently encodes. Relative
-frequency is a fixed corpus statistic measured with error, and
+equal footing, which is why we treat the ordering between them as soft
+evidence; per-model timings are given in Appendix
+\ref{sec-appendix-timing}. \(\hat{y}\) is a fitted readout of the model
+at that checkpoint, so it tracks whatever the model currently encodes.
+Relative frequency is a fixed corpus statistic measured with error, and
 measurement error in a predictor pulls its coefficient toward zero. It
 is also computed over the whole training corpus rather than over what
 the model has seen by that checkpoint, so early on it describes text the
